@@ -5,3 +5,20 @@
 # export RUSTFLAGS by hand.
 [target.'cfg(target_os = "macos")']
 rustflags = ["-L", "/opt/homebrew/opt/libiconv/lib"]
+
+# This dev machine has a Nix profile ahead of /usr/bin on PATH, and its
+# `cc`/`c++` resolve to a GCC wrapper rather than Apple clang. GCC can't
+# compile whisper.cpp's Objective-C Metal backend (`@available`,
+# `@autoreleasepool` are clang extensions), so C/C++ build scripts (cc-rs,
+# cmake-rs) need to be pointed at the real Apple clang explicitly.
+[env]
+CC = "/usr/bin/clang"
+CXX = "/usr/bin/clang++"
+
+# rustc's own final-link step also shells out to a linker named "cc", which
+# resolves to the same Nix GCC wrapper via PATH. That gcc doesn't know how to
+# find Apple's libc++ (needed once whisper-rs links C++ code), so pin rustc's
+# linker to Apple clang too. `linker` is only settable per literal target
+# triple (not a cfg() table), hence this is scoped to the arm64 Mac triple.
+[target.aarch64-apple-darwin]
+linker = "/usr/bin/clang"

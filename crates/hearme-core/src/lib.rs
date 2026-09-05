@@ -4,6 +4,7 @@ pub mod audio;
 pub mod config;
 pub mod hotkey;
 pub mod pipeline;
+pub mod stt;
 
 #[cfg(test)]
 mod smoke {
