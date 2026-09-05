@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use hearme_core::audio::CpalCapture;
 use hearme_core::config::{self, models, Config};
 use hearme_core::history::History;
@@ -7,12 +7,27 @@ use hearme_core::hotkey::Output;
 use hearme_core::inject::{Injector, PasteInjector, TypeInjector};
 use hearme_core::pipeline::session::{Command, Deps, Event, Session, SessionState};
 use hearme_core::stt::whisper::WhisperEngine;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
+/// How long the overlay stays visible (showing the last error) after an
+/// `Event::Error` before an `Idle` transition is allowed to hide it. Without
+/// this, a mid-session error (e.g. a failed polish command) flashes for
+/// milliseconds since `Error` is immediately followed by further state
+/// transitions down to `Idle`, which used to hide the overlay synchronously.
+const ERROR_GRACE: Duration = Duration::from_secs(2);
+
 pub fn start(app: AppHandle) -> Result<()> {
-    let cfg = Config::load().context("loading config")?;
+    // A hand-edited config.toml (the README encourages this, e.g. for the
+    // polish command) can have a syntax error. Falling back to defaults
+    // instead of aborting keeps the app launchable — a broken config would
+    // otherwise mean no tray icon, no dialog, nothing.
+    let cfg = Config::load().unwrap_or_else(|e| {
+        eprintln!("hearme: config error, using defaults: {e}");
+        Config::default()
+    });
     let (cmd_tx, cmd_rx) = mpsc::channel::<Command>();
     let (evt_tx, evt_rx) = mpsc::channel::<Event>();
     // Set to true only once the worker thread has finished loading the model
@@ -101,11 +116,17 @@ pub fn start(app: AppHandle) -> Result<()> {
     }
 
     // Event pump: session events → UI events + tray icon + overlay visibility.
+    // `last_error_at` and `epoch` are local to this loop (pump is only ever
+    // driven sequentially from here), but the delayed-hide timer they enable
+    // needs to outlive a single pump() call, so `epoch` is a shared counter
+    // rather than a plain local.
     {
         let app = app.clone();
         std::thread::spawn(move || {
+            let mut last_error_at: Option<Instant> = None;
+            let epoch = Arc::new(AtomicU64::new(0));
             for ev in evt_rx {
-                pump(&app, ev);
+                pump(&app, ev, &mut last_error_at, &epoch);
             }
         });
     }
@@ -113,28 +134,49 @@ pub fn start(app: AppHandle) -> Result<()> {
     Ok(())
 }
 
-fn pump(app: &AppHandle, ev: Event) {
+fn state_name(s: SessionState) -> &'static str {
+    match s {
+        SessionState::Idle => "idle",
+        SessionState::Recording => "recording",
+        SessionState::Transcribing => "transcribing",
+        SessionState::Polishing => "polishing",
+        SessionState::Injecting => "injecting",
+    }
+}
+
+fn pump(app: &AppHandle, ev: Event, last_error_at: &mut Option<Instant>, epoch: &Arc<AtomicU64>) {
     match ev {
         Event::State(s) => {
-            let name = match s {
-                SessionState::Idle => "idle",
-                SessionState::Recording => "recording",
-                SessionState::Transcribing => "transcribing",
-                SessionState::Polishing => "polishing",
-                SessionState::Injecting => "injecting",
-            };
-            let _ = app.emit("state", name);
-            set_tray(app, name);
-            if let Some(w) = app.get_webview_window("overlay") {
-                match s {
-                    SessionState::Recording => {
+            // Bump first: any timer scheduled by a *previous* Idle event
+            // that fires before this new state was known about must see
+            // its captured epoch as stale and bail out.
+            epoch.fetch_add(1, Ordering::SeqCst);
+            set_tray(app, &s);
+
+            if s == SessionState::Idle {
+                let remaining =
+                    (*last_error_at).and_then(|t| ERROR_GRACE.checked_sub(t.elapsed()));
+                match remaining {
+                    Some(delay) => defer_idle(app.clone(), delay, epoch.clone()),
+                    None => {
+                        let _ = app.emit("state", "idle");
+                        if let Some(w) = app.get_webview_window("overlay") {
+                            let _ = w.hide();
+                        }
+                    }
+                }
+            } else {
+                let _ = app.emit("state", state_name(s));
+                if s == SessionState::Recording {
+                    // A fresh dictation starting means any earlier error's
+                    // grace period is no longer relevant — don't let it
+                    // delay hiding the overlay for *this* (possibly clean)
+                    // recording once it finishes.
+                    *last_error_at = None;
+                    if let Some(w) = app.get_webview_window("overlay") {
                         let _ = position_overlay(&w);
                         let _ = w.show();
                     }
-                    SessionState::Idle => {
-                        let _ = w.hide();
-                    }
-                    _ => {}
                 }
             }
         }
@@ -145,17 +187,37 @@ fn pump(app: &AppHandle, ev: Event) {
             let _ = app.emit("transcribed", text);
         }
         Event::Error(msg) => {
+            *last_error_at = Some(Instant::now());
             eprintln!("hearme error: {msg}");
             let _ = app.emit("app-error", msg);
         }
     }
 }
 
-fn set_tray(app: &AppHandle, state: &str) {
+/// Hides the overlay (and tells it we're idle) after `delay`, unless a newer
+/// state event has since bumped `epoch` past the value captured here — e.g.
+/// a new `Recording` started before the error's grace period elapsed.
+fn defer_idle(app: AppHandle, delay: Duration, epoch: Arc<AtomicU64>) {
+    let at_epoch = epoch.load(Ordering::SeqCst);
+    std::thread::spawn(move || {
+        std::thread::sleep(delay);
+        if epoch.load(Ordering::SeqCst) != at_epoch {
+            return;
+        }
+        let _ = app.emit("state", "idle");
+        if let Some(w) = app.get_webview_window("overlay") {
+            let _ = w.hide();
+        }
+    });
+}
+
+fn set_tray(app: &AppHandle, state: &SessionState) {
     let bytes: &[u8] = match state {
-        "recording" => include_bytes!("../icons/tray-rec.png"),
-        "idle" => include_bytes!("../icons/tray-idle.png"),
-        _ => include_bytes!("../icons/tray-busy.png"),
+        SessionState::Recording => include_bytes!("../icons/tray-rec.png"),
+        SessionState::Idle => include_bytes!("../icons/tray-idle.png"),
+        SessionState::Transcribing | SessionState::Polishing | SessionState::Injecting => {
+            include_bytes!("../icons/tray-busy.png")
+        }
     };
     if let Some(h) = app.try_state::<crate::TrayHandle>() {
         if let Ok(img) = tauri::image::Image::from_bytes(bytes) {

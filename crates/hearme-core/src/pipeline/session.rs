@@ -375,6 +375,20 @@ mod tests {
     }
 
     #[test]
+    fn cleaned_to_empty_is_dropped_silently() {
+        // "um" is entirely stripped by the default English filler list, so
+        // the post-cleanup transcript is empty. This should drop silently
+        // (no injection, no Done, no Error) just like a too-short utterance
+        // — and it's the same shape of outcome macOS produces when mic
+        // permission is silently denied (silence in, empty-after-cleanup out).
+        let mut r = rig("um", Some("en"), (false, false, false));
+        r.session.start(Mode::Dictate);
+        r.session.finish();
+        assert!(r.injected.borrow().is_empty());
+        assert_eq!(states(&r.rx), ["Recording", "Transcribing", "Idle"]);
+    }
+
+    #[test]
     fn cancel_discards_without_transcribing() {
         let mut r = rig("x", None, (false, false, false));
         r.session.start(Mode::Dictate);

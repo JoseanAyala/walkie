@@ -1,5 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"><title>hearme</title><style>
-  body { font: 14px -apple-system, sans-serif; margin: 0; display: flex; height: 100vh; color: #1b1b1f }
+  body { font: 14px -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column;
+         height: 100vh; color: #1b1b1f }
+  .row { display: flex; flex: 1; min-height: 0 }
   nav { width: 140px; background: #f4f4f5; border-right: 1px solid #ddd; padding: 12px 0; flex: none }
   nav button { display: block; width: 100%; padding: 8px 16px; border: 0; background: none;
                text-align: left; cursor: pointer; font: inherit }
@@ -15,7 +17,16 @@
   #modelStatus { font-size: 12px; color: #666; margin-top: 4px }
   #save { position: fixed; bottom: 16px; right: 16px; padding: 10px 18px; border-radius: 8px;
           border: 0; background: #2563eb; color: #fff; cursor: pointer; font: inherit }
+  #errorBanner { display: none; align-items: center; gap: 10px; padding: 8px 16px;
+                 background: #fee2e2; color: #991b1b; border-bottom: 1px solid #fca5a5;
+                 font-size: 12px }
+  #errorBanner.on { display: flex }
+  #errorBanner span { flex: 1 }
+  #errorBanner button { border: 0; background: none; cursor: pointer; font: inherit;
+                        color: inherit; padding: 0 4px }
 </style></head><body>
+<div id="errorBanner"><span id="errorBannerText"></span><button id="errorBannerDismiss">✕</button></div>
+<div class="row">
 <nav>
   <button data-t="general" class="on">General</button>
   <button data-t="cleanup">Cleanup</button>
@@ -45,7 +56,7 @@
       <option value="paste">Paste (recommended)</option>
       <option value="type">Type keystrokes</option>
     </select>
-    <p class="hint">Hotkey and model changes take effect after restarting hearme.</p>
+    <p class="hint">All settings changes take effect after restarting hearme.</p>
   </section>
   <section id="cleanup">
     <label><input type="checkbox" id="cleanup_enabled"> Enable cleanup</label>
@@ -66,6 +77,7 @@
     <table id="rows"></table>
   </section>
 </main>
+</div>
 <button id="save">Save</button>
 <script>
   const inv = window.__TAURI__.core.invoke;
@@ -129,5 +141,14 @@
 
   listen('model-status', e => $('modelStatus').textContent = 'model: ' + e.payload);
   listen('download-progress', e => $('modelStatus').textContent = `model: downloading ${e.payload}%`);
+  // Errors are otherwise only shown on the overlay pill, which most of the
+  // time isn't visible (e.g. the hotkey listener's "still loading the
+  // speech model" warning when no recording ever started). Surface them
+  // here too so they aren't silently missed.
+  listen('app-error', e => {
+    $('errorBannerText').textContent = e.payload;
+    $('errorBanner').classList.add('on');
+  });
+  $('errorBannerDismiss').onclick = () => $('errorBanner').classList.remove('on');
   load();
 </script></body></html>

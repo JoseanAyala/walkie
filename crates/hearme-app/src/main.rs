@@ -20,6 +20,17 @@ fn main() {
             commands::open_settings_pane,
             commands::finish_onboarding,
         ])
+        .on_window_event(|window, event| {
+            // The settings/overlay/onboarding windows are declared once in
+            // tauri.conf.json and never re-created. Tauri's default behavior
+            // for a close request is to destroy the window, which would make
+            // it permanently unavailable (e.g. tray → "Settings…" silently
+            // doing nothing). Hide instead so it can be shown again later.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
