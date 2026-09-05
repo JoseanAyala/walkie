@@ -5,12 +5,21 @@ use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 
+mod commands;
 mod glue;
 
 pub struct TrayHandle(pub Mutex<tauri::tray::TrayIcon>);
 
 fn main() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            commands::get_config,
+            commands::save_config,
+            commands::history_recent,
+            commands::history_search,
+            commands::open_settings_pane,
+            commands::finish_onboarding,
+        ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);

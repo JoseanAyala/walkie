@@ -1,1 +1,133 @@
-<!doctype html><html><body><p>hearme placeholder</p></body></html>
+<!doctype html><html><head><meta charset="utf-8"><title>hearme</title><style>
+  body { font: 14px -apple-system, sans-serif; margin: 0; display: flex; height: 100vh; color: #1b1b1f }
+  nav { width: 140px; background: #f4f4f5; border-right: 1px solid #ddd; padding: 12px 0; flex: none }
+  nav button { display: block; width: 100%; padding: 8px 16px; border: 0; background: none;
+               text-align: left; cursor: pointer; font: inherit }
+  nav button.on { background: #e2e8f0; font-weight: 600 }
+  main { flex: 1; padding: 20px 24px 70px; overflow: auto }
+  section { display: none } section.on { display: block }
+  label { display: block; margin: 12px 0 4px; font-weight: 600 }
+  input[type=text], select { width: 100%; max-width: 440px; padding: 6px 8px;
+    border: 1px solid #ccc; border-radius: 6px; font: inherit; box-sizing: border-box }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 10px }
+  td, th { border-bottom: 1px solid #eee; padding: 6px; text-align: left; vertical-align: top }
+  .hint { color: #666; font-size: 12px; margin-top: 6px }
+  #modelStatus { font-size: 12px; color: #666; margin-top: 4px }
+  #save { position: fixed; bottom: 16px; right: 16px; padding: 10px 18px; border-radius: 8px;
+          border: 0; background: #2563eb; color: #fff; cursor: pointer; font: inherit }
+</style></head><body>
+<nav>
+  <button data-t="general" class="on">General</button>
+  <button data-t="cleanup">Cleanup</button>
+  <button data-t="polish">Polish</button>
+  <button data-t="history">History</button>
+</nav>
+<main>
+  <section id="general" class="on">
+    <label>Language</label>
+    <select id="language">
+      <option value="auto">Auto-detect (en/es)</option>
+      <option value="en">English</option>
+      <option value="es">Español</option>
+    </select>
+    <label>Model</label>
+    <select id="model"><option>large-v3-turbo-q5_0</option><option>base</option></select>
+    <div id="modelStatus">model: …</div>
+    <label>Dictation key (hold to talk, double-tap to lock)</label>
+    <select id="dictate">
+      <option>RightAlt</option><option>LeftAlt</option><option>RightCmd</option>
+      <option>RightCtrl</option><option>CapsLock</option>
+    </select>
+    <label>Polish modifier (held with the dictation key)</label>
+    <select id="polish_modifier"><option>Shift</option><option>None</option></select>
+    <label>Injection</label>
+    <select id="strategy">
+      <option value="paste">Paste (recommended)</option>
+      <option value="type">Type keystrokes</option>
+    </select>
+    <p class="hint">Hotkey and model changes take effect after restarting hearme.</p>
+  </section>
+  <section id="cleanup">
+    <label><input type="checkbox" id="cleanup_enabled"> Enable cleanup</label>
+    <label>English fillers (comma-separated)</label><input type="text" id="fillers_en">
+    <label>Spanish fillers</label><input type="text" id="fillers_es">
+  </section>
+  <section id="polish">
+    <label>Polish command (transcript on stdin, result on stdout)</label>
+    <input type="text" id="polish_command"
+      placeholder='claude -p "Clean up this dictated text. Output only the cleaned text."'>
+    <label>Timeout (seconds)</label><input type="text" id="timeout_secs">
+    <p class="hint">Examples: claude -p "…" · codex exec "…" · ollama run llama3.2 "…"</p>
+  </section>
+  <section id="history">
+    <label><input type="checkbox" id="history_enabled"> Keep local history</label>
+    <input type="text" id="q" placeholder="search…" style="max-width:300px">
+    <button id="qbtn">Search</button>
+    <table id="rows"></table>
+  </section>
+</main>
+<button id="save">Save</button>
+<script>
+  const inv = window.__TAURI__.core.invoke;
+  const { listen } = window.__TAURI__.event;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  let cfg;
+
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('nav button, main section').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    $(b.dataset.t).classList.add('on');
+    if (b.dataset.t === 'history') loadHistory();
+  });
+
+  async function load() {
+    cfg = await inv('get_config');
+    $('language').value = cfg.language;
+    $('model').value = cfg.model;
+    $('dictate').value = cfg.hotkeys.dictate;
+    $('polish_modifier').value = cfg.hotkeys.polish_modifier;
+    $('strategy').value = cfg.inject.strategy;
+    $('cleanup_enabled').checked = cfg.cleanup.enabled;
+    $('fillers_en').value = cfg.cleanup.fillers_en.join(', ');
+    $('fillers_es').value = cfg.cleanup.fillers_es.join(', ');
+    $('polish_command').value = cfg.polish.command;
+    $('timeout_secs').value = cfg.polish.timeout_secs;
+    $('history_enabled').checked = cfg.history.enabled;
+  }
+
+  $('save').onclick = async () => {
+    cfg.language = $('language').value;
+    cfg.model = $('model').value;
+    cfg.hotkeys.dictate = $('dictate').value;
+    cfg.hotkeys.polish_modifier = $('polish_modifier').value;
+    cfg.inject.strategy = $('strategy').value;
+    cfg.cleanup.enabled = $('cleanup_enabled').checked;
+    cfg.cleanup.fillers_en = $('fillers_en').value.split(',').map(s => s.trim()).filter(Boolean);
+    cfg.cleanup.fillers_es = $('fillers_es').value.split(',').map(s => s.trim()).filter(Boolean);
+    cfg.polish.command = $('polish_command').value;
+    cfg.polish.timeout_secs = parseInt($('timeout_secs').value) || 60;
+    cfg.history.enabled = $('history_enabled').checked;
+    await inv('save_config', { cfg });
+    $('save').textContent = 'Saved ✓';
+    setTimeout(() => $('save').textContent = 'Save', 1200);
+  };
+
+  async function loadHistory(q) {
+    const rows = q ? await inv('history_search', { q, limit: 100 })
+                   : await inv('history_recent', { limit: 50 });
+    const t = $('rows');
+    t.innerHTML = '<tr><th>When</th><th>Text</th><th>Lang</th><th>Len</th></tr>';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(r.created_at)}</td><td>${esc(r.polished || r.cleaned)}</td>` +
+                     `<td>${esc(r.lang || '')}</td><td>${(r.duration_ms / 1000).toFixed(1)}s</td>`;
+      t.appendChild(tr);
+    });
+  }
+  $('qbtn').onclick = () => loadHistory($('q').value || undefined);
+
+  listen('model-status', e => $('modelStatus').textContent = 'model: ' + e.payload);
+  listen('download-progress', e => $('modelStatus').textContent = `model: downloading ${e.payload}%`);
+  load();
+</script></body></html>
