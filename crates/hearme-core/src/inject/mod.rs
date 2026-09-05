@@ -49,10 +49,13 @@ impl Injector for TypeInjector {
             Ok(())
         };
         if let Err(e) = type_it() {
-            if let Ok(mut cb) = arboard::Clipboard::new() {
-                let _ = cb.set_text(text.to_string());
+            let saved_to_clipboard = arboard::Clipboard::new()
+                .and_then(|mut cb| cb.set_text(text.to_string()))
+                .is_ok();
+            if saved_to_clipboard {
+                anyhow::bail!("typing blocked ({e}); text left on clipboard — press ⌘V manually");
             }
-            anyhow::bail!("typing blocked ({e}); text left on clipboard — press ⌘V manually");
+            anyhow::bail!("typing blocked ({e}) and clipboard fallback also failed; text lost: {text}");
         }
         Ok(())
     }
