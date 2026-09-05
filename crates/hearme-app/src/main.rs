@@ -45,6 +45,15 @@ fn main() {
                 .build(app)?;
             app.manage(TrayHandle(Mutex::new(tray)));
             glue::start(app.handle().clone())?;
+            if hearme_core::config::Config::load()
+                .map(|c| c.first_run)
+                .unwrap_or(true)
+            {
+                if let Some(w) = app.get_webview_window("onboarding") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
