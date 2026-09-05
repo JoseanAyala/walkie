@@ -1,0 +1,9 @@
+//! hearme-core: all dictation logic. No UI imports allowed in this crate.
+
+#[cfg(test)]
+mod smoke {
+    #[test]
+    fn workspace_builds() {
+        assert_eq!(2 + 2, 4);
+    }
+}
