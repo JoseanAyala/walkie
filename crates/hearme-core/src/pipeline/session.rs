@@ -349,6 +349,9 @@ mod tests {
         r.session.start(Mode::Dictate);
         r.session.finish();
         assert!(states(&r.rx).contains(&"Error".to_string()));
+        let rows = r.session.deps.history.as_ref().unwrap().recent(10).unwrap();
+        assert_eq!(rows.len(), 1, "transcript should be recorded even though injection failed");
+        assert_eq!(rows[0].cleaned, "Hello");
     }
 
     #[test]
