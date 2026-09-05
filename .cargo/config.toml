@@ -1,3 +1,11 @@
+# TODO: this file exists mostly because of one root cause — this machine's
+# Nix profile sits ahead of /usr/bin and Homebrew on PATH, so `cc`/`c++`
+# resolve to a Nix GCC wrapper instead of Apple clang. Fix the PATH ordering
+# (put /usr/bin and /opt/homebrew/bin ahead of ~/.nix-profile/bin, or keep
+# Nix's C toolchain out of the default profile) and most of the pins below
+# become unnecessary. Left as-is for now since they're harmless on machines
+# without this conflict.
+
 # Xcode Command Line Tools on this class of macOS setup doesn't expose
 # libiconv on the default linker search path, which breaks any crate graph
 # that pulls in a transitive dependency needing it (e.g. tempfile -> rustix).
