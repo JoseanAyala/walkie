@@ -1,6 +1,7 @@
 //! hearme-core: all dictation logic. No UI imports allowed in this crate.
 
 pub mod config;
+pub mod pipeline;
 
 #[cfg(test)]
 mod smoke {
