@@ -22,6 +22,11 @@ cd crates/hearme-app && cargo tauri dev        # dev
 cargo tauri build                              # bundles hearme.app
 ```
 
+`bundle.macOS.minimumSystemVersion` in `tauri.conf.json` is pinned to `10.15`
+— don't lower it. `cargo tauri build` propagates it into
+`MACOSX_DEPLOYMENT_TARGET` for the whole build graph, and whisper.cpp's use
+of `std::filesystem` doesn't link below 10.15.
+
 First launch downloads the Whisper model (~570MB) to `~/.cache/hearme/models`.
 macOS permissions needed: Microphone, Accessibility, Input Monitoring
 (the onboarding window has deep links).
