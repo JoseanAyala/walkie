@@ -1,32 +1,28 @@
-# TODO: this file exists mostly because of one root cause — this machine's
-# Nix profile sits ahead of /usr/bin and Homebrew on PATH, so `cc`/`c++`
-# resolve to a Nix GCC wrapper instead of Apple clang. Fix the PATH ordering
-# (put /usr/bin and /opt/homebrew/bin ahead of ~/.nix-profile/bin, or keep
-# Nix's C toolchain out of the default profile) and most of the pins below
-# become unnecessary. Left as-is for now since they're harmless on machines
-# without this conflict.
-
 # Xcode Command Line Tools on this class of macOS setup doesn't expose
 # libiconv on the default linker search path, which breaks any crate graph
 # that pulls in a transitive dependency needing it (e.g. tempfile -> rustix).
 # Point the linker at Homebrew's copy instead of requiring every shell to
-# export RUSTFLAGS by hand.
+# export RUSTFLAGS by hand. Safe for any macOS build (Homebrew's libiconv is
+# additive), never applies on other platforms.
 [target.'cfg(target_os = "macos")']
 rustflags = ["-L", "/opt/homebrew/opt/libiconv/lib"]
 
-# This dev machine has a Nix profile ahead of /usr/bin on PATH, and its
-# `cc`/`c++` resolve to a GCC wrapper rather than Apple clang. GCC can't
-# compile whisper.cpp's Objective-C Metal backend (`@available`,
-# `@autoreleasepool` are clang extensions), so C/C++ build scripts (cc-rs,
-# cmake-rs) need to be pointed at the real Apple clang explicitly.
-[env]
-CC = "/usr/bin/clang"
-CXX = "/usr/bin/clang++"
-
-# rustc's own final-link step also shells out to a linker named "cc", which
-# resolves to the same Nix GCC wrapper via PATH. That gcc doesn't know how to
-# find Apple's libc++ (needed once whisper-rs links C++ code), so pin rustc's
-# linker to Apple clang too. `linker` is only settable per literal target
-# triple (not a cfg() table), hence this is scoped to the arm64 Mac triple.
+# rustc's final-link step shells out to a linker named "cc". On a plain Mac
+# that's Apple clang and this is a no-op; it only matters on machines where
+# something else (e.g. a Nix profile) shadows "cc" on PATH with a compiler
+# that can't find Apple's libc++. Pinning it here is correct for every
+# aarch64-apple-darwin build regardless of that — it's scoped to the literal
+# target triple, so it never applies to a Linux or Windows build.
 [target.aarch64-apple-darwin]
 linker = "/usr/bin/clang"
+
+# NOTE: an earlier revision of this file also pinned CC/CXX via [env] to
+# work around the same Nix-shadowing issue for build-script compilation
+# (e.g. whisper-rs-sys). That was reverted: Cargo's [env] table has no
+# per-target/cfg scoping (confirmed empirically — a build script sees
+# Err(NotPresent) under a [target.'cfg(...)'.env] table), so committing it
+# here would break every non-macOS build of any crate that needs a C
+# compiler. If your `cc`/`c++` resolve to something that can't build
+# Objective-C (same symptom: whisper-rs-sys fails to compile), add
+# [env] CC/CXX to your own ~/.cargo/config.toml instead — that's a
+# machine-local fact, not a project one.
