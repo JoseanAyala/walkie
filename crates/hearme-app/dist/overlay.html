@@ -1,1 +1,33 @@
-<!doctype html><html><body><p>hearme placeholder</p></body></html>
+<!doctype html><html><head><meta charset="utf-8"><style>
+  body { margin: 0; background: transparent; font: 13px -apple-system, sans-serif; overflow: hidden }
+  #pill { display: flex; align-items: center; gap: 10px; height: 44px; margin: 10px;
+          padding: 0 16px; border-radius: 22px; background: rgba(20,20,20,.85); color: #eee;
+          box-shadow: 0 4px 16px rgba(0,0,0,.35) }
+  #dot { width: 10px; height: 10px; border-radius: 50%; background: #e74c3c; flex: none }
+  .busy #dot { background: #f39c12 }
+  #bars { display: flex; gap: 2px; align-items: flex-end; height: 16px; margin-left: auto }
+  #bars i { width: 3px; height: 3px; background: #2ecc71; display: block; transition: height .06s }
+</style></head><body>
+<div id="pill">
+  <span id="dot"></span><span id="label">listening…</span>
+  <span id="bars"><i></i><i></i><i></i><i></i><i></i></span>
+</div>
+<script>
+  const { listen } = window.__TAURI__.event;
+  const label = document.getElementById('label');
+  const pill = document.getElementById('pill');
+  const bars = [...document.querySelectorAll('#bars i')];
+  const names = { recording: 'listening…', transcribing: 'transcribing…',
+                  polishing: 'polishing…', injecting: 'typing…' };
+  listen('state', e => {
+    pill.classList.toggle('busy', e.payload !== 'recording');
+    label.textContent = names[e.payload] || e.payload;
+  });
+  listen('level', e => {
+    const v = Math.min(1, e.payload * 8);
+    bars.forEach((b, i) => {
+      b.style.height = (3 + v * 13 * Math.abs(Math.sin(Date.now() / 90 + i))) + 'px';
+    });
+  });
+  listen('app-error', e => { label.textContent = '⚠ ' + e.payload; });
+</script></body></html>

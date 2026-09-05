@@ -5,6 +5,8 @@ use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 
+mod glue;
+
 pub struct TrayHandle(pub Mutex<tauri::tray::TrayIcon>);
 
 fn main() {
@@ -33,6 +35,7 @@ fn main() {
                 })
                 .build(app)?;
             app.manage(TrayHandle(Mutex::new(tray)));
+            glue::start(app.handle().clone())?;
             Ok(())
         })
         .run(tauri::generate_context!())
