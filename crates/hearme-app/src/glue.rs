@@ -7,19 +7,26 @@ use hearme_core::hotkey::Output;
 use hearme_core::inject::{Injector, PasteInjector, TypeInjector};
 use hearme_core::pipeline::session::{Command, Deps, Event, Session, SessionState};
 use hearme_core::stt::whisper::WhisperEngine;
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 use tauri::{AppHandle, Emitter, Manager};
 
 pub fn start(app: AppHandle) -> Result<()> {
     let cfg = Config::load().context("loading config")?;
     let (cmd_tx, cmd_rx) = mpsc::channel::<Command>();
     let (evt_tx, evt_rx) = mpsc::channel::<Event>();
+    // Set to true only once the worker thread has finished loading the model
+    // and is about to start consuming `cmd_rx` via `Session::run`. The hotkey
+    // listener checks this before forwarding commands, since it starts
+    // immediately and would otherwise queue commands nobody is consuming yet.
+    let ready = Arc::new(AtomicBool::new(false));
 
     // Worker thread: owns every !Send dep. Downloads/loads the model, then
     // runs the session loop until shutdown.
     {
         let cfg = cfg.clone();
         let app = app.clone();
+        let ready = ready.clone();
         std::thread::spawn(move || {
             let key = cfg.model.clone();
             if !models::is_downloaded(&key) {
@@ -28,6 +35,7 @@ pub fn start(app: AppHandle) -> Result<()> {
                 if let Err(e) = models::download(&key, &mut |done, total| {
                     let _ = ap.emit("download-progress", done * 100 / total.max(1));
                 }) {
+                    eprintln!("hearme: model {key} failed to download: {e}");
                     let _ = app.emit("model-status", format!("error: {e}"));
                     return;
                 }
@@ -36,6 +44,7 @@ pub fn start(app: AppHandle) -> Result<()> {
             let path = match models::model_path(&key) {
                 Some(p) => p,
                 None => {
+                    eprintln!("hearme: unknown model {key}");
                     let _ = app.emit("model-status", format!("error: unknown model {key}"));
                     return;
                 }
@@ -43,6 +52,7 @@ pub fn start(app: AppHandle) -> Result<()> {
             let stt = match WhisperEngine::load(&path) {
                 Ok(e) => e,
                 Err(e) => {
+                    eprintln!("hearme: model {key} failed to load: {e}");
                     let _ = app.emit("model-status", format!("error: {e}"));
                     return;
                 }
@@ -63,6 +73,7 @@ pub fn start(app: AppHandle) -> Result<()> {
                 history,
                 cfg,
             };
+            ready.store(true, Ordering::SeqCst);
             Session::new(deps, evt_tx).run(cmd_rx);
         });
     }
@@ -72,7 +83,15 @@ pub fn start(app: AppHandle) -> Result<()> {
     let use_shift = cfg.hotkeys.polish_modifier.eq_ignore_ascii_case("shift");
     {
         let tx = cmd_tx.clone();
+        let app = app.clone();
+        let ready = ready.clone();
         spawn_listener(hot, use_shift, move |mode, out| {
+            if !ready.load(Ordering::SeqCst) {
+                if let Output::Start = out {
+                    let _ = app.emit("app-error", "still loading the speech model — please wait");
+                }
+                return;
+            }
             let _ = tx.send(match out {
                 Output::Start => Command::Start(mode),
                 Output::Finish => Command::Finish,
