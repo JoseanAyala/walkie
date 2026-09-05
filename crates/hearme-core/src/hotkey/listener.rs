@@ -1,0 +1,96 @@
+use super::router::{Router, RouterKey};
+use super::{Mode, Output};
+use anyhow::Result;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
+
+pub fn parse_key(name: &str) -> Option<rdev::Key> {
+    use rdev::Key::*;
+    Some(match name {
+        "RightAlt" => AltGr,
+        "LeftAlt" => Alt,
+        "RightCmd" => MetaRight,
+        "LeftCmd" => MetaLeft,
+        "RightCtrl" => ControlRight,
+        "LeftCtrl" => ControlLeft,
+        "CapsLock" => CapsLock,
+        "F1" => F1, "F2" => F2, "F3" => F3, "F4" => F4, "F5" => F5, "F6" => F6,
+        "F7" => F7, "F8" => F8, "F9" => F9, "F10" => F10, "F11" => F11, "F12" => F12,
+        _ => return None,
+    })
+}
+
+/// Starts the global key listener. On macOS this requires the Input
+/// Monitoring permission (granted to your terminal during dev); without it
+/// rdev::listen errors and we log loudly instead of crashing the app.
+pub fn spawn_listener(
+    hot: rdev::Key,
+    use_shift_modifier: bool,
+    on_output: impl Fn(Mode, Output) + Send + 'static,
+) -> Result<()> {
+    let router = Arc::new(Mutex::new(Router::new()));
+    let start = Instant::now();
+
+    {
+        let router = router.clone();
+        std::thread::spawn(move || {
+            let result = rdev::listen(move |ev| {
+                let (key, down) = match ev.event_type {
+                    rdev::EventType::KeyPress(k) => (k, true),
+                    rdev::EventType::KeyRelease(k) => (k, false),
+                    _ => return,
+                };
+                let rk = if key == hot {
+                    RouterKey::Hot
+                } else if use_shift_modifier
+                    && (key == rdev::Key::ShiftLeft || key == rdev::Key::ShiftRight)
+                {
+                    RouterKey::Modifier
+                } else {
+                    RouterKey::Other
+                };
+                if rk == RouterKey::Other {
+                    return;
+                }
+                let t = start.elapsed().as_millis();
+                if let Some((mode, out)) = router.lock().unwrap().handle(rk, down, t) {
+                    on_output(mode, out);
+                }
+            });
+            if let Err(e) = result {
+                eprintln!(
+                    "hearme: hotkey listener failed: {e:?} — grant Input Monitoring and restart"
+                );
+            }
+        });
+    }
+
+    {
+        let router = router.clone();
+        std::thread::spawn(move || loop {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            router.lock().unwrap().poll(start.elapsed().as_millis());
+        });
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_key;
+
+    #[test]
+    fn known_keys_parse() {
+        assert_eq!(parse_key("RightAlt"), Some(rdev::Key::AltGr));
+        assert_eq!(parse_key("LeftCmd"), Some(rdev::Key::MetaLeft));
+        assert_eq!(parse_key("F5"), Some(rdev::Key::F5));
+        assert_eq!(parse_key("CapsLock"), Some(rdev::Key::CapsLock));
+    }
+
+    #[test]
+    fn unknown_keys_dont_parse() {
+        assert_eq!(parse_key("Fn"), None);
+        assert_eq!(parse_key(""), None);
+    }
+}
