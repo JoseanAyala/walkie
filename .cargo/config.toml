@@ -1,0 +1,7 @@
+# Xcode Command Line Tools on this class of macOS setup doesn't expose
+# libiconv on the default linker search path, which breaks any crate graph
+# that pulls in a transitive dependency needing it (e.g. tempfile -> rustix).
+# Point the linker at Homebrew's copy instead of requiring every shell to
+# export RUSTFLAGS by hand.
+[target.'cfg(target_os = "macos")']
+rustflags = ["-L", "/opt/homebrew/opt/libiconv/lib"]
