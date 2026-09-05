@@ -543,6 +543,7 @@ dependencies = [
  "cpal",
  "enigo",
  "hound",
+ "libc",
  "regex",
  "serde",
  "tempfile",

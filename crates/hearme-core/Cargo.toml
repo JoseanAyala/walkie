@@ -9,6 +9,7 @@ arboard = "3.6.1"
 cpal = "0.18.2"
 enigo = "0.6.1"
 hound = "3.5.1"
+libc = "0.2"
 regex = "1.13.1"
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.5"
