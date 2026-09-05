@@ -1,5 +1,6 @@
 //! hearme-core: all dictation logic. No UI imports allowed in this crate.
 
+pub mod audio;
 pub mod config;
 pub mod hotkey;
 pub mod pipeline;
