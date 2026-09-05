@@ -53,7 +53,13 @@ pub fn spawn_listener(
                     return;
                 }
                 let t = start.elapsed().as_millis();
-                if let Some((mode, out)) = router.lock().unwrap().handle(rk, down, t) {
+                // Extract the result before calling `on_output`: an `if let` on the
+                // lock expression directly would hold the MutexGuard for the whole
+                // arm (it's a temporary in the scrutinee, dropped only at arm end),
+                // stalling the poll thread's 50ms tap-window-expiry cadence for as
+                // long as the callback takes to run.
+                let routed = router.lock().unwrap_or_else(|e| e.into_inner()).handle(rk, down, t);
+                if let Some((mode, out)) = routed {
                     on_output(mode, out);
                 }
             });
@@ -69,7 +75,10 @@ pub fn spawn_listener(
         let router = router.clone();
         std::thread::spawn(move || loop {
             std::thread::sleep(std::time::Duration::from_millis(50));
-            router.lock().unwrap().poll(start.elapsed().as_millis());
+            router
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .poll(start.elapsed().as_millis());
         });
     }
 
