@@ -106,3 +106,51 @@ impl Capture for CpalCapture {
         Ok(dsp::resample_16k(&mono, self.rate))
     }
 }
+
+/// A WAV file standing in for the microphone: every recording "hears" it.
+/// Used by the e2e suites (in-process, and the real app via
+/// `HEARME_TEST_AUDIO=/path.wav`).
+pub struct FileCapture {
+    samples: Vec<f32>,
+}
+
+impl FileCapture {
+    pub fn open(path: &std::path::Path) -> Result<Self> {
+        let mut r = hound::WavReader::open(path).with_context(|| format!("opening {path:?}"))?;
+        let spec = r.spec();
+        let raw: Vec<f32> = match spec.sample_format {
+            hound::SampleFormat::Int => {
+                let scale = (1i64 << (spec.bits_per_sample - 1)) as f32;
+                r.samples::<i32>().map(|s| s.map(|v| v as f32 / scale)).collect::<Result<_, _>>()?
+            }
+            hound::SampleFormat::Float => r.samples::<f32>().collect::<Result<_, _>>()?,
+        };
+        let mono = dsp::to_mono(&raw, spec.channels);
+        Ok(Self { samples: dsp::resample_16k(&mono, spec.sample_rate) })
+    }
+}
+
+impl Capture for FileCapture {
+    fn start(&mut self, on_level: Box<dyn Fn(f32) + Send>) -> Result<()> {
+        on_level(dsp::rms(&self.samples));
+        Ok(())
+    }
+    fn stop(&mut self) -> Result<Vec<f32>> {
+        Ok(self.samples.clone())
+    }
+}
+
+#[cfg(test)]
+mod file_capture_tests {
+    use super::*;
+
+    #[test]
+    fn fixture_wav_loads_as_16k_mono() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/en.wav");
+        let mut c = FileCapture::open(&path).unwrap();
+        c.start(Box::new(|_| {})).unwrap();
+        let s = c.stop().unwrap();
+        assert!((s.len() as f32 / 16_000.0 - 2.97).abs() < 0.05, "{} samples", s.len());
+        assert!(dsp::rms(&s) > 0.001);
+    }
+}

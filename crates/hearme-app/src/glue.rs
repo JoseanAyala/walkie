@@ -1,5 +1,5 @@
 use anyhow::Result;
-use hearme_core::audio::CpalCapture;
+use hearme_core::audio::{Capture, CpalCapture, FileCapture};
 use hearme_core::config::{self, models, Config};
 use hearme_core::history::History;
 use hearme_core::hotkey::engine::{Bindings, Engine, Signal};
@@ -18,6 +18,7 @@ use crate::status::{self, HotkeyState, ModelStatus};
 /// Emits a model status and remembers it for the Status tab.
 fn model_status(app: &AppHandle, s: impl Into<String>) {
     let s = s.into();
+    eprintln!("hearme: model {s}");
     if let Some(m) = app.try_state::<ModelStatus>() {
         *m.0.lock().unwrap() = s.clone();
     }
@@ -94,8 +95,22 @@ pub fn start(app: AppHandle) -> Result<()> {
             let history = History::open(&config::db_path())
                 .map_err(|e| eprintln!("hearme: history disabled: {e}"))
                 .ok();
+            let capture: Box<dyn Capture> = match std::env::var_os("HEARME_TEST_AUDIO") {
+                // Test mode: the e2e suite plays a fixture instead of the mic.
+                Some(p) => match FileCapture::open(std::path::Path::new(&p)) {
+                    Ok(c) => {
+                        eprintln!("hearme: TEST MODE — microphone replaced by {p:?}");
+                        Box::new(c)
+                    }
+                    Err(e) => {
+                        eprintln!("hearme: HEARME_TEST_AUDIO unusable ({e}), using the microphone");
+                        Box::new(CpalCapture::new())
+                    }
+                },
+                None => Box::new(CpalCapture::new()),
+            };
             let deps = Deps {
-                capture: Box::new(CpalCapture::new()),
+                capture,
                 stt: Box::new(stt),
                 injector,
                 history,

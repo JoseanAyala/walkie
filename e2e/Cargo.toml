@@ -8,4 +8,3 @@ description = "End-to-end tests: key events → hotkey engine → session → re
 [dependencies]
 hearme-core = { path = "../crates/hearme-core" }
 anyhow = "1"
-hound = "3.5.1"

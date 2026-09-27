@@ -10,7 +10,11 @@ use std::path::{Path, PathBuf};
 /// Past this size the log is started over on the next launch.
 const MAX_BYTES: u64 = 5 * 1024 * 1024;
 
+/// `HEARME_LOG` overrides the location (the OS e2e suite uses a temp file).
 pub fn path() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("HEARME_LOG") {
+        return Some(PathBuf::from(p));
+    }
     std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Logs/hearme/hearme.log"))
 }
 
@@ -67,6 +71,9 @@ mod tests {
 
     #[test]
     fn log_lives_under_library_logs() {
+        if std::env::var_os("HEARME_LOG").is_some() {
+            return;
+        }
         let p = path().unwrap();
         assert!(p.ends_with("Library/Logs/hearme/hearme.log"));
     }

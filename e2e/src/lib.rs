@@ -4,7 +4,7 @@
 //! signals through the same `Command::from_signal` the app uses, and speech
 //! through the real Whisper model.
 
-use hearme_core::audio::Capture;
+use hearme_core::audio::FileCapture;
 use hearme_core::config::{models, Config, Hotkeys};
 use hearme_core::history::History;
 use hearme_core::hotkey::engine::{Bindings, Engine, Signal};
@@ -21,21 +21,6 @@ pub fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../crates/hearme-core/tests/fixtures").join(name)
 }
 
-fn load_wav(name: &str) -> Vec<f32> {
-    let mut r = hound::WavReader::open(fixture(name)).unwrap();
-    r.samples::<i16>().map(|s| s.unwrap() as f32 / 32768.0).collect()
-}
-
-/// "Microphone" that yields a fixture's audio for any recording.
-struct FixtureMic(Vec<f32>);
-impl Capture for FixtureMic {
-    fn start(&mut self, _on_level: Box<dyn Fn(f32) + Send>) -> anyhow::Result<()> {
-        Ok(())
-    }
-    fn stop(&mut self) -> anyhow::Result<Vec<f32>> {
-        Ok(self.0.clone())
-    }
-}
 
 /// The "focused app": collects what would have been pasted.
 struct FocusedApp(Rc<RefCell<Vec<String>>>);
@@ -84,7 +69,7 @@ impl Rig {
         let typed = Rc::new(RefCell::new(Vec::new()));
         let (tx, events) = mpsc::channel();
         let deps = Deps {
-            capture: Box::new(FixtureMic(load_wav(setup.audio))),
+            capture: Box::new(FileCapture::open(&fixture(setup.audio)).unwrap()),
             stt: Box::new(WhisperEngine::load(&model).unwrap()),
             injector: Box::new(FocusedApp(typed.clone())),
             history: Some(History::open_in_memory().unwrap()),
