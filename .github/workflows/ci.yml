@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Lint and unit tests share one job: macOS minutes are billed at 10x, and
+  # a second job would pay for its own checkout, cache restore and compile.
+  check:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      # default-members only: the e2e crate needs the Whisper model and,
+      # for the app suite, macOS permissions a hosted runner can't grant.
+      - name: Unit tests
+        run: cargo test
+
+  build:
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
+      - name: Build hearme.app
+        id: package
+        run: echo "zip=$(scripts/package.sh | tail -n 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hearme-${{ github.sha }}
+          path: ${{ steps.package.outputs.zip }}
+          retention-days: 14
