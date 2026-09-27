@@ -160,10 +160,18 @@ impl Session {
             return;
         }
         self.emit(Event::State(SessionState::Injecting));
-        if let Err(e) = self.deps.injector.inject(text) {
-            self.emit(Event::Error(e.to_string()));
-        }
+        self.inject(text);
         self.emit(Event::State(SessionState::Idle));
+    }
+
+    /// Injects and reports how it went: a notice when there was no text
+    /// field to type into (the text is on the clipboard), an error on failure.
+    fn inject(&mut self, text: &str) {
+        match self.deps.injector.inject(text) {
+            Ok(Injected::Typed) => {}
+            Ok(Injected::CopiedNoField) => self.emit(Event::Notice(NO_FIELD_NOTICE.into())),
+            Err(e) => self.emit(Event::Error(e.to_string())),
+        }
     }
 
     pub fn finish(&mut self) {
@@ -226,11 +234,7 @@ impl Session {
         }
 
         self.emit(Event::State(SessionState::Injecting));
-        match self.deps.injector.inject(&final_text) {
-            Ok(Injected::Typed) => {}
-            Ok(Injected::CopiedNoField) => self.emit(Event::Notice(NO_FIELD_NOTICE.into())),
-            Err(e) => self.emit(Event::Error(e.to_string())),
-        }
+        self.inject(&final_text);
 
         if self.deps.cfg.history.enabled {
             if let Some(h) = &self.deps.history {
@@ -466,6 +470,16 @@ use crate::hotkey::Mode;
         let rows = r.session.deps.history.as_ref().unwrap().recent(10).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].cleaned, "Hello");
+    }
+
+    #[test]
+    fn reinject_with_no_text_field_is_a_notice() {
+        let mut r = rig("x", None, (false, false, false));
+        let copied = Rc::new(RefCell::new(Vec::new()));
+        r.session.deps.injector = Box::new(NoFieldInjector(copied.clone()));
+        r.session.reinject("old");
+        assert_eq!(copied.borrow().as_slice(), ["old"]);
+        assert_eq!(states(&r.rx), ["Injecting", "Notice", "Idle"]);
     }
 
     #[test]
