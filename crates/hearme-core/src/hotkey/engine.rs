@@ -8,14 +8,21 @@
 //! - hands-free: press to start, press it (or dictate) again to stop
 //! - while holding dictate, adding keys that satisfy polish or hands-free
 //!   upgrades the running recording instead of starting a new one
-//! - any other key within HOLD_MIN_MS of starting cancels (you were typing
-//!   a shortcut, not dictating)
+//! - any other key within STRAY_CANCEL_MS of starting cancels (you were
+//!   typing a shortcut, not dictating)
 
 use super::keys::{self, Key, ESCAPE};
-use super::machine::{HotkeyMachine, HOLD_MIN_MS};
+use super::machine::HotkeyMachine;
 use super::{Mode, Output};
 use crate::config::Hotkeys;
 use std::collections::HashSet;
+
+/// A regular key this soon after a hold starts means a shortcut (fn+Z), not
+/// dictation. Longer than the hold threshold on purpose: when the 🌐 key has
+/// a system action, macOS holds back the next key ~120ms to see whether fn
+/// was tapped, so a quick fn+Z reaches us ~170ms apart (measured by the OS
+/// e2e suite).
+pub const STRAY_CANCEL_MS: u128 = 500;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
@@ -229,7 +236,7 @@ impl Engine {
                     self.hands_free = true;
                     Down::Consumed(None)
                 }
-                _ if t.saturating_sub(self.pressed_at) < HOLD_MIN_MS => {
+                _ if !k.is_modifier() && t.saturating_sub(self.pressed_at) < STRAY_CANCEL_MS => {
                     self.machine.reset();
                     self.anchor = None;
                     self.mode = None;
@@ -468,6 +475,22 @@ mod tests {
         // nothing retriggers until everything is released
         assert_eq!(run(&mut e, &[(A, false, 60), (Key::Fn, false, 100)]), vec![]);
         assert_eq!(e.on_key(Key::Fn, true, 500).signal, Some(Start(Mode::Dictate)));
+    }
+
+    #[test]
+    fn stray_key_delayed_by_the_globe_key_still_cancels() {
+        let mut e = wispr();
+        e.on_key(Key::Fn, true, 2841);
+        assert_eq!(e.on_key(Key::Code(6), true, 3007).signal, Some(Cancel)); // Z, 166ms later
+    }
+
+    #[test]
+    fn a_stray_modifier_does_not_cancel() {
+        let mut e = wispr();
+        e.on_key(Key::Fn, true, 0);
+        assert_eq!(e.on_key(Key::Cmd(Left), true, 40).signal, None);
+        e.on_key(Key::Cmd(Left), false, 60);
+        assert_eq!(e.on_key(Key::Fn, false, 900).signal, Some(Finish));
     }
 
     #[test]

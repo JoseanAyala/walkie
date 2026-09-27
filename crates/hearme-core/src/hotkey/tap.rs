@@ -91,7 +91,7 @@ pub fn spawn(
                 let v = engine.lock().unwrap_or_else(|e| e.into_inner()).on_key(key, down, t);
                 if debug {
                     eprintln!(
-                        "hearme: key {} {} → {:?}{}",
+                        "hearme: key @{t}ms {} {} → {:?}{}",
                         key.name(),
                         if down { "down" } else { "up" },
                         v.signal,
