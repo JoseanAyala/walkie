@@ -76,6 +76,11 @@ pub fn history_search(q: String, limit: u32) -> Result<Vec<Record>, String> {
 }
 
 #[tauri::command]
+pub fn copy_text(text: String) -> Result<(), String> {
+    arboard::Clipboard::new().and_then(|mut cb| cb.set_text(text)).map_err(estr)
+}
+
+#[tauri::command]
 pub fn open_settings_pane(pane: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {

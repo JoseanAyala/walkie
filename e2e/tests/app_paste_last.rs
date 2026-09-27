@@ -1,10 +1,11 @@
-//! Paste last transcript (shortcut + tray), against the real installed app.
+//! Paste last transcript (shortcut + tray) and the History tab's Copy
+//! buttons, against the real installed app.
 //! Run: e2e/run-app-tests.sh  (same requirements as tests/app.rs)
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET).
 
-use hearme_e2e::os::{begin, App, Keyboard, Target};
+use hearme_e2e::os::{begin, sleep, App, Keyboard, Target};
 
 fn ready_app(seed: Option<&str>) -> App {
     let app = App::new();
@@ -45,4 +46,27 @@ fn tray_pastes_the_last_dictation_again() {
         hearme_e2e::os::frontmost(),
         app.log_text()
     );
+}
+
+fn clipboard() -> String {
+    let out = std::process::Command::new("pbpaste").output().unwrap();
+    String::from_utf8_lossy(&out.stdout).to_string()
+}
+
+#[test]
+fn history_copy_button_puts_the_text_on_the_clipboard() {
+    let _t = begin("history_copy_button_puts_the_text_on_the_clipboard");
+    let saved = clipboard();
+    let app = ready_app(Some("copy me from history"));
+    app.tray("Settings…");
+    assert!(app.wait_window("hearme", true, 3), "Settings didn't open");
+    app.click("hearme", "History", 1);
+    app.click("hearme", "Copy", 1);
+    let ok = (0..20).any(|_| {
+        sleep(100);
+        clipboard() == "copy me from history"
+    });
+    let got = clipboard();
+    let _ = std::process::Command::new("sh").arg("-c").arg("printf %s \"$1\" | pbcopy").arg("-").arg(&saved).status();
+    assert!(ok, "clipboard has {got:?}\n{}", app.log_text());
 }

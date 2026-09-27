@@ -1677,6 +1677,7 @@ name = "hearme-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arboard",
  "hearme-core",
  "image",
  "libc",

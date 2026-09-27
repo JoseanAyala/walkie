@@ -30,6 +30,7 @@ fn main() {
             commands::save_config,
             commands::history_recent,
             commands::history_search,
+            commands::copy_text,
             commands::open_settings_pane,
             commands::finish_onboarding,
             commands::get_launch_at_login,
