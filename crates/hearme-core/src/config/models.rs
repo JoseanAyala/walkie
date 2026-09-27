@@ -21,7 +21,8 @@ pub const REGISTRY: &[ModelInfo] = &[
     ModelInfo {
         key: "large-v3-turbo-q5_0",
         file: "ggml-large-v3-turbo-q5_0.bin",
-        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
+        url:
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         approx_bytes: 574_000_000,
     },
 ];
@@ -44,7 +45,9 @@ pub fn download(key: &str, progress: &mut dyn FnMut(u64, u64)) -> Result<PathBuf
     std::fs::create_dir_all(dest.parent().unwrap())?;
     let part = dest.with_extension("part");
 
-    let resp = ureq::get(info.url).call().context("model download request failed")?;
+    let resp = ureq::get(info.url)
+        .call()
+        .context("model download request failed")?;
     let total = resp
         .header("Content-Length")
         .and_then(|v| v.parse::<u64>().ok())
@@ -83,7 +86,10 @@ mod tests {
     #[test]
     fn file_names_are_exact() {
         assert_eq!(find("base").unwrap().file, "ggml-base.bin");
-        assert_eq!(find("large-v3-turbo-q5_0").unwrap().file, "ggml-large-v3-turbo-q5_0.bin");
+        assert_eq!(
+            find("large-v3-turbo-q5_0").unwrap().file,
+            "ggml-large-v3-turbo-q5_0.bin"
+        );
     }
 
     #[test]

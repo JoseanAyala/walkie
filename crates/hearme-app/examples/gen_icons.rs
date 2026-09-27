@@ -17,9 +17,17 @@ fn circle(size: u32, rgba: [u8; 4]) -> image::RgbaImage {
 fn main() {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("icons");
     std::fs::create_dir_all(&dir).unwrap();
-    circle(512, [74, 144, 217, 255]).save(dir.join("icon.png")).unwrap(); // blue
-    circle(32, [140, 140, 140, 255]).save(dir.join("tray-idle.png")).unwrap(); // gray
-    circle(32, [231, 76, 60, 255]).save(dir.join("tray-rec.png")).unwrap(); // red
-    circle(32, [243, 156, 18, 255]).save(dir.join("tray-busy.png")).unwrap(); // amber
+    circle(512, [74, 144, 217, 255])
+        .save(dir.join("icon.png"))
+        .unwrap(); // blue
+    circle(32, [140, 140, 140, 255])
+        .save(dir.join("tray-idle.png"))
+        .unwrap(); // gray
+    circle(32, [231, 76, 60, 255])
+        .save(dir.join("tray-rec.png"))
+        .unwrap(); // red
+    circle(32, [243, 156, 18, 255])
+        .save(dir.join("tray-busy.png"))
+        .unwrap(); // amber
     println!("icons written to {dir:?}");
 }

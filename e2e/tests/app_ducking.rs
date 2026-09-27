@@ -9,12 +9,19 @@ use hearme_e2e::os::{begin, osa, quit, sleep, step, App, Keyboard, Target};
 
 /// The output volume (0–100) as the menu bar shows it.
 fn volume() -> i64 {
-    osa("output volume of (get volume settings)", &[]).unwrap().parse().unwrap()
+    osa("output volume of (get volume settings)", &[])
+        .unwrap()
+        .parse()
+        .unwrap()
 }
 
 fn set_volume(v: i64) {
     step(format!("setting output volume to {v}"));
-    osa(&format!("set volume output volume {v} without output muted"), &[]).unwrap();
+    osa(
+        &format!("set volume output volume {v} without output muted"),
+        &[],
+    )
+    .unwrap();
 }
 
 /// Restores the volume (and mute) the person running the tests had.
@@ -79,10 +86,19 @@ fn recording_lowers_the_volume_and_stopping_restores_it() {
     let doc = Target::open();
     let mut kb = start_hands_free();
     let v = wait_volume(2, |v| v < 50);
-    assert!((13..=17).contains(&v), "expected ~15 (30% of 50) while recording, got {v}\n{}", app.log_text());
+    assert!(
+        (13..=17).contains(&v),
+        "expected ~15 (30% of 50) while recording, got {v}\n{}",
+        app.log_text()
+    );
     kb.down("Fn").wait(60).up("Fn");
     let v = wait_volume(2, |v| v == 50);
-    assert_eq!(v, 50, "volume not restored after stopping\n{}", app.log_text());
+    assert_eq!(
+        v,
+        50,
+        "volume not restored after stopping\n{}",
+        app.log_text()
+    );
     doc.wait_for(5, |t| t.to_lowercase().contains("hello"));
 }
 
@@ -97,7 +113,12 @@ fn volume_changed_during_recording_is_kept() {
     set_volume(70);
     kb.down("Fn").wait(60).up("Fn");
     sleep(800);
-    assert_eq!(volume(), 70, "hearme overwrote a volume the user picked\n{}", app.log_text());
+    assert_eq!(
+        volume(),
+        70,
+        "hearme overwrote a volume the user picked\n{}",
+        app.log_text()
+    );
 }
 
 #[test]
@@ -110,7 +131,11 @@ fn quitting_mid_recording_restores_the_volume() {
     let v = wait_volume(2, |v| v < 50);
     assert!(v < 50, "never lowered\n{}", app.log_text());
     quit(); // SIGTERM, like `kill` or logging out
-    assert_eq!(wait_volume(2, |v| v == 50), 50, "volume left lowered after quitting mid-recording");
+    assert_eq!(
+        wait_volume(2, |v| v == 50),
+        50,
+        "volume left lowered after quitting mid-recording"
+    );
 }
 
 #[test]
@@ -121,6 +146,11 @@ fn turned_off_leaves_the_volume_alone() {
     let _doc = Target::open();
     let mut kb = start_hands_free();
     sleep(800);
-    assert_eq!(volume(), 50, "ducking is off but the volume changed\n{}", app.log_text());
+    assert_eq!(
+        volume(),
+        50,
+        "ducking is off but the volume changed\n{}",
+        app.log_text()
+    );
     kb.down("Fn").wait(60).up("Fn");
 }

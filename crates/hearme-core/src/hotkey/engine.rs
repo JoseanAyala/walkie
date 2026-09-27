@@ -71,13 +71,18 @@ impl Bindings {
             errors.push("Hands-free shortcut duplicates another one — Hands-free disabled".into());
             b.hands_free.clear();
         }
-        if [&b.dictate, &b.polish, &b.hands_free].iter().any(|o| same(&b.paste_last, o)) {
+        if [&b.dictate, &b.polish, &b.hands_free]
+            .iter()
+            .any(|o| same(&b.paste_last, o))
+        {
             errors.push("Paste-last shortcut duplicates another one — Paste last disabled".into());
             b.paste_last.clear();
         }
         // The paste itself is a synthesized ⌘V, which the tap sees too.
         if same(&b.paste_last, &[Key::Cmd(keys::Side::Any), Key::Code(9)]) {
-            errors.push("Paste-last can't be ⌘V (it would trigger itself) — Paste last disabled".into());
+            errors.push(
+                "Paste-last can't be ⌘V (it would trigger itself) — Paste last disabled".into(),
+            );
             b.paste_last.clear();
         }
         (b, errors)
@@ -180,7 +185,10 @@ impl Engine {
         if down {
             if self.held.contains(&k) {
                 // auto-repeat: follow the verdict of the original press
-                return Verdict { signal: None, swallow: self.swallowed.contains(&k) };
+                return Verdict {
+                    signal: None,
+                    swallow: self.swallowed.contains(&k),
+                };
             }
             self.held.push(k);
             if self.recording.is_some() {
@@ -196,18 +204,27 @@ impl Engine {
             if swallow {
                 self.swallowed.insert(k);
             }
-            Verdict { signal: signal.into_signal(), swallow }
+            Verdict {
+                signal: signal.into_signal(),
+                swallow,
+            }
         } else {
             self.held.retain(|h| *h != k);
             let swallow = self.swallowed.remove(&k);
             if self.recording.is_some() {
-                return Verdict { signal: self.record_up(), swallow };
+                return Verdict {
+                    signal: self.record_up(),
+                    swallow,
+                };
             }
             if self.inhibit {
                 if self.held.is_empty() {
                     self.inhibit = false;
                 }
-                return Verdict { signal: None, swallow };
+                return Verdict {
+                    signal: None,
+                    swallow,
+                };
             }
             let mut signal = self.up(k, t);
             if self.paste_pending && self.held.is_empty() {
@@ -227,7 +244,14 @@ impl Engine {
     }
 
     fn satisfied(&self) -> Option<Action> {
-        [Action::HandsFree, Action::Polish, Action::Dictate, Action::PasteLast].into_iter().find(|&a| {
+        [
+            Action::HandsFree,
+            Action::Polish,
+            Action::Dictate,
+            Action::PasteLast,
+        ]
+        .into_iter()
+        .find(|&a| {
             let b = self.bindings.get(a);
             !b.is_empty()
                 && b.len() == self.held.len()
@@ -330,7 +354,10 @@ impl Engine {
         if k == ESCAPE && self.held.len() == 1 {
             self.recording = None;
             self.swallowed.insert(k);
-            return Verdict { signal: Some(Signal::RecordCancelled), swallow: true };
+            return Verdict {
+                signal: Some(Signal::RecordCancelled),
+                swallow: true,
+            };
         }
         let rec = self.recording.as_mut().unwrap();
         if self.held.len() > rec.len() {
@@ -341,7 +368,10 @@ impl Engine {
         if swallow {
             self.swallowed.insert(k);
         }
-        Verdict { signal: None, swallow }
+        Verdict {
+            signal: None,
+            swallow,
+        }
     }
 
     fn record_up(&mut self) -> Option<Signal> {
@@ -406,7 +436,9 @@ mod tests {
 
     /// Feeds (key, down, t) events; returns the non-empty signals.
     fn run(e: &mut Engine, evs: &[(Key, bool, u128)]) -> Vec<Signal> {
-        evs.iter().filter_map(|&(k, d, t)| e.on_key(k, d, t).signal).collect()
+        evs.iter()
+            .filter_map(|&(k, d, t)| e.on_key(k, d, t).signal)
+            .collect()
     }
 
     #[test]
@@ -433,47 +465,59 @@ mod tests {
     #[test]
     fn hold_fn_dictates() {
         let mut e = wispr();
-        assert_eq!(run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 800)]), vec![
-            Start(Mode::Dictate),
-            Finish
-        ]);
+        assert_eq!(
+            run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 800)]),
+            vec![Start(Mode::Dictate), Finish]
+        );
     }
 
     #[test]
     fn quick_tap_cancels_and_double_tap_locks() {
         let mut e = wispr();
-        let s = run(&mut e, &[
-            (Key::Fn, true, 0),
-            (Key::Fn, false, 80),   // tap 1 → cancel
-            (Key::Fn, true, 200),   // tap 2 → locked start
-            (Key::Fn, false, 260),
-            (Key::Fn, true, 5000),  // stop tap
-            (Key::Fn, false, 5060),
-        ]);
-        assert_eq!(s, vec![Start(Mode::Dictate), Cancel, Start(Mode::Dictate), Finish]);
+        let s = run(
+            &mut e,
+            &[
+                (Key::Fn, true, 0),
+                (Key::Fn, false, 80), // tap 1 → cancel
+                (Key::Fn, true, 200), // tap 2 → locked start
+                (Key::Fn, false, 260),
+                (Key::Fn, true, 5000), // stop tap
+                (Key::Fn, false, 5060),
+            ],
+        );
+        assert_eq!(
+            s,
+            vec![Start(Mode::Dictate), Cancel, Start(Mode::Dictate), Finish]
+        );
     }
 
     #[test]
     fn shift_then_fn_is_polish() {
         let mut e = wispr();
-        let s = run(&mut e, &[
-            (LSHIFT, true, 0),
-            (Key::Fn, true, 10),
-            (LSHIFT, false, 300), // releasing Shift doesn't end it
-            (Key::Fn, false, 900),
-        ]);
+        let s = run(
+            &mut e,
+            &[
+                (LSHIFT, true, 0),
+                (Key::Fn, true, 10),
+                (LSHIFT, false, 300), // releasing Shift doesn't end it
+                (Key::Fn, false, 900),
+            ],
+        );
         assert_eq!(s, vec![Start(Mode::Polish), Finish]);
     }
 
     #[test]
     fn adding_shift_mid_hold_upgrades_to_polish() {
         let mut e = wispr();
-        let s = run(&mut e, &[
-            (Key::Fn, true, 0),
-            (LSHIFT, true, 400),
-            (LSHIFT, false, 600),
-            (Key::Fn, false, 900),
-        ]);
+        let s = run(
+            &mut e,
+            &[
+                (Key::Fn, true, 0),
+                (LSHIFT, true, 400),
+                (LSHIFT, false, 600),
+                (Key::Fn, false, 900),
+            ],
+        );
         assert_eq!(s, vec![Start(Mode::Dictate), SetMode(Mode::Polish), Finish]);
     }
 
@@ -485,18 +529,31 @@ mod tests {
         let space = e.on_key(SPACE, true, 50);
         assert!(space.swallow, "Space must not reach the focused app");
         assert_eq!(space.signal, None, "same recording continues");
-        assert!(e.on_key(SPACE, false, 120).swallow, "its key-up is swallowed too");
-        assert_eq!(e.on_key(Key::Fn, false, 150).signal, None, "releasing no longer ends it");
+        assert!(
+            e.on_key(SPACE, false, 120).swallow,
+            "its key-up is swallowed too"
+        );
+        assert_eq!(
+            e.on_key(Key::Fn, false, 150).signal,
+            None,
+            "releasing no longer ends it"
+        );
         assert_eq!(e.on_key(Key::Fn, true, 9000).signal, Some(Finish));
         assert_eq!(e.on_key(Key::Fn, false, 9050).signal, None);
-        assert_eq!(e.on_key(Key::Fn, true, 12000).signal, Some(Start(Mode::Dictate)));
+        assert_eq!(
+            e.on_key(Key::Fn, true, 12000).signal,
+            Some(Start(Mode::Dictate))
+        );
     }
 
     #[test]
     fn space_then_fn_starts_hands_free_directly() {
         let mut e = wispr();
         assert!(!e.on_key(SPACE, true, 0).swallow); // Space alone is just typing
-        assert_eq!(e.on_key(Key::Fn, true, 20).signal, Some(Start(Mode::Dictate)));
+        assert_eq!(
+            e.on_key(Key::Fn, true, 20).signal,
+            Some(Start(Mode::Dictate))
+        );
         e.on_key(Key::Fn, false, 100);
         e.on_key(SPACE, false, 120);
         assert_eq!(e.on_key(Key::Fn, true, 3000).signal, Some(Finish));
@@ -510,8 +567,14 @@ mod tests {
         assert_eq!(a.signal, Some(Cancel));
         assert!(!a.swallow);
         // nothing retriggers until everything is released
-        assert_eq!(run(&mut e, &[(A, false, 60), (Key::Fn, false, 100)]), vec![]);
-        assert_eq!(e.on_key(Key::Fn, true, 500).signal, Some(Start(Mode::Dictate)));
+        assert_eq!(
+            run(&mut e, &[(A, false, 60), (Key::Fn, false, 100)]),
+            vec![]
+        );
+        assert_eq!(
+            e.on_key(Key::Fn, true, 500).signal,
+            Some(Start(Mode::Dictate))
+        );
     }
 
     #[test]
@@ -543,7 +606,14 @@ mod tests {
     #[test]
     fn fn_with_another_modifier_is_not_dictate() {
         let mut e = wispr();
-        let s = run(&mut e, &[(Key::Cmd(Left), true, 0), (Key::Fn, true, 10), (Key::Fn, false, 900)]);
+        let s = run(
+            &mut e,
+            &[
+                (Key::Cmd(Left), true, 0),
+                (Key::Fn, true, 10),
+                (Key::Fn, false, 900),
+            ],
+        );
         assert_eq!(s, vec![]);
     }
 
@@ -566,34 +636,72 @@ mod tests {
 
     #[test]
     fn sided_binding_ignores_the_other_side() {
-        let mut e = Engine::new(Bindings { dictate: vec![Key::Cmd(Right)], ..Default::default() });
-        assert_eq!(run(&mut e, &[(Key::Cmd(Left), true, 0), (Key::Cmd(Left), false, 900)]), vec![]);
-        assert_eq!(run(&mut e, &[(Key::Cmd(Right), true, 1000), (Key::Cmd(Right), false, 1900)]), vec![
-            Start(Mode::Dictate),
-            Finish
-        ]);
+        let mut e = Engine::new(Bindings {
+            dictate: vec![Key::Cmd(Right)],
+            ..Default::default()
+        });
+        assert_eq!(
+            run(
+                &mut e,
+                &[(Key::Cmd(Left), true, 0), (Key::Cmd(Left), false, 900)]
+            ),
+            vec![]
+        );
+        assert_eq!(
+            run(
+                &mut e,
+                &[
+                    (Key::Cmd(Right), true, 1000),
+                    (Key::Cmd(Right), false, 1900)
+                ]
+            ),
+            vec![Start(Mode::Dictate), Finish]
+        );
     }
 
     #[test]
     fn empty_binding_is_disabled() {
-        let mut e = Engine::new(Bindings { dictate: vec![Key::Fn], ..Default::default() });
-        let s = run(&mut e, &[(LSHIFT, true, 0), (Key::Fn, true, 10), (Key::Fn, false, 900)]);
+        let mut e = Engine::new(Bindings {
+            dictate: vec![Key::Fn],
+            ..Default::default()
+        });
+        let s = run(
+            &mut e,
+            &[
+                (LSHIFT, true, 0),
+                (Key::Fn, true, 10),
+                (Key::Fn, false, 900),
+            ],
+        );
         assert_eq!(s, vec![], "no polish binding → Shift+Fn does nothing");
     }
 
     #[test]
     fn rebinding_takes_effect_immediately() {
         let mut e = wispr();
-        e.set_bindings(Bindings { dictate: vec![Key::Cmd(Right)], ..Default::default() });
-        assert_eq!(run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 900)]), vec![]);
-        assert_eq!(e.on_key(Key::Cmd(Right), true, 1000).signal, Some(Start(Mode::Dictate)));
+        e.set_bindings(Bindings {
+            dictate: vec![Key::Cmd(Right)],
+            ..Default::default()
+        });
+        assert_eq!(
+            run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 900)]),
+            vec![]
+        );
+        assert_eq!(
+            e.on_key(Key::Cmd(Right), true, 1000).signal,
+            Some(Start(Mode::Dictate))
+        );
     }
 
     #[test]
     fn recorder_captures_the_largest_chord_and_suppresses_triggers() {
         let mut e = wispr();
         e.start_recording();
-        assert_eq!(e.on_key(Key::Fn, true, 0).signal, None, "Fn must not start dictation");
+        assert_eq!(
+            e.on_key(Key::Fn, true, 0).signal,
+            None,
+            "Fn must not start dictation"
+        );
         e.on_key(Key::Ctrl(Left), true, 10);
         assert!(e.on_key(D, true, 20).swallow);
         e.on_key(D, false, 100);
@@ -601,7 +709,10 @@ mod tests {
         let v = e.on_key(Key::Fn, false, 120);
         assert_eq!(v.signal, Some(Recorded(vec![Key::Fn, Key::Ctrl(Any), D])));
         assert!(!e.is_recording());
-        assert_eq!(e.on_key(Key::Fn, true, 500).signal, Some(Start(Mode::Dictate)));
+        assert_eq!(
+            e.on_key(Key::Fn, true, 500).signal,
+            Some(Start(Mode::Dictate))
+        );
     }
 
     #[test]
@@ -609,7 +720,10 @@ mod tests {
         let mut e = wispr();
         e.start_recording();
         e.on_key(Key::Cmd(Right), true, 0);
-        assert_eq!(e.on_key(Key::Cmd(Right), false, 50).signal, Some(Recorded(vec![Key::Cmd(Right)])));
+        assert_eq!(
+            e.on_key(Key::Cmd(Right), false, 50).signal,
+            Some(Recorded(vec![Key::Cmd(Right)]))
+        );
     }
 
     #[test]
@@ -628,7 +742,14 @@ mod tests {
         let mut e = wispr();
         run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 80)]);
         e.poll(500);
-        let s = run(&mut e, &[(LSHIFT, true, 600), (Key::Fn, true, 610), (Key::Fn, false, 1400)]);
+        let s = run(
+            &mut e,
+            &[
+                (LSHIFT, true, 600),
+                (Key::Fn, true, 610),
+                (Key::Fn, false, 1400),
+            ],
+        );
         assert_eq!(s, vec![Start(Mode::Polish), Finish]);
     }
 
@@ -650,19 +771,40 @@ mod tests {
     #[test]
     fn paste_last_never_starts_a_recording() {
         let mut e = wispr();
-        let s = run(&mut e, &[
-            (LCTRL, true, 0), (LCMD, true, 10), (V, true, 20),
-            (V, false, 2000), (LCMD, false, 2010), (LCTRL, false, 2020),
-        ]);
+        let s = run(
+            &mut e,
+            &[
+                (LCTRL, true, 0),
+                (LCMD, true, 10),
+                (V, true, 20),
+                (V, false, 2000),
+                (LCMD, false, 2010),
+                (LCTRL, false, 2020),
+            ],
+        );
         assert_eq!(s, vec![PasteLast]);
         e.poll(3000);
-        assert_eq!(e.on_key(Key::Fn, true, 3100).signal, Some(Start(Mode::Dictate)), "dictation unaffected");
+        assert_eq!(
+            e.on_key(Key::Fn, true, 3100).signal,
+            Some(Start(Mode::Dictate)),
+            "dictation unaffected"
+        );
     }
 
     #[test]
     fn the_paste_it_triggers_does_not_retrigger_it() {
         let mut e = wispr();
-        run(&mut e, &[(LCTRL, true, 0), (LCMD, true, 10), (V, true, 20), (V, false, 60), (LCMD, false, 70), (LCTRL, false, 80)]);
+        run(
+            &mut e,
+            &[
+                (LCTRL, true, 0),
+                (LCMD, true, 10),
+                (V, true, 20),
+                (V, false, 60),
+                (LCMD, false, 70),
+                (LCTRL, false, 80),
+            ],
+        );
         // what the injector then posts: ⌘V
         assert_eq!(e.on_key(LCMD, true, 100), Verdict::default());
         assert_eq!(e.on_key(V, true, 110), Verdict::default());
@@ -685,39 +827,81 @@ mod tests {
         let mut e = wispr();
         // hands-free
         e.on_key(Key::Fn, true, 0);
-        run(&mut e, &[(SPACE, true, 50), (SPACE, false, 100), (Key::Fn, false, 150)]);
+        run(
+            &mut e,
+            &[
+                (SPACE, true, 50),
+                (SPACE, false, 100),
+                (Key::Fn, false, 150),
+            ],
+        );
         e.on_key(LCTRL, true, 1000);
         e.on_key(LCMD, true, 1010);
         assert_eq!(e.on_key(V, true, 1020), Verdict::default());
-        assert_eq!(run(&mut e, &[(V, false, 1030), (LCMD, false, 1040), (LCTRL, false, 1050)]), vec![]);
+        assert_eq!(
+            run(
+                &mut e,
+                &[(V, false, 1030), (LCMD, false, 1040), (LCTRL, false, 1050)]
+            ),
+            vec![]
+        );
         assert_eq!(e.on_key(Key::Fn, true, 2000).signal, Some(Finish));
         e.on_key(Key::Fn, false, 2050);
 
         // double-tap locked
         let mut e = wispr();
-        run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 60), (Key::Fn, true, 150), (Key::Fn, false, 200)]);
+        run(
+            &mut e,
+            &[
+                (Key::Fn, true, 0),
+                (Key::Fn, false, 60),
+                (Key::Fn, true, 150),
+                (Key::Fn, false, 200),
+            ],
+        );
         e.on_key(LCTRL, true, 1000);
         e.on_key(LCMD, true, 1010);
         assert!(!e.on_key(V, true, 1020).swallow);
-        assert_eq!(run(&mut e, &[(V, false, 1030), (LCMD, false, 1040), (LCTRL, false, 1050)]), vec![]);
+        assert_eq!(
+            run(
+                &mut e,
+                &[(V, false, 1030), (LCMD, false, 1040), (LCTRL, false, 1050)]
+            ),
+            vec![]
+        );
     }
 
     #[test]
     fn empty_paste_last_binding_is_disabled() {
-        let mut e = Engine::new(Bindings { dictate: vec![Key::Fn], ..Default::default() });
+        let mut e = Engine::new(Bindings {
+            dictate: vec![Key::Fn],
+            ..Default::default()
+        });
         e.on_key(LCTRL, true, 0);
         e.on_key(LCMD, true, 10);
         assert!(!e.on_key(V, true, 20).swallow);
-        assert_eq!(run(&mut e, &[(V, false, 30), (LCMD, false, 40), (LCTRL, false, 50)]), vec![]);
+        assert_eq!(
+            run(
+                &mut e,
+                &[(V, false, 30), (LCMD, false, 40), (LCTRL, false, 50)]
+            ),
+            vec![]
+        );
     }
 
     #[test]
     fn paste_last_duplicating_another_binding_or_cmd_v_is_disabled() {
         let v = |k: &[&str]| k.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let (b, errs) = Bindings::from_config(&Hotkeys { paste_last: v(&["Fn", "Shift"]), ..Hotkeys::default() });
+        let (b, errs) = Bindings::from_config(&Hotkeys {
+            paste_last: v(&["Fn", "Shift"]),
+            ..Hotkeys::default()
+        });
         assert!(b.paste_last.is_empty() && !b.polish.is_empty());
         assert_eq!(errs.len(), 1, "{errs:?}");
-        let (b, errs) = Bindings::from_config(&Hotkeys { paste_last: v(&["Cmd", "V"]), ..Hotkeys::default() });
+        let (b, errs) = Bindings::from_config(&Hotkeys {
+            paste_last: v(&["Cmd", "V"]),
+            ..Hotkeys::default()
+        });
         assert!(b.paste_last.is_empty());
         assert_eq!(errs.len(), 1, "{errs:?}");
     }
@@ -726,7 +910,17 @@ mod tests {
     fn recorder_captures_a_paste_last_chord_without_pasting() {
         let mut e = wispr();
         e.start_recording();
-        let s = run(&mut e, &[(LCTRL, true, 0), (LCMD, true, 10), (V, true, 20), (V, false, 60), (LCMD, false, 70), (LCTRL, false, 80)]);
+        let s = run(
+            &mut e,
+            &[
+                (LCTRL, true, 0),
+                (LCMD, true, 10),
+                (V, true, 20),
+                (V, false, 60),
+                (LCMD, false, 70),
+                (LCTRL, false, 80),
+            ],
+        );
         assert_eq!(s, vec![Recorded(vec![Key::Ctrl(Any), Key::Cmd(Any), V])]);
     }
 }

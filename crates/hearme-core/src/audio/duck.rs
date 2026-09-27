@@ -29,7 +29,11 @@ pub struct Ducker {
 impl Ducker {
     /// `percent`: the volume during recording, as % of the volume before it.
     pub fn new(out: Box<dyn OutputVolume>, percent: u32) -> Self {
-        Self { out, level: percent.min(100) as f32 / 100.0, saved: Mutex::new(None) }
+        Self {
+            out,
+            level: percent.min(100) as f32 / 100.0,
+            saved: Mutex::new(None),
+        }
     }
 
     pub fn duck(&self) {
@@ -52,7 +56,9 @@ impl Ducker {
 
     /// Puts the volume back, unless the user changed it since `duck`.
     pub fn restore(&self) {
-        let Some(s) = self.saved.lock().unwrap_or_else(|e| e.into_inner()).take() else { return };
+        let Some(s) = self.saved.lock().unwrap_or_else(|e| e.into_inner()).take() else {
+            return;
+        };
         match self.out.get() {
             Some(now) if (now - s.ducked).abs() < SAME => self.out.set(s.before),
             _ => {} // changed or muted by the user: theirs now
@@ -139,7 +145,11 @@ mod ca {
     }
 
     pub fn get<T: Default>(id: u32, selector: u32, scope: u32, element: u32) -> Option<T> {
-        let addr = Address { selector, scope, element };
+        let addr = Address {
+            selector,
+            scope,
+            element,
+        };
         let mut v = T::default();
         let mut size = std::mem::size_of::<T>() as u32;
         // SAFETY: `v` is a plain value of `size` bytes; CoreAudio writes at most that.
@@ -147,18 +157,36 @@ mod ca {
             if AudioObjectHasProperty(id, &addr) == 0 {
                 return None;
             }
-            AudioObjectGetPropertyData(id, &addr, 0, std::ptr::null(), &mut size, &mut v as *mut T as *mut c_void)
+            AudioObjectGetPropertyData(
+                id,
+                &addr,
+                0,
+                std::ptr::null(),
+                &mut size,
+                &mut v as *mut T as *mut c_void,
+            )
         };
         (st == 0).then_some(v)
     }
 
     pub fn set<T>(id: u32, selector: u32, scope: u32, element: u32, v: T) -> bool {
-        let addr = Address { selector, scope, element };
+        let addr = Address {
+            selector,
+            scope,
+            element,
+        };
         let size = std::mem::size_of::<T>() as u32;
         // SAFETY: passes a pointer to `v` and its exact size.
         unsafe {
             AudioObjectHasProperty(id, &addr) != 0
-                && AudioObjectSetPropertyData(id, &addr, 0, std::ptr::null(), size, &v as *const T as *const c_void) == 0
+                && AudioObjectSetPropertyData(
+                    id,
+                    &addr,
+                    0,
+                    std::ptr::null(),
+                    size,
+                    &v as *const T as *const c_void,
+                ) == 0
         }
     }
 
@@ -186,7 +214,8 @@ impl OutputVolume for SystemVolume {
         use ca::*;
         let Some(dev) = default_output() else { return };
         let v = v.clamp(0.0, 1.0);
-        if set(dev, MAIN_VOLUME, SCOPE_OUTPUT, 0, v) || set(dev, VOLUME_SCALAR, SCOPE_OUTPUT, 0, v) {
+        if set(dev, MAIN_VOLUME, SCOPE_OUTPUT, 0, v) || set(dev, VOLUME_SCALAR, SCOPE_OUTPUT, 0, v)
+        {
             return;
         }
         for ch in [1, 2] {

@@ -20,7 +20,10 @@ pub fn clean(raw: &str, fillers: &[String]) -> String {
     ] {
         s = Regex::new(pat).unwrap().replace_all(&s, rep).into_owned();
     }
-    let s = s.trim().trim_start_matches(|c: char| ",.;: ".contains(c)).trim();
+    let s = s
+        .trim()
+        .trim_start_matches(|c: char| ",.;: ".contains(c))
+        .trim();
     capitalize_first(s)
 }
 
@@ -47,7 +50,8 @@ fn collapse_repeats(s: &str) -> String {
 }
 
 fn normalize(w: &str) -> String {
-    w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase()
+    w.trim_matches(|c: char| !c.is_alphanumeric())
+        .to_lowercase()
 }
 
 fn capitalize_first(s: &str) -> String {
@@ -87,7 +91,10 @@ mod tests {
 
     #[test]
     fn strips_spanish_fillers() {
-        assert_eq!(clean("Este, hola a todos, eh, gracias.", &es()), "Hola a todos, gracias.");
+        assert_eq!(
+            clean("Este, hola a todos, eh, gracias.", &es()),
+            "Hola a todos, gracias."
+        );
     }
 
     #[test]
@@ -102,7 +109,10 @@ mod tests {
 
     #[test]
     fn repeat_kept_across_sentence_boundary() {
-        assert_eq!(clean("stop. stop right there", &en()), "Stop. stop right there");
+        assert_eq!(
+            clean("stop. stop right there", &en()),
+            "Stop. stop right there"
+        );
     }
 
     #[test]

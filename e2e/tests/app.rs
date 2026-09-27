@@ -24,15 +24,31 @@ fn onboarding_shows_on_first_run_and_never_again() {
     let _t = begin("onboarding_shows_on_first_run_and_never_again");
     let app = App::new(); // no config file → first run
     app.launch();
-    assert!(app.wait_window("Welcome to hearme", true, 3), "onboarding didn't show: {:?}", app.windows());
+    assert!(
+        app.wait_window("Welcome to hearme", true, 3),
+        "onboarding didn't show: {:?}",
+        app.windows()
+    );
     app.click("Welcome to hearme", "I've granted everything — finish", 1);
-    assert!(app.wait_window("Welcome to hearme", false, 3), "onboarding didn't close");
-    assert!(app.wait_window("hearme", true, 3), "finishing onboarding should open Settings");
-    assert!(!app.config().first_run, "first_run should be saved as false");
+    assert!(
+        app.wait_window("Welcome to hearme", false, 3),
+        "onboarding didn't close"
+    );
+    assert!(
+        app.wait_window("hearme", true, 3),
+        "finishing onboarding should open Settings"
+    );
+    assert!(
+        !app.config().first_run,
+        "first_run should be saved as false"
+    );
 
     app.launch(); // same dirs → second run
     sleep(1000); // onboarding shows during startup, before the hook line
-    assert!(!app.windows().iter().any(|w| w == "Welcome to hearme"), "onboarding reappeared");
+    assert!(
+        !app.windows().iter().any(|w| w == "Welcome to hearme"),
+        "onboarding reappeared"
+    );
 }
 
 #[test]
@@ -41,14 +57,20 @@ fn tray_opens_settings_and_closing_only_hides_it() {
     let app = ready_app();
     let _ = app.close_if_open();
     app.tray("Settings…");
-    assert!(app.wait_window("hearme", true, 3), "Settings didn't open from the tray");
+    assert!(
+        app.wait_window("hearme", true, 3),
+        "Settings didn't open from the tray"
+    );
     for tab in ["General", "Status", "Cleanup", "Polish", "History"] {
         app.click("hearme", tab, 1);
     }
     app.close("hearme");
     assert!(app.wait_window("hearme", false, 3));
     app.tray("Settings…");
-    assert!(app.wait_window("hearme", true, 3), "Settings couldn't be reopened after closing");
+    assert!(
+        app.wait_window("hearme", true, 3),
+        "Settings couldn't be reopened after closing"
+    );
 }
 
 #[test]
@@ -66,11 +88,25 @@ fn status_tab_lists_every_check() {
         }
         sleep(100);
     }
-    for label in ["Microphone", "Accessibility", "Input Monitoring", "Keyboard hook", "Shortcuts", "Input device", "Speech model"] {
-        assert!(text.contains(label), "Status tab is missing {label:?}:\n{text}");
+    for label in [
+        "Microphone",
+        "Accessibility",
+        "Input Monitoring",
+        "Keyboard hook",
+        "Shortcuts",
+        "Input device",
+        "Speech model",
+    ] {
+        assert!(
+            text.contains(label),
+            "Status tab is missing {label:?}:\n{text}"
+        );
     }
     for label in ["Keyboard hook", "Shortcuts", "Speech model"] {
-        assert!(app.status(label).is_some(), "startup log is missing the {label} check");
+        assert!(
+            app.status(label).is_some(),
+            "startup log is missing the {label} check"
+        );
     }
 }
 
@@ -84,7 +120,11 @@ fn hold_fn_types_the_transcript_into_the_focused_app() {
     let doc = Target::open();
     Keyboard::new().down("Fn").wait(600).up("Fn");
     let t = doc.wait_for(5, |t| t.to_lowercase().contains("hello"));
-    assert!(t.to_lowercase().contains("hello"), "target has {t:?}\n{}", app.log_text());
+    assert!(
+        t.to_lowercase().contains("hello"),
+        "target has {t:?}\n{}",
+        app.log_text()
+    );
 }
 
 #[test]
@@ -93,9 +133,18 @@ fn fn_shift_runs_the_polish_command() {
     let app = ready_app();
     app.require_keyboard();
     let doc = Target::open();
-    Keyboard::new().down("Shift").down("Fn").wait(600).up("Fn").up("Shift");
+    Keyboard::new()
+        .down("Shift")
+        .down("Fn")
+        .wait(600)
+        .up("Fn")
+        .up("Shift");
     let t = doc.wait_for(5, |t| t.contains("HELLO"));
-    assert!(t.contains("HELLO"), "expected the upper-casing polish command to run: {t:?}\n{}", app.log_text());
+    assert!(
+        t.contains("HELLO"),
+        "expected the upper-casing polish command to run: {t:?}\n{}",
+        app.log_text()
+    );
 }
 
 #[test]
@@ -107,10 +156,18 @@ fn fn_space_is_hands_free_and_the_space_never_types() {
     let mut kb = Keyboard::new();
     kb.down("Fn").wait(60).tap("Space").wait(60).up("Fn");
     sleep(1000);
-    assert_eq!(doc.text(), "", "still recording: nothing typed yet (and no space)");
+    assert_eq!(
+        doc.text(),
+        "",
+        "still recording: nothing typed yet (and no space)"
+    );
     kb.down("Fn").wait(60).up("Fn");
     let t = doc.wait_for(5, |t| t.to_lowercase().contains("hello"));
-    assert!(t.to_lowercase().contains("hello"), "{t:?}\n{}", app.log_text());
+    assert!(
+        t.to_lowercase().contains("hello"),
+        "{t:?}\n{}",
+        app.log_text()
+    );
     assert!(!t.starts_with(' '), "the Space leaked into the app: {t:?}");
 }
 
@@ -126,10 +183,19 @@ fn dictating_after_a_globe_tap_does_not_crash() {
     kb.down("Fn").wait(40).up("Fn").wait(500); // may switch input source / show emoji
     kb.down("Fn").wait(600).up("Fn");
     let t = doc.wait_for(5, |t| t.to_lowercase().contains("hello"));
-    assert!(t.to_lowercase().contains("hello"), "{t:?}\n{}", app.log_text());
+    assert!(
+        t.to_lowercase().contains("hello"),
+        "{t:?}\n{}",
+        app.log_text()
+    );
     kb.down("Fn").wait(40).up("Fn").wait(500); // and once more for luck
     assert!(
-        std::process::Command::new("pgrep").args(["-x", "hearme"]).output().unwrap().status.success(),
+        std::process::Command::new("pgrep")
+            .args(["-x", "hearme"])
+            .output()
+            .unwrap()
+            .status
+            .success(),
         "hearme crashed"
     );
 }
@@ -152,11 +218,22 @@ fn fn_plus_a_letter_is_not_dictation_and_the_letter_types() {
     let app = ready_app();
     app.require_keyboard();
     let doc = Target::open();
-    Keyboard::new().down("Fn").wait(20).tap("Z").wait(300).up("Fn");
+    Keyboard::new()
+        .down("Fn")
+        .wait(20)
+        .tap("Z")
+        .wait(300)
+        .up("Fn");
     sleep(1500);
     let t = doc.text();
-    assert!(!t.to_lowercase().contains("hello"), "Fn+Z started a dictation: {t:?}");
-    assert!(t.to_lowercase().contains('z'), "the Z should still reach the app: {t:?}");
+    assert!(
+        !t.to_lowercase().contains("hello"),
+        "Fn+Z started a dictation: {t:?}"
+    );
+    assert!(
+        t.to_lowercase().contains('z'),
+        "the Z should still reach the app: {t:?}"
+    );
 }
 
 #[test]
@@ -172,23 +249,43 @@ fn recorded_shortcut_works_immediately_and_its_key_is_swallowed() {
     app.click("hearme", "General", 1);
     app.click("hearme", "Record", 1); // Dictate row
     let mut kb = Keyboard::into(&["hearme", hearme_e2e::os::TARGET]);
-    kb.wait(300).down("Ctrl").down("Opt").down("D").wait(100).up("D").up("Opt").up("Ctrl");
+    kb.wait(300)
+        .down("Ctrl")
+        .down("Opt")
+        .down("D")
+        .wait(100)
+        .up("D")
+        .up("Opt")
+        .up("Ctrl");
     let ok = (0..30).any(|_| {
         sleep(100);
         app.config().hotkeys.dictate == ["Ctrl", "Opt", "D"]
     });
-    assert!(ok, "recorded shortcut wasn't saved: {:?}\n{}", app.config().hotkeys, app.log_text());
+    assert!(
+        ok,
+        "recorded shortcut wasn't saved: {:?}\n{}",
+        app.config().hotkeys,
+        app.log_text()
+    );
 
     app.close("hearme"); // back to the app you were typing in
     drop(first);
     let doc = Target::open();
     let mut kb = Keyboard::new();
-    kb.down("Ctrl").down("Opt").down("D").wait(600).up("D").up("Opt").up("Ctrl");
+    kb.down("Ctrl")
+        .down("Opt")
+        .down("D")
+        .wait(600)
+        .up("D")
+        .up("Opt")
+        .up("Ctrl");
     let t = doc.wait_for(5, |t| t.to_lowercase().contains("hello"));
     assert!(
         t.to_lowercase().contains("hello"),
         "new shortcut didn't dictate without a restart: {t:?}\nclipboard: {:?}\nfront app: {:?}",
-        std::process::Command::new("pbpaste").output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()),
+        std::process::Command::new("pbpaste")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string()),
         hearme_e2e::os::frontmost(),
     );
     assert!(!t.contains('∂'), "Opt+D leaked into the app: {t:?}");

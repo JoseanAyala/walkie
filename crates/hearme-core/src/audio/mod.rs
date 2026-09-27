@@ -15,7 +15,9 @@ pub static LAST_CAPTURE_SILENT: AtomicBool = AtomicBool::new(false);
 /// Name of the system default input device.
 pub fn default_input_name() -> Option<String> {
     use cpal::traits::HostTrait;
-    cpal::default_host().default_input_device().map(|d| d.to_string())
+    cpal::default_host()
+        .default_input_device()
+        .map(|d| d.to_string())
 }
 
 /// Names of every input device currently connected.
@@ -69,7 +71,10 @@ fn pick_input() -> (Option<cpal::Device>, Option<String>) {
     if preferred.is_empty() {
         return (host.default_input_device(), None);
     }
-    let mut devices: Vec<cpal::Device> = host.input_devices().map(|ds| ds.collect()).unwrap_or_default();
+    let mut devices: Vec<cpal::Device> = host
+        .input_devices()
+        .map(|ds| ds.collect())
+        .unwrap_or_default();
     let names: Vec<String> = devices.iter().map(|d| d.to_string()).collect();
     match resolve(&preferred, &names) {
         Resolved::Chosen(i) => (Some(devices.swap_remove(i)), None),
@@ -99,7 +104,12 @@ pub struct CpalCapture {
 
 impl CpalCapture {
     pub fn new() -> Self {
-        Self { stream: None, buf: Arc::new(Mutex::new(Vec::new())), rate: 16_000, channels: 1 }
+        Self {
+            stream: None,
+            buf: Arc::new(Mutex::new(Vec::new())),
+            rate: 16_000,
+            channels: 1,
+        }
     }
 }
 
@@ -111,7 +121,9 @@ impl Capture for CpalCapture {
             eprintln!("hearme: warning: chosen microphone {m:?} isn't connected, using the system default");
         }
         let device = device.context("no input device — check mic permission")?;
-        let cfg = device.default_input_config().context("no default input config")?;
+        let cfg = device
+            .default_input_config()
+            .context("no default input config")?;
         // Name the device we're actually recording from. macOS keeps whatever
         // was last set as the system default input, which can be a virtual
         // device (a DAW/mixer routing device, say) that is still selected long
@@ -192,12 +204,16 @@ impl FileCapture {
         let raw: Vec<f32> = match spec.sample_format {
             hound::SampleFormat::Int => {
                 let scale = (1i64 << (spec.bits_per_sample - 1)) as f32;
-                r.samples::<i32>().map(|s| s.map(|v| v as f32 / scale)).collect::<Result<_, _>>()?
+                r.samples::<i32>()
+                    .map(|s| s.map(|v| v as f32 / scale))
+                    .collect::<Result<_, _>>()?
             }
             hound::SampleFormat::Float => r.samples::<f32>().collect::<Result<_, _>>()?,
         };
         let mono = dsp::to_mono(&raw, spec.channels);
-        Ok(Self { samples: dsp::resample_16k(&mono, spec.sample_rate) })
+        Ok(Self {
+            samples: dsp::resample_16k(&mono, spec.sample_rate),
+        })
     }
 }
 
@@ -221,7 +237,10 @@ mod resolve_tests {
 
     #[test]
     fn empty_preference_follows_the_system_default() {
-        assert_eq!(resolve("", &names(&["MacBook Pro Microphone"])), Resolved::Default);
+        assert_eq!(
+            resolve("", &names(&["MacBook Pro Microphone"])),
+            Resolved::Default
+        );
         assert_eq!(resolve("", &[]), Resolved::Default);
     }
 
@@ -233,7 +252,10 @@ mod resolve_tests {
 
     #[test]
     fn unplugged_preference_falls_back() {
-        assert_eq!(resolve("Shure MV7", &names(&["MacBook Pro Microphone"])), Resolved::Missing);
+        assert_eq!(
+            resolve("Shure MV7", &names(&["MacBook Pro Microphone"])),
+            Resolved::Missing
+        );
         assert_eq!(resolve("Shure MV7", &[]), Resolved::Missing);
     }
 
@@ -255,7 +277,11 @@ mod file_capture_tests {
         let mut c = FileCapture::open(&path).unwrap();
         c.start(Box::new(|_| {})).unwrap();
         let s = c.stop().unwrap();
-        assert!((s.len() as f32 / 16_000.0 - 2.97).abs() < 0.05, "{} samples", s.len());
+        assert!(
+            (s.len() as f32 / 16_000.0 - 2.97).abs() < 0.05,
+            "{} samples",
+            s.len()
+        );
         assert!(dsp::rms(&s) > 0.001);
     }
 }

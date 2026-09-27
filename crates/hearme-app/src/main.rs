@@ -55,14 +55,27 @@ fn main() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            let paste = MenuItem::with_id(app, "paste_last", "Paste last transcript", true, None::<&str>)?;
+            let paste = MenuItem::with_id(
+                app,
+                "paste_last",
+                "Paste last transcript",
+                true,
+                None::<&str>,
+            )?;
             let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit hearme", true, None::<&str>)?;
-            let menu =
-                MenuBuilder::new(app).item(&paste).separator().item(&settings).separator().item(&quit).build()?;
+            let menu = MenuBuilder::new(app)
+                .item(&paste)
+                .separator()
+                .item(&settings)
+                .separator()
+                .item(&quit)
+                .build()?;
 
             let tray = TrayIconBuilder::with_id("main")
-                .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-idle.png"))?)
+                .icon(tauri::image::Image::from_bytes(include_bytes!(
+                    "../icons/tray-idle.png"
+                ))?)
                 .icon_as_template(false)
                 .menu(&menu)
                 .on_menu_event(|app, ev| match ev.id.as_ref() {

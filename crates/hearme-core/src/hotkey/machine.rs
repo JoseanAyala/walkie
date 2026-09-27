@@ -121,7 +121,7 @@ mod tests {
         m.press(0);
         m.release(100); // tap 1
         assert_eq!(m.press(250), Some(Start)); // tap 2 inside 300ms window → locked
-        assert_eq!(m.release(350), None);      // completes tap 2, stays locked
+        assert_eq!(m.release(350), None); // completes tap 2, stays locked
         assert!(m.is_engaged());
         assert_eq!(m.press(5000), Some(Finish)); // stop tap
         assert_eq!(m.release(5080), None);

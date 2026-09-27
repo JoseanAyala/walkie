@@ -61,14 +61,21 @@ impl History {
     }
 
     pub fn recent(&self, limit: u32) -> Result<Vec<Record>> {
-        self.query("SELECT id, created_at, raw, cleaned, polished, lang, duration_ms
-                    FROM transcripts ORDER BY id DESC LIMIT ?1", rusqlite::params![limit])
+        self.query(
+            "SELECT id, created_at, raw, cleaned, polished, lang, duration_ms
+                    FROM transcripts ORDER BY id DESC LIMIT ?1",
+            rusqlite::params![limit],
+        )
     }
 
     /// The text of the newest transcript as it was inserted (polished if it
     /// was), for paste-last after a restart.
     pub fn last_text(&self) -> Result<Option<String>> {
-        Ok(self.recent(1)?.into_iter().next().map(|r| r.polished.unwrap_or(r.cleaned)))
+        Ok(self
+            .recent(1)?
+            .into_iter()
+            .next()
+            .map(|r| r.polished.unwrap_or(r.cleaned)))
     }
 
     pub fn search(&self, q: &str, limit: u32) -> Result<Vec<Record>> {
@@ -106,8 +113,16 @@ mod tests {
     #[test]
     fn insert_and_recent() {
         let h = History::open_in_memory().unwrap();
-        h.insert("raw one", "clean one", None, Some("en"), 1200).unwrap();
-        h.insert("raw two", "clean two", Some("polished two"), Some("es"), 800).unwrap();
+        h.insert("raw one", "clean one", None, Some("en"), 1200)
+            .unwrap();
+        h.insert(
+            "raw two",
+            "clean two",
+            Some("polished two"),
+            Some("es"),
+            800,
+        )
+        .unwrap();
         let rows = h.recent(10).unwrap();
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].cleaned, "clean two"); // newest first
@@ -122,15 +137,24 @@ mod tests {
         assert_eq!(h.last_text().unwrap(), None);
         h.insert("raw one", "clean one", None, None, 100).unwrap();
         assert_eq!(h.last_text().unwrap().as_deref(), Some("clean one"));
-        h.insert("raw two", "clean two", Some("polished two"), None, 100).unwrap();
+        h.insert("raw two", "clean two", Some("polished two"), None, 100)
+            .unwrap();
         assert_eq!(h.last_text().unwrap().as_deref(), Some("polished two"));
     }
 
     #[test]
     fn search_matches_any_text_column() {
         let h = History::open_in_memory().unwrap();
-        h.insert("the quick fox", "the quick fox", None, None, 100).unwrap();
-        h.insert("hola mundo", "hola mundo", Some("saludos cordiales"), None, 100).unwrap();
+        h.insert("the quick fox", "the quick fox", None, None, 100)
+            .unwrap();
+        h.insert(
+            "hola mundo",
+            "hola mundo",
+            Some("saludos cordiales"),
+            None,
+            100,
+        )
+        .unwrap();
         assert_eq!(h.search("quick", 10).unwrap().len(), 1);
         assert_eq!(h.search("cordiales", 10).unwrap().len(), 1);
         assert_eq!(h.search("zzz", 10).unwrap().len(), 0);
@@ -140,7 +164,8 @@ mod tests {
     fn limit_respected() {
         let h = History::open_in_memory().unwrap();
         for i in 0..5 {
-            h.insert(&format!("r{i}"), &format!("c{i}"), None, None, 10).unwrap();
+            h.insert(&format!("r{i}"), &format!("c{i}"), None, None, 10)
+                .unwrap();
         }
         assert_eq!(h.recent(3).unwrap().len(), 3);
     }

@@ -36,7 +36,10 @@ pub enum Command {
 pub enum Event {
     State(SessionState),
     Level(f32),
-    Done { text: String, lang: Option<String> },
+    Done {
+        text: String,
+        lang: Option<String>,
+    },
     Error(String),
     /// Worth telling the user, but nothing went wrong (e.g. copied, not pasted).
     Notice(String),
@@ -77,7 +80,12 @@ const MIN_UTTERANCE_MS: usize = 300;
 
 impl Session {
     pub fn new(deps: Deps, tx: Sender<Event>) -> Self {
-        Self { deps, tx, mode: None, ducker: None }
+        Self {
+            deps,
+            tx,
+            mode: None,
+            ducker: None,
+        }
     }
 
     /// Lowers other audio while recording (see `audio::duck`).
@@ -156,7 +164,9 @@ impl Session {
 
     pub fn reinject(&mut self, text: &str) {
         if self.mode.is_some() {
-            self.emit(Event::Error("finish the current dictation before pasting the last one".into()));
+            self.emit(Event::Error(
+                "finish the current dictation before pasting the last one".into(),
+            ));
             return;
         }
         self.emit(Event::State(SessionState::Injecting));
@@ -213,7 +223,11 @@ impl Session {
             Some("es") => cl.fillers_es.clone(),
             _ => [cl.fillers_en.clone(), cl.fillers_es.clone()].concat(),
         };
-        let cleaned = if cl.enabled { cleanup::clean(&tr.text, &fillers) } else { tr.text.clone() };
+        let cleaned = if cl.enabled {
+            cleanup::clean(&tr.text, &fillers)
+        } else {
+            tr.text.clone()
+        };
         if cleaned.is_empty() {
             self.emit(Event::State(SessionState::Idle));
             return;
@@ -229,7 +243,9 @@ impl Session {
                     final_text = out.clone();
                     polished = Some(out);
                 }
-                Err(e) => self.emit(Event::Error(format!("polish failed ({e}); using raw transcript"))),
+                Err(e) => self.emit(Event::Error(format!(
+                    "polish failed ({e}); using raw transcript"
+                ))),
             }
         }
 
@@ -250,7 +266,10 @@ impl Session {
             }
         }
 
-        self.emit(Event::Done { text: final_text, lang: tr.lang });
+        self.emit(Event::Done {
+            text: final_text,
+            lang: tr.lang,
+        });
         self.emit(Event::State(SessionState::Idle));
     }
 }
@@ -286,7 +305,7 @@ mod tests {
     use super::*;
     use crate::audio::duck::MemVolume;
     use crate::audio::Capture;
-use crate::hotkey::Mode;
+    use crate::hotkey::Mode;
     use crate::inject::Injector;
     use crate::stt::{LangHint, SttEngine, Transcript};
     use std::cell::RefCell;
@@ -321,7 +340,10 @@ use crate::hotkey::Mode;
             if self.fail {
                 anyhow::bail!("stt exploded")
             }
-            Ok(Transcript { text: self.text.clone(), lang: self.lang.clone() })
+            Ok(Transcript {
+                text: self.text.clone(),
+                lang: self.lang.clone(),
+            })
         }
     }
 
@@ -364,20 +386,32 @@ use crate::hotkey::Mode;
         let mut cfg = crate::config::Config::default();
         cfg.polish.command = "tr 'a-z' 'A-Z'".into(); // deterministic local "LLM"
         let deps = Deps {
-            capture: Box::new(MockCapture { samples: vec![0.05; 16_000], fail_start: capture_fail }),
+            capture: Box::new(MockCapture {
+                samples: vec![0.05; 16_000],
+                fail_start: capture_fail,
+            }),
             stt: Box::new(MockStt {
                 text: text.into(),
                 lang: lang.map(String::from),
                 fail: stt_fail,
                 calls: stt_calls.clone(),
             }),
-            injector: Box::new(MockInjector { sink: injected.clone(), fail: inject_fail }),
+            injector: Box::new(MockInjector {
+                sink: injected.clone(),
+                fail: inject_fail,
+            }),
             history: Some(crate::history::History::open_in_memory().unwrap()),
             cfg,
         };
         let volume = MemVolume::new(0.8);
         let ducker = Arc::new(Ducker::new(Box::new(volume.clone()), 25));
-        Rig { session: Session::new(deps, tx).with_ducker(ducker), rx, injected, stt_calls, volume }
+        Rig {
+            session: Session::new(deps, tx).with_ducker(ducker),
+            rx,
+            injected,
+            stt_calls,
+            volume,
+        }
     }
 
     fn states(rx: &mpsc::Receiver<Event>) -> Vec<String> {
@@ -437,7 +471,10 @@ use crate::hotkey::Mode;
         let evs = states(&r.rx);
         assert!(evs.contains(&"Error".to_string()));
         assert_eq!(evs.last().unwrap(), "Idle");
-        assert!(spool_root.path().join("hearme/spool/last-failed.wav").exists());
+        assert!(spool_root
+            .path()
+            .join("hearme/spool/last-failed.wav")
+            .exists());
         assert_eq!(r.volume.volume(), 0.8, "error path must restore the volume");
         std::env::remove_var("XDG_CACHE_HOME");
     }
@@ -449,7 +486,11 @@ use crate::hotkey::Mode;
         r.session.finish();
         assert!(states(&r.rx).contains(&"Error".to_string()));
         let rows = r.session.deps.history.as_ref().unwrap().recent(10).unwrap();
-        assert_eq!(rows.len(), 1, "transcript should be recorded even though injection failed");
+        assert_eq!(
+            rows.len(),
+            1,
+            "transcript should be recorded even though injection failed"
+        );
         assert_eq!(rows[0].cleaned, "Hello");
     }
 
@@ -462,8 +503,16 @@ use crate::hotkey::Mode;
         r.session.finish();
         assert_eq!(copied.borrow().as_slice(), ["Hello"]);
         let evs: Vec<Event> = r.rx.try_iter().collect();
-        let notices: Vec<&str> =
-            evs.iter().filter_map(|e| if let Event::Notice(m) = e { Some(m.as_str()) } else { None }).collect();
+        let notices: Vec<&str> = evs
+            .iter()
+            .filter_map(|e| {
+                if let Event::Notice(m) = e {
+                    Some(m.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
         assert_eq!(notices, [NO_FIELD_NOTICE]);
         assert!(!evs.iter().any(|e| matches!(e, Event::Error(_))), "{evs:?}");
         assert!(matches!(evs.last(), Some(Event::State(SessionState::Idle))));
@@ -503,7 +552,10 @@ use crate::hotkey::Mode;
     #[test]
     fn too_short_utterance_is_dropped() {
         let mut r = rig("x", None, (false, false, false));
-        r.session.deps.capture = Box::new(MockCapture { samples: vec![0.0; 1000], fail_start: false });
+        r.session.deps.capture = Box::new(MockCapture {
+            samples: vec![0.0; 1000],
+            fail_start: false,
+        });
         r.session.start(Mode::Dictate);
         r.session.finish();
         assert_eq!(*r.stt_calls.borrow(), 0);
@@ -561,7 +613,11 @@ use crate::hotkey::Mode;
     fn volume_is_lowered_while_recording_and_restored_after() {
         let mut r = rig("hello", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
-        assert!((r.volume.volume() - 0.2).abs() < 1e-6, "{}", r.volume.volume());
+        assert!(
+            (r.volume.volume() - 0.2).abs() < 1e-6,
+            "{}",
+            r.volume.volume()
+        );
         r.session.finish();
         assert_eq!(r.volume.volume(), 0.8);
     }
@@ -607,8 +663,22 @@ use crate::hotkey::Mode;
         states(&r.rx);
         r.session.apply(Command::Reinject("Hello".into()));
         assert_eq!(r.injected.borrow().as_slice(), ["Hello", "Hello"]);
-        assert_eq!(states(&r.rx), ["Injecting", "Idle"], "no Done: it isn't a new transcript");
-        assert_eq!(r.session.deps.history.as_ref().unwrap().recent(10).unwrap().len(), 1);
+        assert_eq!(
+            states(&r.rx),
+            ["Injecting", "Idle"],
+            "no Done: it isn't a new transcript"
+        );
+        assert_eq!(
+            r.session
+                .deps
+                .history
+                .as_ref()
+                .unwrap()
+                .recent(10)
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -617,7 +687,11 @@ use crate::hotkey::Mode;
         r.session.start(Mode::Dictate);
         r.session.reinject("old");
         assert!(r.injected.borrow().is_empty());
-        assert_eq!(states(&r.rx), ["Recording", "Error"], "recording keeps going");
+        assert_eq!(
+            states(&r.rx),
+            ["Recording", "Error"],
+            "recording keeps going"
+        );
         r.session.finish();
         assert_eq!(r.injected.borrow().as_slice(), ["Hello"]);
     }

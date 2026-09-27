@@ -27,29 +27,96 @@ const CAPS_LOCK: u16 = 57;
 /// macOS virtual keycodes (kVK_*) for keys with a stable name. Anything not
 /// listed is still bindable and round-trips as `Key<code>`.
 const NAMED: &[(u16, &str)] = &[
-    (0, "A"), (11, "B"), (8, "C"), (2, "D"), (14, "E"), (3, "F"), (5, "G"), (4, "H"),
-    (34, "I"), (38, "J"), (40, "K"), (37, "L"), (46, "M"), (45, "N"), (31, "O"),
-    (35, "P"), (12, "Q"), (15, "R"), (1, "S"), (17, "T"), (32, "U"), (9, "V"),
-    (13, "W"), (7, "X"), (16, "Y"), (6, "Z"),
-    (29, "0"), (18, "1"), (19, "2"), (20, "3"), (21, "4"), (23, "5"), (22, "6"),
-    (26, "7"), (28, "8"), (25, "9"),
-    (49, "Space"), (36, "Return"), (48, "Tab"), (51, "Delete"), (53, "Escape"),
-    (50, "Backquote"), (27, "Minus"), (24, "Equal"), (33, "LeftBracket"),
-    (30, "RightBracket"), (42, "Backslash"), (41, "Semicolon"), (39, "Quote"),
-    (43, "Comma"), (47, "Period"), (44, "Slash"),
-    (123, "Left"), (124, "Right"), (125, "Down"), (126, "Up"),
-    (115, "Home"), (119, "End"), (116, "PageUp"), (121, "PageDown"),
-    (117, "ForwardDelete"), (114, "Help"),
-    (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"), (96, "F5"), (97, "F6"),
-    (98, "F7"), (100, "F8"), (101, "F9"), (109, "F10"), (103, "F11"), (111, "F12"),
-    (105, "F13"), (107, "F14"), (113, "F15"), (106, "F16"), (64, "F17"), (79, "F18"),
-    (80, "F19"), (90, "F20"),
+    (0, "A"),
+    (11, "B"),
+    (8, "C"),
+    (2, "D"),
+    (14, "E"),
+    (3, "F"),
+    (5, "G"),
+    (4, "H"),
+    (34, "I"),
+    (38, "J"),
+    (40, "K"),
+    (37, "L"),
+    (46, "M"),
+    (45, "N"),
+    (31, "O"),
+    (35, "P"),
+    (12, "Q"),
+    (15, "R"),
+    (1, "S"),
+    (17, "T"),
+    (32, "U"),
+    (9, "V"),
+    (13, "W"),
+    (7, "X"),
+    (16, "Y"),
+    (6, "Z"),
+    (29, "0"),
+    (18, "1"),
+    (19, "2"),
+    (20, "3"),
+    (21, "4"),
+    (23, "5"),
+    (22, "6"),
+    (26, "7"),
+    (28, "8"),
+    (25, "9"),
+    (49, "Space"),
+    (36, "Return"),
+    (48, "Tab"),
+    (51, "Delete"),
+    (53, "Escape"),
+    (50, "Backquote"),
+    (27, "Minus"),
+    (24, "Equal"),
+    (33, "LeftBracket"),
+    (30, "RightBracket"),
+    (42, "Backslash"),
+    (41, "Semicolon"),
+    (39, "Quote"),
+    (43, "Comma"),
+    (47, "Period"),
+    (44, "Slash"),
+    (123, "Left"),
+    (124, "Right"),
+    (125, "Down"),
+    (126, "Up"),
+    (115, "Home"),
+    (119, "End"),
+    (116, "PageUp"),
+    (121, "PageDown"),
+    (117, "ForwardDelete"),
+    (114, "Help"),
+    (122, "F1"),
+    (120, "F2"),
+    (99, "F3"),
+    (118, "F4"),
+    (96, "F5"),
+    (97, "F6"),
+    (98, "F7"),
+    (100, "F8"),
+    (101, "F9"),
+    (109, "F10"),
+    (103, "F11"),
+    (111, "F12"),
+    (105, "F13"),
+    (107, "F14"),
+    (113, "F15"),
+    (106, "F16"),
+    (64, "F17"),
+    (79, "F18"),
+    (80, "F19"),
+    (90, "F20"),
 ];
 
 /// Keys that may be bound on their own. Anything else alone (a letter, Space,
 /// Return, an arrow) would stop working for normal typing, since a bound key
 /// is swallowed.
-const LONE_OK: &[u16] = &[122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111, 105, 107, 113, 106, 64, 79, 80, 90, 114];
+const LONE_OK: &[u16] = &[
+    122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111, 105, 107, 113, 106, 64, 79, 80, 90, 114,
+];
 
 impl Key {
     pub fn from_keycode(code: u16) -> Key {
@@ -169,7 +236,10 @@ impl Key {
         if lower == "fn" || lower == "globe" {
             return Some(Key::Fn);
         }
-        if let Some(code) = lower.strip_prefix("key").and_then(|c| c.parse::<u16>().ok()) {
+        if let Some(code) = lower
+            .strip_prefix("key")
+            .and_then(|c| c.parse::<u16>().ok())
+        {
             return Some(Key::Code(code));
         }
         NAMED
@@ -298,7 +368,10 @@ mod tests {
 
     #[test]
     fn normalize_generalizes_only_combos_with_fn_or_a_regular_key() {
-        assert_eq!(normalize(&[Key::Shift(Left), Key::Fn]), vec![Key::Fn, Key::Shift(Any)]);
+        assert_eq!(
+            normalize(&[Key::Shift(Left), Key::Fn]),
+            vec![Key::Fn, Key::Shift(Any)]
+        );
         assert_eq!(
             normalize(&[Key::Code(2), Key::Opt(Right), Key::Ctrl(Left)]),
             vec![Key::Ctrl(Any), Key::Opt(Any), Key::Code(2)]

@@ -61,7 +61,10 @@ pub fn begin(name: &'static str) -> TestGuard {
             std::thread::sleep(Duration::from_millis(50));
         }
         let at = STEP.lock().unwrap_or_else(|e| e.into_inner()).clone();
-        eprintln!("\n⏱  {name} took over {}s — stuck at: {at}", TEST_BUDGET.as_secs());
+        eprintln!(
+            "\n⏱  {name} took over {}s — stuck at: {at}",
+            TEST_BUDGET.as_secs()
+        );
         if let Some(log) = LOG.lock().unwrap_or_else(|e| e.into_inner()).clone() {
             let text = std::fs::read_to_string(&log).unwrap_or_default();
             let tail: Vec<&str> = text.lines().rev().take(15).collect();
@@ -74,7 +77,10 @@ pub fn begin(name: &'static str) -> TestGuard {
         restore_login_item();
         std::process::exit(101);
     });
-    TestGuard { _serial: serial, done }
+    TestGuard {
+        _serial: serial,
+        done,
+    }
 }
 
 pub const APP: &str = "/Applications/hearme.app";
@@ -85,7 +91,12 @@ pub fn sleep(ms: u64) {
 
 /// Runs AppleScript; Err carries osascript's stderr.
 pub fn osa(script: &str, args: &[&str]) -> Result<String, String> {
-    let out = Command::new("osascript").arg("-e").arg(script).args(args).output().map_err(|e| e.to_string())?;
+    let out = Command::new("osascript")
+        .arg("-e")
+        .arg(script)
+        .args(args)
+        .output()
+        .map_err(|e| e.to_string())?;
     if out.status.success() {
         Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
     } else {
@@ -117,8 +128,11 @@ impl App {
     /// Fresh dirs; nothing launched yet.
     pub fn new() -> App {
         LOGIN_ITEM_BEFORE.get_or_init(|| login_item("status"));
-        let root = std::env::temp_dir()
-            .join(format!("hearme-os-e2e-{}-{}", std::process::id(), RUN.fetch_add(1, Ordering::SeqCst)));
+        let root = std::env::temp_dir().join(format!(
+            "hearme-os-e2e-{}-{}",
+            std::process::id(),
+            RUN.fetch_add(1, Ordering::SeqCst)
+        ));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
         let log = root.join("hearme.log");
@@ -148,7 +162,8 @@ impl App {
 
     /// Adds a transcript to the app's history, as if dictated in an earlier run.
     pub fn seed_history(&self, text: &str) {
-        let h = hearme_core::history::History::open(&self.root.join("data/hearme/history.sqlite3")).unwrap();
+        let h = hearme_core::history::History::open(&self.root.join("data/hearme/history.sqlite3"))
+            .unwrap();
         h.insert(text, text, None, Some("en"), 1000).unwrap();
     }
 
@@ -172,7 +187,10 @@ impl App {
             .arg("HEARME_DEBUG_EVENTS=1")
             .status()
             .unwrap();
-        assert!(status.success(), "couldn't launch {APP} — run e2e/run-app-tests.sh to build and install it");
+        assert!(
+            status.success(),
+            "couldn't launch {APP} — run e2e/run-app-tests.sh to build and install it"
+        );
         step("waiting for hearme to start");
         assert!(
             self.wait_log("keyboard hook", 4),
@@ -197,7 +215,9 @@ impl App {
         self.log_text().lines().find_map(|l| {
             let rest = l.strip_prefix("hearme: status ")?;
             let (ok, rest) = rest.split_at(4);
-            rest.trim_start().starts_with(&format!("{label}:")).then_some(ok == "ok  ")
+            rest.trim_start()
+                .starts_with(&format!("{label}:"))
+                .then_some(ok == "ok  ")
         })
     }
 
@@ -210,7 +230,11 @@ impl App {
              (System Settings → Privacy & Security → Accessibility) and rerun.\n{}",
             self.log_text()
         );
-        assert!(self.wait_log("hearme: model ready", 4), "model never loaded:\n{}", self.log_text());
+        assert!(
+            self.wait_log("hearme: model ready", 4),
+            "model never loaded:\n{}",
+            self.log_text()
+        );
     }
 
     pub fn windows(&self) -> Vec<String> {
@@ -223,7 +247,10 @@ impl App {
     }
 
     pub fn wait_window(&self, name: &str, present: bool, secs: u64) -> bool {
-        step(format!("waiting for window {name:?} to be {}", if present { "shown" } else { "gone" }));
+        step(format!(
+            "waiting for window {name:?} to be {}",
+            if present { "shown" } else { "gone" }
+        ));
         wait_until(secs, || self.windows().iter().any(|w| w == name) == present)
     }
 
@@ -502,7 +529,9 @@ pub fn login_item_on(status: &str) -> bool {
 
 /// Never panics: it runs from Drop and the watchdog.
 pub fn restore_login_item() {
-    let Some(before) = LOGIN_ITEM_BEFORE.get() else { return };
+    let Some(before) = LOGIN_ITEM_BEFORE.get() else {
+        return;
+    };
     let want = login_item_on(before);
     let now = try_login_item("status");
     if now.as_deref().map(login_item_on) != Ok(want) {
@@ -514,7 +543,12 @@ pub fn restore_login_item() {
 
 pub fn quit() {
     let _ = Command::new("pkill").args(["-x", "hearme"]).status();
-    wait_until(3, || !Command::new("pgrep").args(["-x", "hearme"]).status().is_ok_and(|s| s.success()));
+    wait_until(3, || {
+        !Command::new("pgrep")
+            .args(["-x", "hearme"])
+            .status()
+            .is_ok_and(|s| s.success())
+    });
 }
 
 // ---------------------------------------------------------------- keyboard
@@ -564,7 +598,10 @@ impl Keyboard {
             allowed.contains(&front.as_str()),
             "refusing to type: {front:?} is in front, expected one of {allowed:?}"
         );
-        Keyboard { src: CGEventSource::new(CGEventSourceStateID::HIDSystemState).unwrap(), flags: 0 }
+        Keyboard {
+            src: CGEventSource::new(CGEventSourceStateID::HIDSystemState).unwrap(),
+            flags: 0,
+        }
     }
 
     /// Typing into the typing target.
@@ -595,10 +632,21 @@ impl Keyboard {
             } else {
                 self.flags &= !k.flag_bit().unwrap();
                 // Keep the device-independent bit while the other side is held.
-                let still = [Key::Shift(Side::Left), Key::Shift(Side::Right), Key::Cmd(Side::Left), Key::Cmd(Side::Right),
-                    Key::Opt(Side::Left), Key::Opt(Side::Right), Key::Ctrl(Side::Left), Key::Ctrl(Side::Right)]
-                    .iter()
-                    .any(|o| device_independent(*o) == device_independent(k) && self.flags & o.flag_bit().unwrap() != 0);
+                let still = [
+                    Key::Shift(Side::Left),
+                    Key::Shift(Side::Right),
+                    Key::Cmd(Side::Left),
+                    Key::Cmd(Side::Right),
+                    Key::Opt(Side::Left),
+                    Key::Opt(Side::Right),
+                    Key::Ctrl(Side::Left),
+                    Key::Ctrl(Side::Right),
+                ]
+                .iter()
+                .any(|o| {
+                    device_independent(*o) == device_independent(k)
+                        && self.flags & o.flag_bit().unwrap() != 0
+                });
                 if !still {
                     self.flags &= !device_independent(k);
                 }
@@ -635,17 +683,26 @@ impl Keyboard {
 pub const TARGET: &str = "typing-target";
 
 pub fn frontmost() -> String {
-    osa(r#"tell application "System Events" to get name of first process whose frontmost is true"#, &[])
-        .unwrap_or_default()
+    osa(
+        r#"tell application "System Events" to get name of first process whose frontmost is true"#,
+        &[],
+    )
+    .unwrap_or_default()
 }
 
 pub fn clipboard() -> String {
-    Command::new("pbpaste").output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default()
+    Command::new("pbpaste")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default()
 }
 
 pub fn set_clipboard(text: &str) {
     use std::io::Write;
-    let mut p = Command::new("pbcopy").stdin(std::process::Stdio::piped()).spawn().unwrap();
+    let mut p = Command::new("pbcopy")
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
     p.stdin.take().unwrap().write_all(text.as_bytes()).unwrap();
     assert!(p.wait().unwrap().success(), "pbcopy failed");
 }
@@ -654,8 +711,13 @@ pub fn set_clipboard(text: &str) {
 /// a place with no text field to dictate into.
 pub fn focus_finder() {
     step("bringing Finder to the front");
-    osa(r#"tell application "Finder" to activate"#, &[]).unwrap_or_else(|e| panic!("activating Finder: {e}"));
-    assert!(wait_until(3, || frontmost() == "Finder"), "Finder never came to the front (front: {:?})", frontmost());
+    osa(r#"tell application "Finder" to activate"#, &[])
+        .unwrap_or_else(|e| panic!("activating Finder: {e}"));
+    assert!(
+        wait_until(3, || frontmost() == "Finder"),
+        "Finder never came to the front (front: {:?})",
+        frontmost()
+    );
 }
 
 /// A fresh, focused text window to dictate into; quit on drop. Its text is
@@ -671,7 +733,10 @@ fn target_bundle() -> PathBuf {
     let exe = std::env::current_exe().unwrap(); // target/<profile>/deps/app-…
     let dir = exe.parent().unwrap().parent().unwrap();
     let bin = dir.join(TARGET);
-    assert!(bin.exists(), "{bin:?} missing — build with --features os-tests");
+    assert!(
+        bin.exists(),
+        "{bin:?} missing — build with --features os-tests"
+    );
     let app = dir.join(format!("{TARGET}.app"));
     let macos = app.join("Contents/MacOS");
     std::fs::create_dir_all(&macos).unwrap();
@@ -698,13 +763,24 @@ impl Target {
     pub fn open() -> Target {
         step("opening the typing target");
         let _ = Command::new("pkill").args(["-x", TARGET]).status();
-        let out = std::env::temp_dir().join(format!("hearme-e2e-target-{}.txt", std::process::id()));
+        let out =
+            std::env::temp_dir().join(format!("hearme-e2e-target-{}.txt", std::process::id()));
         let _ = std::fs::remove_file(&out);
-        let ok = Command::new("open").arg("-n").arg(target_bundle()).arg("--args").arg(&out).status().unwrap();
+        let ok = Command::new("open")
+            .arg("-n")
+            .arg(target_bundle())
+            .arg("--args")
+            .arg(&out)
+            .status()
+            .unwrap();
         assert!(ok.success(), "couldn't launch the typing target");
         step("waiting for the typing target to be frontmost");
         let front = wait_until(3, || frontmost() == TARGET);
-        assert!(front, "typing target never came to the front (front: {:?})", frontmost());
+        assert!(
+            front,
+            "typing target never came to the front (front: {:?})",
+            frontmost()
+        );
         Target { out }
     }
 

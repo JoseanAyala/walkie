@@ -7,7 +7,9 @@
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET).
 
-use hearme_e2e::os::{begin, clipboard, focus_finder, set_clipboard, sleep, step, App, Keyboard, Target};
+use hearme_e2e::os::{
+    begin, clipboard, focus_finder, set_clipboard, sleep, step, App, Keyboard, Target,
+};
 
 const NOTICE: &str = "No text field";
 
@@ -27,10 +29,22 @@ fn a_text_field_is_typed_into_and_the_clipboard_restored() {
     let doc = Target::open();
     Keyboard::new().down("Fn").wait(600).up("Fn");
     let t = doc.wait_for(5, |t| t.to_lowercase().contains("hello"));
-    assert!(t.to_lowercase().contains("hello"), "misdetected as no text field? target has {t:?}\n{}", app.log_text());
+    assert!(
+        t.to_lowercase().contains("hello"),
+        "misdetected as no text field? target has {t:?}\n{}",
+        app.log_text()
+    );
     sleep(500); // past restore_clipboard_ms
-    assert_eq!(clipboard(), "hearme-e2e sentinel", "the old clipboard should be restored after a paste");
-    assert!(!app.log_text().contains(NOTICE), "no notice expected:\n{}", app.log_text());
+    assert_eq!(
+        clipboard(),
+        "hearme-e2e sentinel",
+        "the old clipboard should be restored after a paste"
+    );
+    assert!(
+        !app.log_text().contains(NOTICE),
+        "no notice expected:\n{}",
+        app.log_text()
+    );
 }
 
 #[test]
@@ -41,14 +55,31 @@ fn finder_gets_the_transcript_on_the_clipboard_and_a_notice() {
     set_clipboard("hearme-e2e sentinel");
     focus_finder();
     Keyboard::into(&["Finder"]).down("Fn").wait(600).up("Fn");
-    assert!(app.wait_log(NOTICE, 5), "no notice logged:\n{}", app.log_text());
+    assert!(
+        app.wait_log(NOTICE, 5),
+        "no notice logged:\n{}",
+        app.log_text()
+    );
     let overlay = app.all_text();
-    assert!(overlay.contains(NOTICE), "overlay should show the notice, shows {overlay:?}");
-    assert!(!overlay.contains('⚠'), "a notice isn't an error: {overlay:?}");
+    assert!(
+        overlay.contains(NOTICE),
+        "overlay should show the notice, shows {overlay:?}"
+    );
+    assert!(
+        !overlay.contains('⚠'),
+        "a notice isn't an error: {overlay:?}"
+    );
     step("checking the clipboard");
     let cb = clipboard();
-    assert!(cb.to_lowercase().contains("hello"), "clipboard should hold the transcript, has {cb:?}");
+    assert!(
+        cb.to_lowercase().contains("hello"),
+        "clipboard should hold the transcript, has {cb:?}"
+    );
     sleep(500); // a paste would have restored the old clipboard by now
     assert_eq!(clipboard(), cb, "the transcript must stay on the clipboard");
-    assert!(!app.log_text().contains("hearme error"), "{}", app.log_text());
+    assert!(
+        !app.log_text().contains("hearme error"),
+        "{}",
+        app.log_text()
+    );
 }

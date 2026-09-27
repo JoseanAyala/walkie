@@ -39,7 +39,13 @@ mod tests {
 
     #[test]
     fn from_config_pinned() {
-        assert_eq!(LangHint::from_config("en"), LangHint::Pinned("en".to_string()));
-        assert_eq!(LangHint::from_config("es"), LangHint::Pinned("es".to_string()));
+        assert_eq!(
+            LangHint::from_config("en"),
+            LangHint::Pinned("en".to_string())
+        );
+        assert_eq!(
+            LangHint::from_config("es"),
+            LangHint::Pinned("es".to_string())
+        );
     }
 }

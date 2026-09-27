@@ -116,12 +116,18 @@ mod tests {
 
     #[test]
     fn identity_command_roundtrips() {
-        assert_eq!(run_polish("cat", "hello world", Duration::from_secs(5)).unwrap(), "hello world");
+        assert_eq!(
+            run_polish("cat", "hello world", Duration::from_secs(5)).unwrap(),
+            "hello world"
+        );
     }
 
     #[test]
     fn command_transforms_stdin() {
-        assert_eq!(run_polish("tr 'a-z' 'A-Z'", "hola", Duration::from_secs(5)).unwrap(), "HOLA");
+        assert_eq!(
+            run_polish("tr 'a-z' 'A-Z'", "hola", Duration::from_secs(5)).unwrap(),
+            "HOLA"
+        );
     }
 
     #[test]
@@ -144,7 +150,11 @@ mod tests {
         let t0 = Instant::now();
         let r = run_polish("sleep 5 && echo hi", "x", Duration::from_millis(300));
         assert!(r.is_err());
-        assert!(t0.elapsed() < Duration::from_secs(2), "took {:?}", t0.elapsed());
+        assert!(
+            t0.elapsed() < Duration::from_secs(2),
+            "took {:?}",
+            t0.elapsed()
+        );
     }
 
     /// Regression test for a deadlock: writing all of `input` to the
@@ -159,6 +169,10 @@ mod tests {
         let t0 = Instant::now();
         let out = run_polish("cat", &input, Duration::from_secs(10)).unwrap();
         assert_eq!(out, input);
-        assert!(t0.elapsed() < Duration::from_secs(5), "took {:?}", t0.elapsed());
+        assert!(
+            t0.elapsed() < Duration::from_secs(5),
+            "took {:?}",
+            t0.elapsed()
+        );
     }
 }

@@ -11,12 +11,14 @@ fn main() {
     use objc2::rc::autoreleasepool;
     use objc2::{sel, MainThreadMarker, MainThreadOnly};
     use objc2_app_kit::{
-        NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSEventMask, NSMenu, NSMenuItem,
-        NSTextView, NSWindow, NSWindowStyleMask,
+        NSApplication, NSApplicationActivationPolicy, NSBackingStoreType, NSEventMask, NSMenu,
+        NSMenuItem, NSTextView, NSWindow, NSWindowStyleMask,
     };
     use objc2_foundation::{ns_string, NSDate, NSDefaultRunLoopMode, NSPoint, NSRect, NSSize};
 
-    let out = std::env::args().nth(1).expect("usage: typing-target <out-file>");
+    let out = std::env::args()
+        .nth(1)
+        .expect("usage: typing-target <out-file>");
     let _ = std::fs::write(&out, "");
     let mtm = MainThreadMarker::new().expect("main thread");
     let app = NSApplication::sharedApplication(mtm);

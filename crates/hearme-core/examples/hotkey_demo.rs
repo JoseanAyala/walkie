@@ -24,7 +24,11 @@ fn main() -> anyhow::Result<()> {
         paste_last: parse(&h.paste_last)?,
     };
     let status = Arc::new(TapStatus::default());
-    tap::spawn(Arc::new(Mutex::new(Engine::new(bindings))), status.clone(), |s| println!("{s:?}"));
+    tap::spawn(
+        Arc::new(Mutex::new(Engine::new(bindings))),
+        status.clone(),
+        |s| println!("{s:?}"),
+    );
     std::thread::sleep(std::time::Duration::from_millis(500));
     if let Some(e) = status.error.lock().unwrap().as_ref() {
         anyhow::bail!("{e}");

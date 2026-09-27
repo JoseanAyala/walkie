@@ -34,10 +34,7 @@ fn redirect(path: &Path) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)?;
+    let mut file = OpenOptions::new().create(true).append(true).open(path)?;
     if needs_rotation(file.metadata()?.len()) {
         file.set_len(0)?;
     }
@@ -45,7 +42,11 @@ fn redirect(path: &Path) -> std::io::Result<()> {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    writeln!(file, "--- hearme {} started (unix {secs}) ---", env!("CARGO_PKG_VERSION"))?;
+    writeln!(
+        file,
+        "--- hearme {} started (unix {secs}) ---",
+        env!("CARGO_PKG_VERSION")
+    )?;
     // SAFETY: both fds are valid; dup2 atomically replaces fd 2, and `file`
     // can be dropped afterwards because fd 2 holds its own reference.
     if unsafe { libc::dup2(file.as_raw_fd(), libc::STDERR_FILENO) } < 0 {

@@ -42,7 +42,9 @@ impl SttEngine for WhisperEngine {
         params.set_print_timestamps(false);
         params.set_suppress_blank(true);
         params.set_n_threads(
-            std::thread::available_parallelism().map(|n| n.get() as i32).unwrap_or(4),
+            std::thread::available_parallelism()
+                .map(|n| n.get() as i32)
+                .unwrap_or(4),
         );
 
         state.full(params, &samples).context("whisper full()")?;
@@ -63,6 +65,9 @@ impl SttEngine for WhisperEngine {
         let lang_id = state.full_lang_id_from_state();
         let lang = whisper_rs::get_lang_str(lang_id).map(|s| s.to_string());
 
-        Ok(Transcript { text: text.trim().to_string(), lang })
+        Ok(Transcript {
+            text: text.trim().to_string(),
+            lang,
+        })
     }
 }

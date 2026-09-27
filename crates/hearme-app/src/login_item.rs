@@ -68,7 +68,11 @@ pub struct LoginItem {
 
 impl From<Status> for LoginItem {
     fn from(s: Status) -> Self {
-        LoginItem { status: s.name(), on: s.on(), hint: s.hint() }
+        LoginItem {
+            status: s.name(),
+            on: s.on(),
+            hint: s.hint(),
+        }
     }
 }
 
@@ -243,7 +247,11 @@ mod tests {
 
     #[test]
     fn detects_running_from_an_app_bundle() {
-        assert!(in_app_bundle(Path::new("/Applications/hearme.app/Contents/MacOS/hearme")));
-        assert!(!in_app_bundle(Path::new("/Users/me/dev/hearme/target/debug/hearme")));
+        assert!(in_app_bundle(Path::new(
+            "/Applications/hearme.app/Contents/MacOS/hearme"
+        )));
+        assert!(!in_app_bundle(Path::new(
+            "/Users/me/dev/hearme/target/debug/hearme"
+        )));
     }
 }

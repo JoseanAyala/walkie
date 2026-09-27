@@ -61,16 +61,28 @@ impl From<RawHotkeys> for Hotkeys {
             v.push(extra.to_string());
             v
         };
-        let polish = r.polish.unwrap_or_else(|| match r.polish_modifier.as_deref() {
-            Some(m) if m.eq_ignore_ascii_case("none") => vec![],
-            Some(m) => with(m),
-            None if legacy => with("Shift"),
-            None => d.polish.clone(),
+        let polish = r
+            .polish
+            .unwrap_or_else(|| match r.polish_modifier.as_deref() {
+                Some(m) if m.eq_ignore_ascii_case("none") => vec![],
+                Some(m) => with(m),
+                None if legacy => with("Shift"),
+                None => d.polish.clone(),
+            });
+        let hands_free = r.hands_free.unwrap_or_else(|| {
+            if legacy {
+                with("Space")
+            } else {
+                d.hands_free.clone()
+            }
         });
-        let hands_free =
-            r.hands_free.unwrap_or_else(|| if legacy { with("Space") } else { d.hands_free.clone() });
         let paste_last = r.paste_last.unwrap_or(d.paste_last);
-        Hotkeys { dictate, polish, hands_free, paste_last }
+        Hotkeys {
+            dictate,
+            polish,
+            hands_free,
+            paste_last,
+        }
     }
 }
 
@@ -151,12 +163,18 @@ impl Default for Cleanup {
 }
 impl Default for Polish {
     fn default() -> Self {
-        Self { command: String::new(), timeout_secs: 60 }
+        Self {
+            command: String::new(),
+            timeout_secs: 60,
+        }
     }
 }
 impl Default for Inject {
     fn default() -> Self {
-        Self { strategy: "paste".into(), restore_clipboard_ms: 150 }
+        Self {
+            strategy: "paste".into(),
+            restore_clipboard_ms: 150,
+        }
     }
 }
 impl Default for HistoryCfg {
@@ -166,12 +184,18 @@ impl Default for HistoryCfg {
 }
 impl Default for AudioCfg {
     fn default() -> Self {
-        Self { duck_while_recording: true, duck_percent: 30, input_device: String::new() }
+        Self {
+            duck_while_recording: true,
+            duck_percent: 30,
+            input_device: String::new(),
+        }
     }
 }
 
 fn home() -> PathBuf {
-    std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."))
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 fn xdg(var: &str, fallback: &str) -> PathBuf {
     std::env::var_os(var)
@@ -280,19 +304,24 @@ mod tests {
     #[test]
     fn legacy_single_key_hotkeys_migrate() {
         let c: Config =
-            toml::from_str("[hotkeys]\ndictate = \"RightCmd\"\npolish_modifier = \"Shift\"").unwrap();
+            toml::from_str("[hotkeys]\ndictate = \"RightCmd\"\npolish_modifier = \"Shift\"")
+                .unwrap();
         assert_eq!(c.hotkeys.dictate, ["RightCmd"]);
         assert_eq!(c.hotkeys.polish, ["RightCmd", "Shift"]);
         assert_eq!(c.hotkeys.hands_free, ["RightCmd", "Space"]);
         assert_eq!(c.hotkeys.paste_last, Hotkeys::default().paste_last);
         let s = toml::to_string_pretty(&c).unwrap();
-        assert!(!s.contains("polish_modifier"), "old field is dropped on save");
+        assert!(
+            !s.contains("polish_modifier"),
+            "old field is dropped on save"
+        );
     }
 
     #[test]
     fn legacy_polish_modifier_none_disables_polish() {
         let c: Config =
-            toml::from_str("[hotkeys]\ndictate = \"RightAlt\"\npolish_modifier = \"None\"").unwrap();
+            toml::from_str("[hotkeys]\ndictate = \"RightAlt\"\npolish_modifier = \"None\"")
+                .unwrap();
         assert!(c.hotkeys.polish.is_empty());
     }
 
@@ -309,7 +338,10 @@ mod tests {
         let c: Config = toml::from_str("[hotkeys]\npaste_last = []").unwrap();
         assert!(c.hotkeys.paste_last.is_empty());
         let back: Config = toml::from_str(&toml::to_string_pretty(&c).unwrap()).unwrap();
-        assert!(back.hotkeys.paste_last.is_empty(), "disabled must stay disabled, not revert to default");
+        assert!(
+            back.hotkeys.paste_last.is_empty(),
+            "disabled must stay disabled, not revert to default"
+        );
     }
 
     #[test]

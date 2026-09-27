@@ -194,9 +194,14 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
 
     #[cfg(target_os = "macos")]
     {
-        let uses_fn = [&bindings.dictate, &bindings.polish, &bindings.hands_free, &bindings.paste_last]
-            .iter()
-            .any(|b| b.contains(&Key::Fn));
+        let uses_fn = [
+            &bindings.dictate,
+            &bindings.polish,
+            &bindings.hands_free,
+            &bindings.paste_last,
+        ]
+        .iter()
+        .any(|b| b.contains(&Key::Fn));
         if uses_fn {
             let ok = mac::globe_does_nothing();
             out.push(Check {

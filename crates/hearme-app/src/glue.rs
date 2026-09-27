@@ -46,7 +46,9 @@ pub struct PasteLast {
 
 /// Re-inserts the most recent transcript into the focused app after `delay`.
 pub fn paste_last(app: &AppHandle, delay: Duration) {
-    let Some(p) = app.try_state::<PasteLast>() else { return };
+    let Some(p) = app.try_state::<PasteLast>() else {
+        return;
+    };
     if !p.ready.load(Ordering::SeqCst) {
         let _ = app.emit("app-error", "still loading the speech model — please wait");
         return;
@@ -59,7 +61,10 @@ pub fn paste_last(app: &AppHandle, delay: Duration) {
             .flatten()
     });
     let Some(text) = text else {
-        let _ = app.emit("app-error", "nothing to paste yet — dictate something first");
+        let _ = app.emit(
+            "app-error",
+            "nothing to paste yet — dictate something first",
+        );
         return;
     };
     let tx = p.tx.lock().unwrap().clone();
@@ -93,7 +98,11 @@ pub fn start(app: AppHandle) -> Result<()> {
         app.manage(Duck(d.clone()));
         d
     });
-    app.manage(PasteLast { last: Mutex::new(None), tx: Mutex::new(cmd_tx.clone()), ready: ready.clone() });
+    app.manage(PasteLast {
+        last: Mutex::new(None),
+        tx: Mutex::new(cmd_tx.clone()),
+        ready: ready.clone(),
+    });
 
     // Worker thread: owns every !Send dep. Downloads/loads the model, then
     // runs the session loop until shutdown.
@@ -134,7 +143,9 @@ pub fn start(app: AppHandle) -> Result<()> {
             model_status(&app, "ready");
 
             let injector: Box<dyn Injector> = match cfg.inject.strategy.as_str() {
-                "type" => Box::new(TypeInjector { main: Some(main_thread(&app)) }),
+                "type" => Box::new(TypeInjector {
+                    main: Some(main_thread(&app)),
+                }),
                 _ => Box::new(PasteInjector {
                     restore_ms: cfg.inject.restore_clipboard_ms,
                     main: Some(main_thread(&app)),
@@ -238,7 +249,13 @@ static SIGNAL_PIPE: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32:
 extern "C" fn on_signal(sig: libc::c_int) {
     let b = sig as u8;
     // SAFETY: write(2) is async-signal-safe; the fd stays open for the process' life.
-    unsafe { libc::write(SIGNAL_PIPE.load(Ordering::Relaxed), &b as *const u8 as *const _, 1) };
+    unsafe {
+        libc::write(
+            SIGNAL_PIPE.load(Ordering::Relaxed),
+            &b as *const u8 as *const _,
+            1,
+        )
+    };
 }
 
 /// `kill`/Ctrl-C skip Tauri's exit path, so a recording killed that way
@@ -254,7 +271,10 @@ fn restore_on_signal(d: Arc<Ducker>) {
         }
         SIGNAL_PIPE.store(fds[1], Ordering::SeqCst);
         for sig in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP] {
-            libc::signal(sig, on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t);
+            libc::signal(
+                sig,
+                on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t,
+            );
         }
     }
     std::thread::spawn(move || {
@@ -323,9 +343,16 @@ fn startup_check(app: AppHandle, first_run: bool) {
         std::thread::sleep(Duration::from_millis(1500));
         let checks = status::collect(&app.state::<HotkeyState>(), &app.state::<ModelStatus>());
         for c in &checks {
-            eprintln!("hearme: status {} {}: {}", if c.ok { "ok  " } else { "FAIL" }, c.label, c.detail);
+            eprintln!(
+                "hearme: status {} {}: {}",
+                if c.ok { "ok  " } else { "FAIL" },
+                c.label,
+                c.detail
+            );
         }
-        let blocking = checks.iter().any(|c| !c.ok && c.id != "model" && c.id != "device-missing");
+        let blocking = checks
+            .iter()
+            .any(|c| !c.ok && c.id != "model" && c.id != "device-missing");
         if blocking && !first_run {
             if let Some(w) = app.get_webview_window("settings") {
                 let _ = app.emit("show-tab", "status");

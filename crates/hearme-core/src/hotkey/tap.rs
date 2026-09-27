@@ -61,7 +61,11 @@ pub fn spawn(
             CGEventTapLocation::Session,
             CGEventTapPlacement::HeadInsertEventTap,
             CGEventTapOptions::Default,
-            vec![CGEventType::KeyDown, CGEventType::KeyUp, CGEventType::FlagsChanged],
+            vec![
+                CGEventType::KeyDown,
+                CGEventType::KeyUp,
+                CGEventType::FlagsChanged,
+            ],
             move |_proxy, ty, ev| {
                 let (key, down) = match ty {
                     CGEventType::TapDisabledByTimeout | CGEventType::TapDisabledByUserInput => {
@@ -70,25 +74,35 @@ pub fn spawn(
                             unsafe { CGEventTapEnable(port as CFMachPortRef, true) };
                         }
                         cb_status.reenabled.fetch_add(1, Ordering::SeqCst);
-                        eprintln!("hearme: keyboard hook was disabled by macOS ({ty:?}) — re-enabled");
+                        eprintln!(
+                            "hearme: keyboard hook was disabled by macOS ({ty:?}) — re-enabled"
+                        );
                         return CallbackResult::Keep;
                     }
                     CGEventType::KeyDown | CGEventType::KeyUp => {
                         let code = ev.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
-                        (Key::from_keycode(code as u16), matches!(ty, CGEventType::KeyDown))
+                        (
+                            Key::from_keycode(code as u16),
+                            matches!(ty, CGEventType::KeyDown),
+                        )
                     }
                     CGEventType::FlagsChanged => {
                         let code = ev.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
                         let key = Key::from_keycode(code as u16);
                         // Caps Lock also arrives here, but its flag is lock
                         // state, not key state — not a usable hold key.
-                        let Some(bit) = key.flag_bit() else { return CallbackResult::Keep };
+                        let Some(bit) = key.flag_bit() else {
+                            return CallbackResult::Keep;
+                        };
                         (key, ev.get_flags().bits() & bit != 0)
                     }
                     _ => return CallbackResult::Keep,
                 };
                 let t = start.elapsed().as_millis();
-                let v = engine.lock().unwrap_or_else(|e| e.into_inner()).on_key(key, down, t);
+                let v = engine
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .on_key(key, down, t);
                 if debug {
                     eprintln!(
                         "hearme: key @{t}ms {} {} → {:?}{}",
@@ -117,8 +131,14 @@ pub fn spawn(
                 return;
             }
         };
-        TAP_PORT.store(tap.mach_port().as_concrete_TypeRef() as *mut _, Ordering::SeqCst);
-        let source = tap.mach_port().create_runloop_source(0).expect("runloop source");
+        TAP_PORT.store(
+            tap.mach_port().as_concrete_TypeRef() as *mut _,
+            Ordering::SeqCst,
+        );
+        let source = tap
+            .mach_port()
+            .create_runloop_source(0)
+            .expect("runloop source");
         CFRunLoop::get_current().add_source(&source, unsafe { kCFRunLoopCommonModes });
         tap.enable();
         status.running.store(true, Ordering::SeqCst);

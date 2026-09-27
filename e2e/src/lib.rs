@@ -22,9 +22,10 @@ use std::rc::Rc;
 use std::sync::{mpsc, Arc};
 
 pub fn fixture(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../crates/hearme-core/tests/fixtures").join(name)
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../crates/hearme-core/tests/fixtures")
+        .join(name)
 }
-
 
 /// The "focused app": collects what would have been pasted — or, with no
 /// text field focused, what was left on the "clipboard" instead.
@@ -68,7 +69,12 @@ pub struct Setup {
 
 impl Default for Setup {
     fn default() -> Self {
-        Self { hotkeys: Hotkeys::default(), audio: "en.wav", polish_command: "", no_text_field: false }
+        Self {
+            hotkeys: Hotkeys::default(),
+            audio: "en.wav",
+            polish_command: "",
+            no_text_field: false,
+        }
     }
 }
 
@@ -133,7 +139,12 @@ impl Rig {
             }
             if s == Signal::PasteLast {
                 // What the app falls back to after a restart: history's newest row.
-                let last = self.session.deps.history.as_ref().and_then(|h| h.last_text().unwrap());
+                let last = self
+                    .session
+                    .deps
+                    .history
+                    .as_ref()
+                    .and_then(|h| h.last_text().unwrap());
                 if let Some(text) = last {
                     self.session.apply(Command::Reinject(text));
                 }
@@ -170,8 +181,17 @@ impl Rig {
 
     /// The cleaned transcripts in history, newest first.
     pub fn history(&self) -> Vec<String> {
-        let h = self.session.deps.history.as_ref().expect("rig always has history");
-        h.recent(10).unwrap().into_iter().map(|r| r.cleaned).collect()
+        let h = self
+            .session
+            .deps
+            .history
+            .as_ref()
+            .expect("rig always has history");
+        h.recent(10)
+            .unwrap()
+            .into_iter()
+            .map(|r| r.cleaned)
+            .collect()
     }
 
     /// Drains the events so far into (errors, notices).

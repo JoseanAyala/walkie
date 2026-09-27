@@ -48,12 +48,22 @@ pub fn classify(p: &Probe) -> Focus {
         Probe::NoElement { app } if QUIET_APPS.contains(&app.as_str()) => Focus::NoField,
         // Chromium/Electron and GL terminals often report no focus while typing works.
         Probe::NoElement { .. } => Focus::Unknown,
-        Probe::Element { app, role, subrole, value_settable, in_web } => {
-            if TEXT_ROLES.contains(&role.as_str()) || TEXT_SUBROLES.contains(&subrole.as_str()) || *value_settable {
+        Probe::Element {
+            app,
+            role,
+            subrole,
+            value_settable,
+            in_web,
+        } => {
+            if TEXT_ROLES.contains(&role.as_str())
+                || TEXT_SUBROLES.contains(&subrole.as_str())
+                || *value_settable
+            {
                 Focus::Editable
             } else if *in_web || role == "AXWebArea" {
                 Focus::Unknown
-            } else if QUIET_APPS.contains(&app.as_str()) || NON_TEXT_ROLES.contains(&role.as_str()) {
+            } else if QUIET_APPS.contains(&app.as_str()) || NON_TEXT_ROLES.contains(&role.as_str())
+            {
                 Focus::NoField
             } else {
                 Focus::Unknown
@@ -93,8 +103,16 @@ mod ax {
     extern "C" {
         fn AXUIElementCreateSystemWide() -> AXUIElementRef;
         fn AXUIElementSetMessagingTimeout(el: AXUIElementRef, secs: f32) -> AXError;
-        fn AXUIElementCopyAttributeValue(el: AXUIElementRef, attr: CFStringRef, out: *mut CFTypeRef) -> AXError;
-        fn AXUIElementIsAttributeSettable(el: AXUIElementRef, attr: CFStringRef, out: *mut u8) -> AXError;
+        fn AXUIElementCopyAttributeValue(
+            el: AXUIElementRef,
+            attr: CFStringRef,
+            out: *mut CFTypeRef,
+        ) -> AXError;
+        fn AXUIElementIsAttributeSettable(
+            el: AXUIElementRef,
+            attr: CFStringRef,
+            out: *mut u8,
+        ) -> AXError;
         fn AXUIElementGetPid(el: AXUIElementRef, pid: *mut i32) -> AXError;
     }
 
@@ -109,7 +127,9 @@ mod ax {
         fn attr(&self, name: &'static str) -> Result<Owned, AXError> {
             let mut out: CFTypeRef = std::ptr::null();
             let key = CFString::from_static_string(name);
-            let err = unsafe { AXUIElementCopyAttributeValue(self.ptr(), key.as_concrete_TypeRef(), &mut out) };
+            let err = unsafe {
+                AXUIElementCopyAttributeValue(self.ptr(), key.as_concrete_TypeRef(), &mut out)
+            };
             match err {
                 SUCCESS if out.is_null() => Err(NO_VALUE),
                 SUCCESS => Ok(Owned(unsafe { CFType::wrap_under_create_rule(out) })),
@@ -118,13 +138,19 @@ mod ax {
         }
 
         fn string(&self, name: &'static str) -> String {
-            self.attr(name).ok().and_then(|v| v.0.downcast::<CFString>()).map(|s| s.to_string()).unwrap_or_default()
+            self.attr(name)
+                .ok()
+                .and_then(|v| v.0.downcast::<CFString>())
+                .map(|s| s.to_string())
+                .unwrap_or_default()
         }
 
         fn settable(&self, name: &'static str) -> bool {
             let mut out = 0u8;
             let key = CFString::from_static_string(name);
-            let err = unsafe { AXUIElementIsAttributeSettable(self.ptr(), key.as_concrete_TypeRef(), &mut out) };
+            let err = unsafe {
+                AXUIElementIsAttributeSettable(self.ptr(), key.as_concrete_TypeRef(), &mut out)
+            };
             err == SUCCESS && out != 0
         }
     }
@@ -154,7 +180,9 @@ mod ax {
         unsafe { AXUIElementSetMessagingTimeout(sys.ptr(), 0.25) };
         // Needs a WindowServer connection (any GUI app has one; a bare CLI
         // process gets kAXErrorCannotComplete → Failed → paste as before).
-        let Ok(app) = sys.attr("AXFocusedApplication") else { return Probe::Failed };
+        let Ok(app) = sys.attr("AXFocusedApplication") else {
+            return Probe::Failed;
+        };
         unsafe { AXUIElementSetMessagingTimeout(app.ptr(), 0.25) };
         let name = app_name(&app);
         if name.is_empty() {
@@ -194,64 +222,161 @@ mod tests {
     use super::*;
 
     fn el(app: &str, role: &str, subrole: &str, settable: bool, in_web: bool) -> Probe {
-        Probe::Element { app: app.into(), role: role.into(), subrole: subrole.into(), value_settable: settable, in_web }
+        Probe::Element {
+            app: app.into(),
+            role: role.into(),
+            subrole: subrole.into(),
+            value_settable: settable,
+            in_web,
+        }
     }
 
     #[test]
     fn text_inputs_are_editable_everywhere() {
         for role in ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"] {
-            assert_eq!(classify(&el("TextEdit", role, "", false, false)), Focus::Editable, "{role}");
-            assert_eq!(classify(&el("Finder", role, "", false, false)), Focus::Editable, "Finder rename/search: {role}");
+            assert_eq!(
+                classify(&el("TextEdit", role, "", false, false)),
+                Focus::Editable,
+                "{role}"
+            );
+            assert_eq!(
+                classify(&el("Finder", role, "", false, false)),
+                Focus::Editable,
+                "Finder rename/search: {role}"
+            );
         }
-        assert_eq!(classify(&el("Safari", "AXTextField", "AXSecureTextField", false, true)), Focus::Editable);
+        assert_eq!(
+            classify(&el(
+                "Safari",
+                "AXTextField",
+                "AXSecureTextField",
+                false,
+                true
+            )),
+            Focus::Editable
+        );
     }
 
     #[test]
     fn a_settable_value_counts_as_editable() {
-        assert_eq!(classify(&el("Warp", "AXGroup", "", true, false)), Focus::Editable);
+        assert_eq!(
+            classify(&el("Warp", "AXGroup", "", true, false)),
+            Focus::Editable
+        );
     }
 
     #[test]
     fn terminals_paste() {
         // Terminal / iTerm2 / Ghostty expose their buffer as a text area.
         for app in ["Terminal", "iTerm2", "ghostty"] {
-            assert_eq!(classify(&el(app, "AXTextArea", "", false, false)), Focus::Editable, "{app}");
+            assert_eq!(
+                classify(&el(app, "AXTextArea", "", false, false)),
+                Focus::Editable,
+                "{app}"
+            );
         }
         // Custom-drawn ones report whatever they like, or nothing.
-        assert_eq!(classify(&el("Warp", "AXGroup", "", false, false)), Focus::Unknown);
-        assert_eq!(classify(&el("alacritty", "AXWindow", "AXStandardWindow", false, false)), Focus::Unknown);
-        assert_eq!(classify(&Probe::NoElement { app: "kitty".into() }), Focus::Unknown);
+        assert_eq!(
+            classify(&el("Warp", "AXGroup", "", false, false)),
+            Focus::Unknown
+        );
+        assert_eq!(
+            classify(&el(
+                "alacritty",
+                "AXWindow",
+                "AXStandardWindow",
+                false,
+                false
+            )),
+            Focus::Unknown
+        );
+        assert_eq!(
+            classify(&Probe::NoElement {
+                app: "kitty".into()
+            }),
+            Focus::Unknown
+        );
     }
 
     #[test]
     fn web_content_is_never_no_field() {
         // Chrome/Safari pages and Electron apps (Slack, VS Code): lists and
         // plain groups in a page may still route a paste to an editor.
-        assert_eq!(classify(&el("Google Chrome", "AXWebArea", "", false, false)), Focus::Unknown);
-        assert_eq!(classify(&el("Slack", "AXList", "", false, true)), Focus::Unknown);
-        assert_eq!(classify(&el("Code", "AXGroup", "", false, true)), Focus::Unknown);
-        assert_eq!(classify(&Probe::NoElement { app: "Electron".into() }), Focus::Unknown);
+        assert_eq!(
+            classify(&el("Google Chrome", "AXWebArea", "", false, false)),
+            Focus::Unknown
+        );
+        assert_eq!(
+            classify(&el("Slack", "AXList", "", false, true)),
+            Focus::Unknown
+        );
+        assert_eq!(
+            classify(&el("Code", "AXGroup", "", false, true)),
+            Focus::Unknown
+        );
+        assert_eq!(
+            classify(&Probe::NoElement {
+                app: "Electron".into()
+            }),
+            Focus::Unknown
+        );
     }
 
     #[test]
     fn finder_and_the_desktop_are_no_field() {
-        assert_eq!(classify(&Probe::NoElement { app: "Finder".into() }), Focus::NoField, "desktop");
-        assert_eq!(classify(&el("Finder", "AXScrollArea", "", false, false)), Focus::NoField);
-        assert_eq!(classify(&el("Finder", "AXOutline", "", false, false)), Focus::NoField);
-        assert_eq!(classify(&el("Finder", "AXList", "", false, false)), Focus::NoField);
-        assert_eq!(classify(&el("QuickTime Player", "AXWindow", "AXStandardWindow", false, false)), Focus::NoField);
+        assert_eq!(
+            classify(&Probe::NoElement {
+                app: "Finder".into()
+            }),
+            Focus::NoField,
+            "desktop"
+        );
+        assert_eq!(
+            classify(&el("Finder", "AXScrollArea", "", false, false)),
+            Focus::NoField
+        );
+        assert_eq!(
+            classify(&el("Finder", "AXOutline", "", false, false)),
+            Focus::NoField
+        );
+        assert_eq!(
+            classify(&el("Finder", "AXList", "", false, false)),
+            Focus::NoField
+        );
+        assert_eq!(
+            classify(&el(
+                "QuickTime Player",
+                "AXWindow",
+                "AXStandardWindow",
+                false,
+                false
+            )),
+            Focus::NoField
+        );
     }
 
     #[test]
     fn native_file_and_table_views_are_no_field() {
-        assert_eq!(classify(&el("Mail", "AXTable", "", false, false)), Focus::NoField);
-        assert_eq!(classify(&el("Xcode", "AXOutline", "", false, false)), Focus::NoField);
+        assert_eq!(
+            classify(&el("Mail", "AXTable", "", false, false)),
+            Focus::NoField
+        );
+        assert_eq!(
+            classify(&el("Xcode", "AXOutline", "", false, false)),
+            Focus::NoField
+        );
     }
 
     #[test]
     fn anything_unclear_pastes() {
         assert_eq!(classify(&Probe::Failed), Focus::Unknown);
-        assert_eq!(classify(&el("Calculator", "AXButton", "", false, false)), Focus::Unknown);
-        assert_eq!(classify(&el("Figma", "AXGroup", "", false, false)), Focus::Unknown);
+        assert_eq!(
+            classify(&el("Calculator", "AXButton", "", false, false)),
+            Focus::Unknown
+        );
+        assert_eq!(
+            classify(&el("Figma", "AXGroup", "", false, false)),
+            Focus::Unknown
+        );
     }
 }

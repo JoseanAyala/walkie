@@ -40,7 +40,10 @@ pub struct InputDevices {
 
 #[tauri::command]
 pub fn list_input_devices() -> InputDevices {
-    InputDevices { default: audio::default_input_name(), devices: audio::input_device_names() }
+    InputDevices {
+        default: audio::default_input_name(),
+        devices: audio::input_device_names(),
+    }
 }
 
 #[tauri::command]
@@ -67,17 +70,23 @@ pub fn restart_app(app: tauri::AppHandle) {
 
 #[tauri::command]
 pub fn history_recent(limit: u32) -> Result<Vec<Record>, String> {
-    History::open(&config::db_path()).and_then(|h| h.recent(limit)).map_err(estr)
+    History::open(&config::db_path())
+        .and_then(|h| h.recent(limit))
+        .map_err(estr)
 }
 
 #[tauri::command]
 pub fn history_search(q: String, limit: u32) -> Result<Vec<Record>, String> {
-    History::open(&config::db_path()).and_then(|h| h.search(&q, limit)).map_err(estr)
+    History::open(&config::db_path())
+        .and_then(|h| h.search(&q, limit))
+        .map_err(estr)
 }
 
 #[tauri::command]
 pub fn copy_text(text: String) -> Result<(), String> {
-    arboard::Clipboard::new().and_then(|mut cb| cb.set_text(text)).map_err(estr)
+    arboard::Clipboard::new()
+        .and_then(|mut cb| cb.set_text(text))
+        .map_err(estr)
 }
 
 #[tauri::command]
@@ -89,13 +98,18 @@ pub fn open_settings_pane(pane: String) -> Result<(), String> {
             "accessibility" => {
                 "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
             }
-            "input" => "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
+            "input" => {
+                "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+            }
             "keyboard" => "x-apple.systempreferences:com.apple.Keyboard-Settings.extension",
             "sound" => "x-apple.systempreferences:com.apple.Sound-Settings.extension",
             "loginitems" => "x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
             _ => return Err(format!("unknown pane: {pane}")),
         };
-        std::process::Command::new("open").arg(url).spawn().map_err(estr)?;
+        std::process::Command::new("open")
+            .arg(url)
+            .spawn()
+            .map_err(estr)?;
     }
     #[cfg(not(target_os = "macos"))]
     let _ = pane;
@@ -119,7 +133,11 @@ pub fn finish_onboarding(app: tauri::AppHandle, launch_at_login: bool) -> Result
     cfg.first_run = false;
     cfg.save().map_err(estr)?;
     // Onboarding still finishes if this fails; Settings shows why.
-    let login = if launch_at_login { login_item::set(true).err() } else { None };
+    let login = if launch_at_login {
+        login_item::set(true).err()
+    } else {
+        None
+    };
     if let Some(w) = app.get_webview_window("onboarding") {
         let _ = w.hide();
     }

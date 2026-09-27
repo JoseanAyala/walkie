@@ -12,7 +12,10 @@ use std::sync::{mpsc, Arc};
 pub type MainThread = Arc<dyn Fn(Box<dyn FnOnce() + Send>) + Send + Sync>;
 
 /// Runs `f` via `main` (if given) and waits for its result.
-fn on_main<T: Send + 'static>(main: &Option<MainThread>, f: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+fn on_main<T: Send + 'static>(
+    main: &Option<MainThread>,
+    f: impl FnOnce() -> Result<T> + Send + 'static,
+) -> Result<T> {
     match main {
         None => f(),
         Some(run) => {
@@ -20,7 +23,8 @@ fn on_main<T: Send + 'static>(main: &Option<MainThread>, f: impl FnOnce() -> Res
             run(Box::new(move || {
                 let _ = tx.send(f());
             }));
-            rx.recv().context("main thread never ran the keystroke job")?
+            rx.recv()
+                .context("main thread never ran the keystroke job")?
         }
     }
 }
@@ -65,8 +69,13 @@ impl Injector for PasteInjector {
         cb.set_text(text.to_string()).context("setting clipboard")?;
 
         let paste = || -> Result<()> {
-            let mut enigo = Enigo::new(&Settings::default()).context("enigo init — check Accessibility permission")?;
-            let modk = if cfg!(target_os = "macos") { Key::Meta } else { Key::Control };
+            let mut enigo = Enigo::new(&Settings::default())
+                .context("enigo init — check Accessibility permission")?;
+            let modk = if cfg!(target_os = "macos") {
+                Key::Meta
+            } else {
+                Key::Control
+            };
             enigo.key(modk, Direction::Press)?;
             let v = enigo.key(Key::Unicode('v'), Direction::Click);
             enigo.key(modk, Direction::Release)?; // never leave Cmd stuck down
@@ -97,7 +106,8 @@ impl Injector for TypeInjector {
         }
         let owned = text.to_string();
         let type_it = move || -> Result<()> {
-            let mut enigo = Enigo::new(&Settings::default()).context("enigo init — check Accessibility permission")?;
+            let mut enigo = Enigo::new(&Settings::default())
+                .context("enigo init — check Accessibility permission")?;
             enigo.text(&owned)?;
             Ok(())
         };
@@ -108,7 +118,9 @@ impl Injector for TypeInjector {
             if saved_to_clipboard {
                 anyhow::bail!("typing blocked ({e}); text left on clipboard — press ⌘V manually");
             }
-            anyhow::bail!("typing blocked ({e}) and clipboard fallback also failed; text lost: {text}");
+            anyhow::bail!(
+                "typing blocked ({e}) and clipboard fallback also failed; text lost: {text}"
+            );
         }
         Ok(Injected::Typed)
     }
@@ -129,7 +141,10 @@ mod tests {
             std::thread::spawn(job);
         });
         let main_id = std::thread::current().id();
-        let ran_on = on_main(&Some(runner), move || Ok(std::thread::current().id() != main_id)).unwrap();
+        let ran_on = on_main(&Some(runner), move || {
+            Ok(std::thread::current().id() != main_id)
+        })
+        .unwrap();
         assert!(ran_on, "job should run on the runner's thread");
         assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
