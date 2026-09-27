@@ -1,6 +1,7 @@
 use crate::audio::Capture;
 use crate::config::{self, Config};
 use crate::history::History;
+use crate::hotkey::engine::Signal;
 use crate::hotkey::Mode;
 use crate::inject::Injector;
 use crate::pipeline::{cleanup, polish};
@@ -20,6 +21,8 @@ pub enum SessionState {
 #[derive(Debug)]
 pub enum Command {
     Start(Mode),
+    /// Switch the running recording's mode (e.g. Shift added mid-hold).
+    SetMode(Mode),
     Finish,
     Cancel,
     Shutdown,
@@ -31,6 +34,19 @@ pub enum Event {
     Level(f32),
     Done { text: String, lang: Option<String> },
     Error(String),
+}
+
+impl Command {
+    /// The session command a hotkey signal maps to (recorder signals have none).
+    pub fn from_signal(s: &Signal) -> Option<Command> {
+        Some(match s {
+            Signal::Start(m) => Command::Start(*m),
+            Signal::SetMode(m) => Command::SetMode(*m),
+            Signal::Finish => Command::Finish,
+            Signal::Cancel => Command::Cancel,
+            Signal::Recorded(_) | Signal::RecordCancelled => return None,
+        })
+    }
 }
 
 pub struct Deps {
@@ -58,11 +74,19 @@ impl Session {
     pub fn run(mut self, rx: Receiver<Command>) {
         while let Ok(cmd) = rx.recv() {
             match cmd {
-                Command::Start(mode) => self.start(mode),
-                Command::Finish => self.finish(),
-                Command::Cancel => self.cancel(),
                 Command::Shutdown => break,
+                cmd => self.apply(cmd),
             }
+        }
+    }
+
+    pub fn apply(&mut self, cmd: Command) {
+        match cmd {
+            Command::Start(mode) => self.start(mode),
+            Command::SetMode(mode) => self.set_mode(mode),
+            Command::Finish => self.finish(),
+            Command::Cancel => self.cancel(),
+            Command::Shutdown => {}
         }
     }
 
@@ -86,6 +110,12 @@ impl Session {
                 self.emit(Event::Error(format!("can't record: {e}")));
                 self.emit(Event::State(SessionState::Idle));
             }
+        }
+    }
+
+    pub fn set_mode(&mut self, mode: Mode) {
+        if self.mode.is_some() {
+            self.mode = Some(mode);
         }
     }
 
@@ -201,7 +231,7 @@ fn spool(samples: &[f32]) {
 mod tests {
     use super::*;
     use crate::audio::Capture;
-    use crate::hotkey::Mode;
+use crate::hotkey::Mode;
     use crate::inject::Injector;
     use crate::stt::{LangHint, SttEngine, Transcript};
     use std::cell::RefCell;
@@ -395,6 +425,23 @@ mod tests {
         r.session.cancel();
         assert_eq!(*r.stt_calls.borrow(), 0);
         assert_eq!(states(&r.rx), ["Recording", "Idle"]);
+    }
+
+    #[test]
+    fn set_mode_mid_recording_switches_to_polish() {
+        let mut r = rig("hello there", Some("en"), (false, false, false));
+        r.session.start(Mode::Dictate);
+        r.session.set_mode(Mode::Polish);
+        r.session.finish();
+        assert_eq!(*r.injected.borrow(), vec!["HELLO THERE".to_string()]);
+    }
+
+    #[test]
+    fn set_mode_while_idle_does_not_start() {
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.set_mode(Mode::Polish);
+        r.session.finish();
+        assert!(r.injected.borrow().is_empty());
     }
 
     #[test]

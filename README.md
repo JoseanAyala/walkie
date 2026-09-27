@@ -7,9 +7,13 @@ machine.
 
 ## Use
 
-- **Hold Right Option** — speak, release → text appears (< 1s).
-- **Double-tap Right Option** — locked recording for long dictation; tap to stop.
-- **Hold Shift + Right Option** — dictate + polish: the transcript is piped
+Default shortcuts (Wispr-style; rebind any of them in Settings → General,
+to any key or combo):
+
+- **Hold fn** — speak, release → text appears (< 1s). Double-tap fn to lock.
+- **fn + space** — hands-free: keeps recording after you let go; press fn to stop.
+  Holding fn and then tapping space switches a running recording to hands-free.
+- **Hold fn + shift** — dictate + polish: the transcript is piped
   through your configured command (`claude -p`, `codex exec`, ollama, …).
 - Tray icon: gray idle · red recording · amber working.
 

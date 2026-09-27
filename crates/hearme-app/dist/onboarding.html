@@ -9,16 +9,18 @@
   #done { background: #2563eb; color: #fff; border: 0; width: 100%; padding: 12px; margin-top: 16px }
 </style></head><body>
 <h2>Welcome to hearme 🎙️</h2>
-<p>Everything runs locally — your voice never leaves this Mac. Three macOS permissions are needed.
+<p>Everything runs locally — your voice never leaves this Mac. Two macOS permissions are needed.
    <b>During development they go to your terminal app</b>; the bundled app prompts on its own.</p>
 <div class="row"><div><b>Microphone</b><br><small>to hear you (prompted on first dictation)</small></div>
   <button data-p="mic">Open Settings</button></div>
-<div class="row"><div><b>Accessibility</b><br><small>to type text into the focused app</small></div>
+<div class="row"><div><b>Accessibility</b><br><small>for the keyboard shortcut and to type text — restart hearme once after granting</small></div>
   <button data-p="accessibility">Open Settings</button></div>
-<div class="row"><div><b>Input Monitoring</b><br><small>to detect the dictation hotkey</small></div>
-  <button data-p="input">Open Settings</button></div>
-<p>Then try it: click into any text field, hold <b>Right Option</b>, speak, release.
-   Double-tap to lock for longer dictation. Hold <b>Shift + Right Option</b> for polish mode.</p>
+<div class="row"><div><b>Globe (fn) key</b><br><small>set "Press 🌐 key to" → Do Nothing,
+  so fn only dictates</small></div>
+  <button data-p="keyboard">Open Settings</button></div>
+<p>Then try it: click into any text field, hold <b>fn</b>, speak, release.
+   <b>fn + space</b> goes hands-free (press fn to stop). <b>fn + shift</b> dictates and polishes.
+   Change any of them in Settings → General; Settings → Status shows what's missing.</p>
 <button id="done">I've granted everything — finish</button>
 <script>
   const inv = window.__TAURI__.core.invoke;

@@ -56,14 +56,16 @@ Confirm it's intelligible and at the correct speed (not sped up/slowed down
 cargo run -p hearme-core --example hotkey_demo
 ```
 
-Grant Input Monitoring to your terminal if prompted (restart the terminal
-after granting). Try each gesture and confirm the printed `Mode Output`
-pairs match:
+The hook is an active event tap, so your terminal needs **Accessibility**.
+Confirm the printed signals:
 
-- Hold Right Option ≥150ms, release → `Dictate Start` then `Dictate Finish`
-- Quick-tap Right Option → `Dictate Start` then `Dictate CancelDiscard`
-- Double-tap, wait, then tap → locks (`Start`), then stops (`Finish`)
-- Hold Shift + Right Option → `Polish Start` (not `Dictate`)
+- Hold fn ≥150ms, release → `Start(Dictate)` then `Finish`
+- Quick-tap fn → `Start(Dictate)` then `Cancel`
+- Double-tap fn, wait, then tap → `Start(Dictate)` (locked), then `Finish`
+- Hold fn, then add shift → `Start(Dictate)`, `SetMode(Polish)`, release → `Finish`
+- Hold fn, tap space, release everything, then press fn → `Start(Dictate)` … `Finish`,
+  and the space is **not** typed into the terminal
+- fn + a letter quickly → `Start`, `Cancel`, and the letter still types
 
 ## 3. Full live dictation - PASSED in `cargo tauri dev`
 
@@ -74,12 +76,23 @@ cargo tauri dev
 
 Grant Microphone, Accessibility, and Input Monitoring when prompted.
 
-- Click into a text field, hold Right Option, speak, release → text appears
+- Click into a text field, hold fn, speak, release → text appears
   in under ~1s
 - Try Spanish — accents should come through correctly
 - Double-tap to lock, speak a longer sentence, tap once to stop
 - Configure a polish command in Settings (e.g. `claude -p "clean this up"`),
-  hold Shift + Right Option, speak, confirm the polished text appears
+  hold fn + shift, speak, confirm the polished text appears
+- fn + space, speak for a while with hands off the keyboard, press fn → text appears
+
+## 3b. Shortcut recorder and Status tab
+
+- Settings → General → Record next to Dictate, press ⌃⌥D together and
+  release → shows `⌃ ⌥ D`; dictation now works with ⌃⌥D **without restarting**,
+  and the D is not typed
+- Record `A` alone → rejected with a reason; record Dictate's keys for
+  Polish → rejected as a duplicate; Esc while recording cancels
+- Settings → Status: every row ✅. Revoke Accessibility → row turns ❌ within
+  2s and hearme opens Status on next launch
 
 ## 4. Tray menu
 

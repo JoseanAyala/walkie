@@ -25,6 +25,20 @@ impl HotkeyMachine {
         self.state != State::Idle
     }
 
+    /// The key is down and it's still undecided whether this is a hold or a tap.
+    pub fn is_holding(&self) -> bool {
+        matches!(self.state, State::MaybeHold { .. })
+    }
+
+    /// A double-tap locked session is running (or its stop tap is draining).
+    pub fn is_locked(&self) -> bool {
+        matches!(self.state, State::Locked { .. } | State::Draining)
+    }
+
+    pub fn reset(&mut self) {
+        self.state = State::Idle;
+    }
+
     pub fn press(&mut self, t: u128) -> Option<Output> {
         match self.state {
             State::Idle => {

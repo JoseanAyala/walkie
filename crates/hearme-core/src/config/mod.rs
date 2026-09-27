@@ -15,11 +15,58 @@ pub struct Config {
     pub history: HistoryCfg,
 }
 
+/// Each binding is the key names held together (see `hotkey::keys`); an
+/// empty list disables that action.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
+#[serde(from = "RawHotkeys")]
 pub struct Hotkeys {
-    pub dictate: String,
-    pub polish_modifier: String, // "Shift" | "None"
+    pub dictate: Vec<String>,
+    pub polish: Vec<String>,
+    pub hands_free: Vec<String>,
+}
+
+/// Accepts the current format and the original one (`dictate = "RightAlt"`
+/// plus `polish_modifier = "Shift"`), so existing configs keep their keys.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct RawHotkeys {
+    dictate: Option<OneOrMany>,
+    polish: Option<Vec<String>>,
+    hands_free: Option<Vec<String>>,
+    polish_modifier: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum OneOrMany {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl From<RawHotkeys> for Hotkeys {
+    fn from(r: RawHotkeys) -> Self {
+        let d = Hotkeys::default();
+        let legacy = matches!(r.dictate, Some(OneOrMany::One(_)));
+        let dictate = match r.dictate {
+            Some(OneOrMany::One(k)) => vec![k],
+            Some(OneOrMany::Many(v)) => v,
+            None => d.dictate.clone(),
+        };
+        let with = |extra: &str| {
+            let mut v = dictate.clone();
+            v.push(extra.to_string());
+            v
+        };
+        let polish = r.polish.unwrap_or_else(|| match r.polish_modifier.as_deref() {
+            Some(m) if m.eq_ignore_ascii_case("none") => vec![],
+            Some(m) => with(m),
+            None if legacy => with("Shift"),
+            None => d.polish.clone(),
+        });
+        let hands_free =
+            r.hands_free.unwrap_or_else(|| if legacy { with("Space") } else { d.hands_free.clone() });
+        Hotkeys { dictate, polish, hands_free }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -66,7 +113,8 @@ impl Default for Config {
 }
 impl Default for Hotkeys {
     fn default() -> Self {
-        Self { dictate: "RightAlt".into(), polish_modifier: "Shift".into() }
+        let v = |keys: &[&str]| keys.iter().map(|k| k.to_string()).collect();
+        Self { dictate: v(&["Fn"]), polish: v(&["Fn", "Shift"]), hands_free: v(&["Fn", "Space"]) }
     }
 }
 impl Default for Cleanup {
@@ -151,8 +199,9 @@ mod tests {
         assert!(c.first_run);
         assert_eq!(c.language, "auto");
         assert_eq!(c.model, "large-v3-turbo-q5_0");
-        assert_eq!(c.hotkeys.dictate, "RightAlt");
-        assert_eq!(c.hotkeys.polish_modifier, "Shift");
+        assert_eq!(c.hotkeys.dictate, ["Fn"]);
+        assert_eq!(c.hotkeys.polish, ["Fn", "Shift"]);
+        assert_eq!(c.hotkeys.hands_free, ["Fn", "Space"]);
         assert!(c.cleanup.enabled);
         assert!(c.cleanup.fillers_en.contains(&"um".to_string()));
         assert!(c.cleanup.fillers_es.contains(&"este".to_string()));
@@ -194,6 +243,31 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let back = Config::load_from(&dir.path().join("nope.toml")).unwrap();
         assert_eq!(back, Config::default());
+    }
+
+    #[test]
+    fn legacy_single_key_hotkeys_migrate() {
+        let c: Config =
+            toml::from_str("[hotkeys]\ndictate = \"RightCmd\"\npolish_modifier = \"Shift\"").unwrap();
+        assert_eq!(c.hotkeys.dictate, ["RightCmd"]);
+        assert_eq!(c.hotkeys.polish, ["RightCmd", "Shift"]);
+        assert_eq!(c.hotkeys.hands_free, ["RightCmd", "Space"]);
+        let s = toml::to_string_pretty(&c).unwrap();
+        assert!(!s.contains("polish_modifier"), "old field is dropped on save");
+    }
+
+    #[test]
+    fn legacy_polish_modifier_none_disables_polish() {
+        let c: Config =
+            toml::from_str("[hotkeys]\ndictate = \"RightAlt\"\npolish_modifier = \"None\"").unwrap();
+        assert!(c.hotkeys.polish.is_empty());
+    }
+
+    #[test]
+    fn new_format_and_partial_hotkeys() {
+        let c: Config = toml::from_str("[hotkeys]\ndictate = [\"Ctrl\", \"Opt\", \"D\"]").unwrap();
+        assert_eq!(c.hotkeys.dictate, ["Ctrl", "Opt", "D"]);
+        assert_eq!(c.hotkeys.polish, Hotkeys::default().polish);
     }
 
     #[test]

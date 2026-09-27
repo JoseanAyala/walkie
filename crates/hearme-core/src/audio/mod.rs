@@ -1,11 +1,21 @@
 pub mod dsp;
 
 use anyhow::{Context, Result};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// RMS below which a whole recording is treated as "no signal". Quiet room
 /// speech sits well above this; a muted or disconnected input sits at 0.0.
 const SILENCE_RMS: f32 = 1e-4;
+
+/// Whether the most recent recording was near-silent (for the status page).
+pub static LAST_CAPTURE_SILENT: AtomicBool = AtomicBool::new(false);
+
+/// Name of the device a recording would use right now.
+pub fn default_input_name() -> Option<String> {
+    use cpal::traits::HostTrait;
+    cpal::default_host().default_input_device().map(|d| d.to_string())
+}
 
 pub trait Capture {
     fn start(&mut self, on_level: Box<dyn Fn(f32) + Send>) -> Result<()>;
@@ -84,7 +94,9 @@ impl Capture for CpalCapture {
         // Whisper does not return "nothing" for silence — it hallucinates a
         // stock phrase ("Thank you.", "Thanks for watching!"), which reads as a
         // transcription bug rather than a dead input. Say so at the source.
-        if !mono.is_empty() && dsp::rms(&mono) < SILENCE_RMS {
+        let silent = !mono.is_empty() && dsp::rms(&mono) < SILENCE_RMS;
+        LAST_CAPTURE_SILENT.store(silent, Ordering::Relaxed);
+        if silent {
             eprintln!(
                 "hearme: captured {:.1}s of near-silence — check System Settings \
                  → Sound → Input, and that the mic permission is granted",

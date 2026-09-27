@@ -2,15 +2,27 @@ use anyhow::Result;
 use hearme_core::audio::CpalCapture;
 use hearme_core::config::{self, models, Config};
 use hearme_core::history::History;
-use hearme_core::hotkey::listener::{parse_key, spawn_listener};
-use hearme_core::hotkey::Output;
+use hearme_core::hotkey::engine::{Bindings, Engine, Signal};
+use hearme_core::hotkey::keys::{self, binding_names};
+use hearme_core::hotkey::tap::{self, TapStatus};
 use hearme_core::inject::{Injector, PasteInjector, TypeInjector};
 use hearme_core::pipeline::session::{Command, Deps, Event, Session, SessionState};
 use hearme_core::stt::whisper::WhisperEngine;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
+
+use crate::status::{self, HotkeyState, ModelStatus};
+
+/// Emits a model status and remembers it for the Status tab.
+fn model_status(app: &AppHandle, s: impl Into<String>) {
+    let s = s.into();
+    if let Some(m) = app.try_state::<ModelStatus>() {
+        *m.0.lock().unwrap() = s.clone();
+    }
+    let _ = app.emit("model-status", s);
+}
 
 /// How long the overlay stays visible (showing the last error) after an
 /// `Event::Error` before an `Idle` transition is allowed to hide it. Without
@@ -28,6 +40,7 @@ pub fn start(app: AppHandle) -> Result<()> {
         eprintln!("hearme: config error, using defaults: {e}");
         Config::default()
     });
+    app.manage(ModelStatus(Mutex::new("starting".into())));
     let (cmd_tx, cmd_rx) = mpsc::channel::<Command>();
     let (evt_tx, evt_rx) = mpsc::channel::<Event>();
     // Set to true only once the worker thread has finished loading the model
@@ -45,22 +58,22 @@ pub fn start(app: AppHandle) -> Result<()> {
         std::thread::spawn(move || {
             let key = cfg.model.clone();
             if !models::is_downloaded(&key) {
-                let _ = app.emit("model-status", "downloading");
+                model_status(&app, "downloading");
                 let ap = app.clone();
                 if let Err(e) = models::download(&key, &mut |done, total| {
                     let _ = ap.emit("download-progress", done * 100 / total.max(1));
                 }) {
                     eprintln!("hearme: model {key} failed to download: {e}");
-                    let _ = app.emit("model-status", format!("error: {e}"));
+                    model_status(&app, format!("error: {e}"));
                     return;
                 }
             }
-            let _ = app.emit("model-status", "loading");
+            model_status(&app, "loading");
             let path = match models::model_path(&key) {
                 Some(p) => p,
                 None => {
                     eprintln!("hearme: unknown model {key}");
-                    let _ = app.emit("model-status", format!("error: unknown model {key}"));
+                    model_status(&app, format!("error: unknown model {key}"));
                     return;
                 }
             };
@@ -68,11 +81,11 @@ pub fn start(app: AppHandle) -> Result<()> {
                 Ok(e) => e,
                 Err(e) => {
                     eprintln!("hearme: model {key} failed to load: {e}");
-                    let _ = app.emit("model-status", format!("error: {e}"));
+                    model_status(&app, format!("error: {e}"));
                     return;
                 }
             };
-            let _ = app.emit("model-status", "ready");
+            model_status(&app, "ready");
 
             let injector: Box<dyn Injector> = match cfg.inject.strategy.as_str() {
                 "type" => Box::new(TypeInjector),
@@ -93,27 +106,35 @@ pub fn start(app: AppHandle) -> Result<()> {
         });
     }
 
-    // Global hotkey → session commands.
-    let hot = parse_key(&cfg.hotkeys.dictate).unwrap_or(rdev::Key::AltGr);
-    let use_shift = cfg.hotkeys.polish_modifier.eq_ignore_ascii_case("shift");
+    // Keyboard hook → engine → signals. The hook thread only forwards; all
+    // handling (session commands, UI events) happens on this thread so a slow
+    // emit can never stall the keyboard.
+    let (bindings, errors) = Bindings::from_config(&cfg.hotkeys);
+    for e in &errors {
+        eprintln!("hearme: {e}");
+    }
+    let hk = HotkeyState {
+        engine: Arc::new(Mutex::new(Engine::new(bindings))),
+        tap: Arc::new(TapStatus::default()),
+        errors: Mutex::new(errors),
+    };
+    let (sig_tx, sig_rx) = mpsc::channel::<Signal>();
+    #[cfg(target_os = "macos")]
+    tap::spawn(hk.engine.clone(), hk.tap.clone(), move |s| {
+        let _ = sig_tx.send(s);
+    });
+    app.manage(hk);
     {
         let tx = cmd_tx.clone();
         let app = app.clone();
         let ready = ready.clone();
-        spawn_listener(hot, use_shift, move |mode, out| {
-            if !ready.load(Ordering::SeqCst) {
-                if let Output::Start = out {
-                    let _ = app.emit("app-error", "still loading the speech model — please wait");
-                }
-                return;
+        std::thread::spawn(move || {
+            for sig in sig_rx {
+                handle_signal(&app, &tx, &ready, sig);
             }
-            let _ = tx.send(match out {
-                Output::Start => Command::Start(mode),
-                Output::Finish => Command::Finish,
-                Output::CancelDiscard => Command::Cancel,
-            });
-        })?;
+        });
     }
+    startup_check(app.clone(), cfg.first_run);
 
     // Event pump: session events → UI events + tray icon + overlay visibility.
     // `last_error_at` and `epoch` are local to this loop (pump is only ever
@@ -132,6 +153,60 @@ pub fn start(app: AppHandle) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn handle_signal(app: &AppHandle, tx: &mpsc::Sender<Command>, ready: &AtomicBool, sig: Signal) {
+    let cmd = match sig {
+        Signal::Recorded(ref k) => {
+            match keys::validate(k) {
+                Ok(()) => {
+                    let _ = app.emit("shortcut-recorded", binding_names(k));
+                }
+                Err(e) => {
+                    let _ = app.emit("shortcut-error", e);
+                }
+            }
+            return;
+        }
+        Signal::RecordCancelled => {
+            let _ = app.emit("shortcut-cancelled", ());
+            return;
+        }
+        ref s => match Command::from_signal(s) {
+            Some(c) => c,
+            None => return,
+        },
+    };
+    if !ready.load(Ordering::SeqCst) {
+        if let Command::Start(_) = cmd {
+            let _ = app.emit("app-error", "still loading the speech model — please wait");
+        }
+        return;
+    }
+    let _ = tx.send(cmd);
+}
+
+/// Logs every status check once, and opens Settings on the Status tab if
+/// something is wrong — so a broken setup is visible at launch instead of
+/// discovered by "the shortcut does nothing". Skipped on first run, where
+/// onboarding walks through the same permissions.
+fn startup_check(app: AppHandle, first_run: bool) {
+    std::thread::spawn(move || {
+        // Give the hook a moment to come up before judging it.
+        std::thread::sleep(Duration::from_millis(1500));
+        let checks = status::collect(&app.state::<HotkeyState>(), &app.state::<ModelStatus>());
+        for c in &checks {
+            eprintln!("hearme: status {} {}: {}", if c.ok { "ok  " } else { "FAIL" }, c.label, c.detail);
+        }
+        let blocking = checks.iter().any(|c| !c.ok && c.id != "model");
+        if blocking && !first_run {
+            if let Some(w) = app.get_webview_window("settings") {
+                let _ = app.emit("show-tab", "status");
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }
+    });
 }
 
 fn state_name(s: SessionState) -> &'static str {

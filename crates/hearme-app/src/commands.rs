@@ -1,6 +1,8 @@
+use crate::status::{self, Check, HotkeyState, ModelStatus};
 use hearme_core::config::{self, Config};
 use hearme_core::history::{History, Record};
-use tauri::Manager;
+use hearme_core::hotkey::engine::Bindings;
+use tauri::{Manager, State};
 
 fn estr(e: impl std::fmt::Display) -> String {
     e.to_string()
@@ -11,9 +13,40 @@ pub fn get_config() -> Result<Config, String> {
     Config::load().map_err(estr)
 }
 
+/// Saves, then applies the shortcuts immediately. Problems with a shortcut
+/// come back as the error (the rest of the config is still saved).
 #[tauri::command]
-pub fn save_config(cfg: Config) -> Result<(), String> {
-    cfg.save().map_err(estr)
+pub fn save_config(cfg: Config, hk: State<HotkeyState>) -> Result<(), String> {
+    cfg.save().map_err(estr)?;
+    let (bindings, errors) = Bindings::from_config(&cfg.hotkeys);
+    hk.engine.lock().unwrap().set_bindings(bindings);
+    *hk.errors.lock().unwrap() = errors.clone();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+#[tauri::command]
+pub fn get_status(hk: State<HotkeyState>, model: State<ModelStatus>) -> Vec<Check> {
+    status::collect(&hk, &model)
+}
+
+/// The next chord pressed anywhere comes back as a `shortcut-recorded`
+/// (or `shortcut-error` / `shortcut-cancelled`) event.
+#[tauri::command]
+pub fn record_shortcut(hk: State<HotkeyState>) -> Result<(), String> {
+    if !hk.tap.running.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err("the keyboard hook isn't running — see the Status tab".into());
+    }
+    hk.engine.lock().unwrap().start_recording();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn restart_app(app: tauri::AppHandle) {
+    app.restart();
 }
 
 #[tauri::command]
@@ -36,6 +69,8 @@ pub fn open_settings_pane(pane: String) -> Result<(), String> {
                 "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
             }
             "input" => "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
+            "keyboard" => "x-apple.systempreferences:com.apple.Keyboard-Settings.extension",
+            "sound" => "x-apple.systempreferences:com.apple.Sound-Settings.extension",
             _ => return Err(format!("unknown pane: {pane}")),
         };
         std::process::Command::new("open").arg(url).spawn().map_err(estr)?;

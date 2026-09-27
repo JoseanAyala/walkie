@@ -21,6 +21,20 @@
                  background: #fee2e2; color: #991b1b; border-bottom: 1px solid #fca5a5;
                  font-size: 12px }
   #errorBanner.on { display: flex }
+  .sc { display: flex; align-items: center; gap: 8px; max-width: 520px; padding: 8px 0;
+        border-bottom: 1px solid #eee }
+  .sc .what { flex: 1 } .sc .what small { display: block; color: #666; font-weight: 400 }
+  .sc kbd { font: 12px ui-monospace, monospace; background: #f4f4f5; border: 1px solid #ddd;
+            border-radius: 6px; padding: 4px 8px; min-width: 70px; text-align: center }
+  .sc kbd.rec { background: #fef3c7; border-color: #f59e0b }
+  .sc button { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid #ccc;
+               background: #fff; cursor: pointer }
+  #scMsg.err { color: #b91c1c }
+  .chk { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0;
+         border-bottom: 1px solid #eee; max-width: 560px }
+  .chk .mark { width: 20px } .chk .body { flex: 1 } .chk .body small { display: block; color: #666 }
+  .chk button { font: inherit; padding: 3px 10px; border-radius: 6px; border: 1px solid #ccc;
+                background: #fff; cursor: pointer }
   #errorBanner span { flex: 1 }
   #errorBanner button { border: 0; background: none; cursor: pointer; font: inherit;
                         color: inherit; padding: 0 4px }
@@ -29,6 +43,7 @@
 <div class="row">
 <nav>
   <button data-t="general" class="on">General</button>
+  <button data-t="status">Status</button>
   <button data-t="cleanup">Cleanup</button>
   <button data-t="polish">Polish</button>
   <button data-t="history">History</button>
@@ -44,19 +59,28 @@
     <label>Model</label>
     <select id="model"><option>large-v3-turbo-q5_0</option><option>base</option></select>
     <div id="modelStatus">model: …</div>
-    <label>Dictation key (hold to talk, double-tap to lock)</label>
-    <select id="dictate">
-      <option>RightAlt</option><option>LeftAlt</option><option>RightCmd</option>
-      <option>RightCtrl</option><option>CapsLock</option>
-    </select>
-    <label>Polish modifier (held with the dictation key)</label>
-    <select id="polish_modifier"><option>Shift</option><option>None</option></select>
+    <label>Shortcuts</label>
+    <div class="sc" data-k="dictate"><span class="what">Dictate
+      <small>hold to talk · double-tap to lock</small></span>
+      <kbd></kbd><button class="rec">Record</button><button class="clr" title="Turn off">✕</button></div>
+    <div class="sc" data-k="polish"><span class="what">Dictate + polish
+      <small>hold to talk; text goes through your polish command</small></span>
+      <kbd></kbd><button class="rec">Record</button><button class="clr" title="Turn off">✕</button></div>
+    <div class="sc" data-k="hands_free"><span class="what">Hands-free
+      <small>press to start, press again (or Dictate) to stop</small></span>
+      <kbd></kbd><button class="rec">Record</button><button class="clr" title="Turn off">✕</button></div>
+    <div id="scMsg" class="hint">Holding Dictate and adding the extra key of another shortcut
+      switches the running recording (e.g. Fn, then Space → hands-free).</div>
     <label>Injection</label>
     <select id="strategy">
       <option value="paste">Paste (recommended)</option>
       <option value="type">Type keystrokes</option>
     </select>
-    <p class="hint">All settings changes take effect after restarting hearme.</p>
+    <p class="hint">Shortcuts apply immediately. Other settings take effect after restarting hearme.</p>
+  </section>
+  <section id="status">
+    <div id="checks"></div>
+    <p class="hint">Refreshes every 2 seconds. Details are also in ~/Library/Logs/hearme/hearme.log.</p>
   </section>
   <section id="cleanup">
     <label><input type="checkbox" id="cleanup_enabled"> Enable cleanup</label>
@@ -91,14 +115,15 @@
     b.classList.add('on');
     $(b.dataset.t).classList.add('on');
     if (b.dataset.t === 'history') loadHistory();
+    if (b.dataset.t === 'status') loadStatus();
   });
+  const showTab = t => document.querySelector(`nav button[data-t="${t}"]`).click();
 
   async function load() {
     cfg = await inv('get_config');
     $('language').value = cfg.language;
     $('model').value = cfg.model;
-    $('dictate').value = cfg.hotkeys.dictate;
-    $('polish_modifier').value = cfg.hotkeys.polish_modifier;
+    renderShortcuts();
     $('strategy').value = cfg.inject.strategy;
     $('cleanup_enabled').checked = cfg.cleanup.enabled;
     $('fillers_en').value = cfg.cleanup.fillers_en.join(', ');
@@ -108,11 +133,10 @@
     $('history_enabled').checked = cfg.history.enabled;
   }
 
-  $('save').onclick = async () => {
+  $('save').onclick = () => save();
+  async function save() {
     cfg.language = $('language').value;
     cfg.model = $('model').value;
-    cfg.hotkeys.dictate = $('dictate').value;
-    cfg.hotkeys.polish_modifier = $('polish_modifier').value;
     cfg.inject.strategy = $('strategy').value;
     cfg.cleanup.enabled = $('cleanup_enabled').checked;
     cfg.cleanup.fillers_en = $('fillers_en').value.split(',').map(s => s.trim()).filter(Boolean);
@@ -120,10 +144,93 @@
     cfg.polish.command = $('polish_command').value;
     cfg.polish.timeout_secs = parseInt($('timeout_secs').value) || 60;
     cfg.history.enabled = $('history_enabled').checked;
-    await inv('save_config', { cfg });
-    $('save').textContent = 'Saved ✓';
-    setTimeout(() => $('save').textContent = 'Save', 1200);
+    try {
+      await inv('save_config', { cfg });
+      $('save').textContent = 'Saved ✓';
+      setTimeout(() => $('save').textContent = 'Save', 1200);
+    } catch (e) {
+      showError(e);
+    }
+  }
+
+  // ---- shortcuts ----
+  const GLYPH = { Fn: 'fn', Cmd: '⌘', Opt: '⌥', Ctrl: '⌃', Shift: '⇧', Space: 'space',
+                  Return: '⏎', Tab: '⇥', Escape: 'esc', Delete: '⌫' };
+  const glyph = n => {
+    const m = n.match(/^(Left|Right)(Cmd|Opt|Ctrl|Shift)$/);
+    if (m) return m[1].toLowerCase() + ' ' + GLYPH[m[2]];
+    return GLYPH[n] || n;
   };
+  const LABEL = { dictate: 'Dictate', polish: 'Dictate + polish', hands_free: 'Hands-free' };
+  let recording = null;
+  function renderShortcuts() {
+    document.querySelectorAll('.sc').forEach(row => {
+      const k = row.dataset.k, kbd = row.querySelector('kbd');
+      kbd.classList.toggle('rec', recording === k);
+      kbd.textContent = recording === k ? 'press keys… (esc cancels)'
+        : (cfg.hotkeys[k].length ? cfg.hotkeys[k].map(glyph).join(' ') : 'off');
+    });
+  }
+  function scMsg(text, err) {
+    $('scMsg').textContent = text;
+    $('scMsg').classList.toggle('err', !!err);
+  }
+  document.querySelectorAll('.sc').forEach(row => {
+    row.querySelector('.rec').onclick = async () => {
+      try {
+        await inv('record_shortcut');
+        recording = row.dataset.k;
+        scMsg('Press and release the keys you want, together.');
+        renderShortcuts();
+      } catch (e) { scMsg(e, true); }
+    };
+    row.querySelector('.clr').onclick = () => {
+      cfg.hotkeys[row.dataset.k] = [];
+      renderShortcuts();
+      save();
+    };
+  });
+  const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+  listen('shortcut-recorded', e => {
+    const k = recording; recording = null;
+    if (!k) return;
+    const clash = Object.keys(LABEL).find(o => o !== k && cfg.hotkeys[o].length && same(cfg.hotkeys[o], e.payload));
+    if (clash) {
+      scMsg(`${e.payload.map(glyph).join(' ')} is already ${LABEL[clash]}.`, true);
+    } else {
+      cfg.hotkeys[k] = e.payload;
+      scMsg(`${LABEL[k]} is now ${e.payload.map(glyph).join(' ')}.`);
+      save();
+    }
+    renderShortcuts();
+  });
+  listen('shortcut-error', e => { recording = null; scMsg(e.payload, true); renderShortcuts(); });
+  listen('shortcut-cancelled', () => { recording = null; scMsg('Recording cancelled.'); renderShortcuts(); });
+
+  // ---- status ----
+  async function loadStatus() {
+    const checks = await inv('get_status');
+    const box = $('checks');
+    box.innerHTML = '';
+    checks.forEach(c => {
+      const d = document.createElement('div');
+      d.className = 'chk';
+      d.innerHTML = `<span class="mark">${c.ok ? '✅' : '❌'}</span>` +
+        `<span class="body">${esc(c.label)}<small>${esc(c.detail)}</small></span>`;
+      if (c.fix) {
+        const b = document.createElement('button');
+        b.textContent = c.fix === 'restart' ? 'Restart hearme' : 'Fix';
+        b.onclick = () => c.fix === 'restart' ? inv('restart_app')
+                                              : inv('open_settings_pane', { pane: c.fix });
+        d.appendChild(b);
+      }
+      box.appendChild(d);
+    });
+  }
+  setInterval(() => {
+    if ($('status').classList.contains('on') && document.visibilityState === 'visible') loadStatus();
+  }, 2000);
+  listen('show-tab', e => showTab(e.payload));
 
   async function loadHistory(q) {
     const rows = q ? await inv('history_search', { q, limit: 100 })
@@ -145,10 +252,11 @@
   // time isn't visible (e.g. the hotkey listener's "still loading the
   // speech model" warning when no recording ever started). Surface them
   // here too so they aren't silently missed.
-  listen('app-error', e => {
-    $('errorBannerText').textContent = e.payload;
+  function showError(msg) {
+    $('errorBannerText').textContent = msg;
     $('errorBanner').classList.add('on');
-  });
+  }
+  listen('app-error', e => showError(e.payload));
   $('errorBannerDismiss').onclick = () => $('errorBanner').classList.remove('on');
   load();
 </script></body></html>

@@ -8,6 +8,7 @@ use tauri::Manager;
 mod commands;
 mod glue;
 mod logfile;
+mod status;
 
 pub struct TrayHandle(pub Mutex<tauri::tray::TrayIcon>);
 
@@ -21,6 +22,9 @@ fn main() {
             commands::history_search,
             commands::open_settings_pane,
             commands::finish_onboarding,
+            commands::get_status,
+            commands::record_shortcut,
+            commands::restart_app,
         ])
         .on_window_event(|window, event| {
             // The settings/overlay/onboarding windows are declared once in
