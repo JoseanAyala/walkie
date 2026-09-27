@@ -113,6 +113,13 @@ impl Rig {
             if let Some(cmd) = Command::from_signal(&s) {
                 self.session.apply(cmd);
             }
+            if s == Signal::PasteLast {
+                // What the app falls back to after a restart: history's newest row.
+                let last = self.session.deps.history.as_ref().and_then(|h| h.last_text().unwrap());
+                if let Some(text) = last {
+                    self.session.apply(Command::Reinject(text));
+                }
+            }
             self.signals.push(s);
         }
     }

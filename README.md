@@ -15,6 +15,8 @@ to any key or combo):
   Holding fn and then tapping space switches a running recording to hands-free.
 - **Hold fn + shift** — dictate + polish: the transcript is piped
   through your configured command (`claude -p`, `codex exec`, ollama, …).
+- **ctrl + cmd + V** — paste last transcript again, for when it landed in the
+  wrong window (also in the tray menu).
 - Tray icon: gray idle · red recording · amber working.
 - **Launch at login**: Settings → General (on by default from onboarding).
   It's a real macOS login item (System Settings → General → Login Items),

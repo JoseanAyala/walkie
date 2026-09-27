@@ -27,6 +27,8 @@ pub enum Command {
     SetMode(Mode),
     Finish,
     Cancel,
+    /// Insert this text again (paste-last). Not written to history.
+    Reinject(String),
     Shutdown,
 }
 
@@ -39,14 +41,15 @@ pub enum Event {
 }
 
 impl Command {
-    /// The session command a hotkey signal maps to (recorder signals have none).
+    /// The session command a hotkey signal maps to. Recorder signals have
+    /// none, and neither does PasteLast: the caller supplies the text.
     pub fn from_signal(s: &Signal) -> Option<Command> {
         Some(match s {
             Signal::Start(m) => Command::Start(*m),
             Signal::SetMode(m) => Command::SetMode(*m),
             Signal::Finish => Command::Finish,
             Signal::Cancel => Command::Cancel,
-            Signal::Recorded(_) | Signal::RecordCancelled => return None,
+            Signal::Recorded(_) | Signal::RecordCancelled | Signal::PasteLast => return None,
         })
     }
 }
@@ -101,6 +104,7 @@ impl Session {
             Command::SetMode(mode) => self.set_mode(mode),
             Command::Finish => self.finish(),
             Command::Cancel => self.cancel(),
+            Command::Reinject(text) => self.reinject(&text),
             Command::Shutdown => {}
         }
     }
@@ -143,6 +147,18 @@ impl Session {
         }
         let _ = self.deps.capture.stop();
         self.unduck();
+        self.emit(Event::State(SessionState::Idle));
+    }
+
+    pub fn reinject(&mut self, text: &str) {
+        if self.mode.is_some() {
+            self.emit(Event::Error("finish the current dictation before pasting the last one".into()));
+            return;
+        }
+        self.emit(Event::State(SessionState::Injecting));
+        if let Err(e) = self.deps.injector.inject(text) {
+            self.emit(Event::Error(e.to_string()));
+        }
         self.emit(Event::State(SessionState::Idle));
     }
 
@@ -524,5 +540,35 @@ use crate::hotkey::Mode;
         let volume = r.volume.clone();
         drop(r);
         assert_eq!(volume.volume(), 0.8);
+    }
+
+    #[test]
+    fn reinject_injects_again_without_touching_history() {
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.start(Mode::Dictate);
+        r.session.finish();
+        states(&r.rx);
+        r.session.apply(Command::Reinject("Hello".into()));
+        assert_eq!(r.injected.borrow().as_slice(), ["Hello", "Hello"]);
+        assert_eq!(states(&r.rx), ["Injecting", "Idle"], "no Done: it isn't a new transcript");
+        assert_eq!(r.session.deps.history.as_ref().unwrap().recent(10).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn reinject_while_recording_is_refused() {
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.start(Mode::Dictate);
+        r.session.reinject("old");
+        assert!(r.injected.borrow().is_empty());
+        assert_eq!(states(&r.rx), ["Recording", "Error"], "recording keeps going");
+        r.session.finish();
+        assert_eq!(r.injected.borrow().as_slice(), ["Hello"]);
+    }
+
+    #[test]
+    fn reinject_failure_reports_and_goes_idle() {
+        let mut r = rig("x", None, (false, true, false));
+        r.session.reinject("old");
+        assert_eq!(states(&r.rx), ["Injecting", "Error", "Idle"]);
     }
 }

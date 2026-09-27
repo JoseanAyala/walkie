@@ -17,8 +17,12 @@ use std::sync::{Arc, Mutex};
 fn main() -> anyhow::Result<()> {
     let h = Hotkeys::default();
     let parse = |v: &Vec<String>| parse_binding(v).map_err(anyhow::Error::msg);
-    let bindings =
-        Bindings { dictate: parse(&h.dictate)?, polish: parse(&h.polish)?, hands_free: parse(&h.hands_free)? };
+    let bindings = Bindings {
+        dictate: parse(&h.dictate)?,
+        polish: parse(&h.polish)?,
+        hands_free: parse(&h.hands_free)?,
+        paste_last: parse(&h.paste_last)?,
+    };
     let status = Arc::new(TapStatus::default());
     tap::spawn(Arc::new(Mutex::new(Engine::new(bindings))), status.clone(), |s| println!("{s:?}"));
     std::thread::sleep(std::time::Duration::from_millis(500));

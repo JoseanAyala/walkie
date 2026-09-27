@@ -33,6 +33,39 @@ fn model_status(app: &AppHandle, s: impl Into<String>) {
 /// transitions down to `Idle`, which used to hide the overlay synchronously.
 const ERROR_GRACE: Duration = Duration::from_secs(2);
 
+/// Paste-last: the newest transcript (from `Event::Done`; history covers a
+/// restart) and the way to the session worker, which owns the injector.
+pub struct PasteLast {
+    last: Mutex<Option<String>>,
+    tx: Mutex<mpsc::Sender<Command>>,
+    ready: Arc<AtomicBool>,
+}
+
+/// Re-inserts the most recent transcript into the focused app after `delay`.
+pub fn paste_last(app: &AppHandle, delay: Duration) {
+    let Some(p) = app.try_state::<PasteLast>() else { return };
+    if !p.ready.load(Ordering::SeqCst) {
+        let _ = app.emit("app-error", "still loading the speech model — please wait");
+        return;
+    }
+    let text = p.last.lock().unwrap().clone().or_else(|| {
+        History::open(&config::db_path())
+            .and_then(|h| h.last_text())
+            .map_err(|e| eprintln!("hearme: paste-last couldn't read history: {e}"))
+            .ok()
+            .flatten()
+    });
+    let Some(text) = text else {
+        let _ = app.emit("app-error", "nothing to paste yet — dictate something first");
+        return;
+    };
+    let tx = p.tx.lock().unwrap().clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(delay);
+        let _ = tx.send(Command::Reinject(text));
+    });
+}
+
 pub fn start(app: AppHandle) -> Result<()> {
     // A hand-edited config.toml (the README encourages this, e.g. for the
     // polish command) can have a syntax error. Falling back to defaults
@@ -57,6 +90,7 @@ pub fn start(app: AppHandle) -> Result<()> {
         app.manage(Duck(d.clone()));
         d
     });
+    app.manage(PasteLast { last: Mutex::new(None), tx: Mutex::new(cmd_tx.clone()), ready: ready.clone() });
 
     // Worker thread: owns every !Send dep. Downloads/loads the model, then
     // runs the session loop until shutdown.
@@ -260,6 +294,8 @@ fn handle_signal(app: &AppHandle, tx: &mpsc::Sender<Command>, ready: &AtomicBool
             let _ = app.emit("shortcut-cancelled", ());
             return;
         }
+        // Fires once the chord is fully released, so no delay is needed.
+        Signal::PasteLast => return paste_last(app, Duration::ZERO),
         ref s => match Command::from_signal(s) {
             Some(c) => c,
             None => return,
@@ -347,6 +383,9 @@ fn pump(app: &AppHandle, ev: Event, last_error_at: &mut Option<Instant>, epoch: 
             let _ = app.emit("level", v);
         }
         Event::Done { text, .. } => {
+            if let Some(p) = app.try_state::<PasteLast>() {
+                *p.last.lock().unwrap() = Some(text.clone());
+            }
             let _ = app.emit("transcribed", text);
         }
         Event::Error(msg) => {

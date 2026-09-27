@@ -146,6 +146,12 @@ impl App {
         Config::load_from(&self.config_path()).unwrap()
     }
 
+    /// Adds a transcript to the app's history, as if dictated in an earlier run.
+    pub fn seed_history(&self, text: &str) {
+        let h = hearme_core::history::History::open(&self.root.join("data/hearme/history.sqlite3")).unwrap();
+        h.insert(text, text, None, Some("en"), 1000).unwrap();
+    }
+
     pub fn launch(&self) {
         step("launching hearme");
         *LOG.lock().unwrap_or_else(|e| e.into_inner()) = Some(self.log.clone());

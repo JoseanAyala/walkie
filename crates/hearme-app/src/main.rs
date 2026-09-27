@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
@@ -12,6 +13,11 @@ mod login_item;
 mod status;
 
 pub struct TrayHandle(pub Mutex<tauri::tray::TrayIcon>);
+
+/// The tray menu doesn't activate hearme (an Accessory app), so the app you
+/// were in keeps focus — but the menu is still closing when the click
+/// arrives. Pasting right away can land before it's gone.
+const TRAY_PASTE_DELAY: Duration = Duration::from_millis(250);
 
 fn main() {
     if let Some(code) = login_item::cli() {
@@ -48,15 +54,18 @@ fn main() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
+            let paste = MenuItem::with_id(app, "paste_last", "Paste last transcript", true, None::<&str>)?;
             let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit hearme", true, None::<&str>)?;
-            let menu = MenuBuilder::new(app).item(&settings).separator().item(&quit).build()?;
+            let menu =
+                MenuBuilder::new(app).item(&paste).separator().item(&settings).separator().item(&quit).build()?;
 
             let tray = TrayIconBuilder::with_id("main")
                 .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray-idle.png"))?)
                 .icon_as_template(false)
                 .menu(&menu)
                 .on_menu_event(|app, ev| match ev.id.as_ref() {
+                    "paste_last" => glue::paste_last(app, TRAY_PASTE_DELAY),
                     "settings" => {
                         if let Some(w) = app.get_webview_window("settings") {
                             let _ = w.show();

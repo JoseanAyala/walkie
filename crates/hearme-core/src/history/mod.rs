@@ -65,6 +65,12 @@ impl History {
                     FROM transcripts ORDER BY id DESC LIMIT ?1", rusqlite::params![limit])
     }
 
+    /// The text of the newest transcript as it was inserted (polished if it
+    /// was), for paste-last after a restart.
+    pub fn last_text(&self) -> Result<Option<String>> {
+        Ok(self.recent(1)?.into_iter().next().map(|r| r.polished.unwrap_or(r.cleaned)))
+    }
+
     pub fn search(&self, q: &str, limit: u32) -> Result<Vec<Record>> {
         let like = format!("%{q}%");
         self.query(
@@ -108,6 +114,16 @@ mod tests {
         assert_eq!(rows[0].polished.as_deref(), Some("polished two"));
         assert_eq!(rows[1].lang.as_deref(), Some("en"));
         assert!(!rows[0].created_at.is_empty());
+    }
+
+    #[test]
+    fn last_text_is_the_newest_inserted_text() {
+        let h = History::open_in_memory().unwrap();
+        assert_eq!(h.last_text().unwrap(), None);
+        h.insert("raw one", "clean one", None, None, 100).unwrap();
+        assert_eq!(h.last_text().unwrap().as_deref(), Some("clean one"));
+        h.insert("raw two", "clean two", Some("polished two"), None, 100).unwrap();
+        assert_eq!(h.last_text().unwrap().as_deref(), Some("polished two"));
     }
 
     #[test]

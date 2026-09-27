@@ -10,6 +10,9 @@
 //!   upgrades the running recording instead of starting a new one
 //! - any other key within STRAY_CANCEL_MS of starting cancels (you were
 //!   typing a shortcut, not dictating)
+//! - paste-last: a one-shot tap that never records; it fires once every key
+//!   of the chord is up, so the paste it triggers isn't mixed with (or
+//!   swallowed as) the chord's own keys
 
 use super::keys::{self, Key, ESCAPE};
 use super::machine::HotkeyMachine;
@@ -29,6 +32,7 @@ pub enum Action {
     Dictate,
     Polish,
     HandsFree,
+    PasteLast,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -36,6 +40,7 @@ pub struct Bindings {
     pub dictate: Vec<Key>,
     pub polish: Vec<Key>,
     pub hands_free: Vec<Key>,
+    pub paste_last: Vec<Key>,
 }
 
 impl Bindings {
@@ -53,6 +58,7 @@ impl Bindings {
             dictate: parse("Dictate", &h.dictate),
             polish: parse("Polish", &h.polish),
             hands_free: parse("Hands-free", &h.hands_free),
+            paste_last: parse("Paste last", &h.paste_last),
         };
         let same = |x: &[Key], y: &[Key]| {
             !x.is_empty() && x.len() == y.len() && x.iter().all(|k| y.iter().any(|j| k.matches(*j)))
@@ -65,6 +71,15 @@ impl Bindings {
             errors.push("Hands-free shortcut duplicates another one — Hands-free disabled".into());
             b.hands_free.clear();
         }
+        if [&b.dictate, &b.polish, &b.hands_free].iter().any(|o| same(&b.paste_last, o)) {
+            errors.push("Paste-last shortcut duplicates another one — Paste last disabled".into());
+            b.paste_last.clear();
+        }
+        // The paste itself is a synthesized ⌘V, which the tap sees too.
+        if same(&b.paste_last, &[Key::Cmd(keys::Side::Any), Key::Code(9)]) {
+            errors.push("Paste-last can't be ⌘V (it would trigger itself) — Paste last disabled".into());
+            b.paste_last.clear();
+        }
         (b, errors)
     }
 
@@ -73,6 +88,7 @@ impl Bindings {
             Action::Dictate => &self.dictate,
             Action::Polish => &self.polish,
             Action::HandsFree => &self.hands_free,
+            Action::PasteLast => &self.paste_last,
         }
     }
 }
@@ -84,6 +100,8 @@ pub enum Signal {
     SetMode(Mode),
     Finish,
     Cancel,
+    /// Re-insert the most recent transcript. Never starts a recording.
+    PasteLast,
     /// Shortcut recorder result: the keys held together, normalized.
     Recorded(Vec<Key>),
     RecordCancelled,
@@ -110,6 +128,8 @@ pub struct Engine {
     inhibit: bool,
     swallowed: HashSet<Key>,
     recording: Option<Vec<Key>>,
+    /// The paste-last chord was pressed; fire once every key is up.
+    paste_pending: bool,
 }
 
 fn mode_of(a: Action) -> Mode {
@@ -132,6 +152,7 @@ impl Engine {
             inhibit: false,
             swallowed: HashSet::new(),
             recording: None,
+            paste_pending: false,
         }
     }
 
@@ -148,6 +169,7 @@ impl Engine {
     /// triggering anything. Esc alone cancels.
     pub fn start_recording(&mut self) {
         self.recording = Some(Vec::new());
+        self.paste_pending = false;
     }
 
     pub fn is_recording(&self) -> bool {
@@ -187,7 +209,12 @@ impl Engine {
                 }
                 return Verdict { signal: None, swallow };
             }
-            Verdict { signal: self.up(k, t), swallow }
+            let mut signal = self.up(k, t);
+            if self.paste_pending && self.held.is_empty() {
+                self.paste_pending = false;
+                signal = signal.or(Some(Signal::PasteLast));
+            }
+            Verdict { signal, swallow }
         }
     }
 
@@ -200,7 +227,7 @@ impl Engine {
     }
 
     fn satisfied(&self) -> Option<Action> {
-        [Action::HandsFree, Action::Polish, Action::Dictate].into_iter().find(|&a| {
+        [Action::HandsFree, Action::Polish, Action::Dictate, Action::PasteLast].into_iter().find(|&a| {
             let b = self.bindings.get(a);
             !b.is_empty()
                 && b.len() == self.held.len()
@@ -273,6 +300,11 @@ impl Engine {
                     Some(Output::Finish) => Some(Signal::Finish),
                     _ => None,
                 })
+            }
+            // Not while a locked recording runs: the paste would land mid-dictation.
+            Some(Action::PasteLast) if !self.machine.is_locked() => {
+                self.paste_pending = true;
+                Down::Consumed(None)
             }
             _ => Down::Ignored,
         }
@@ -358,13 +390,17 @@ mod tests {
     const SPACE: Key = Key::Code(49);
     const A: Key = Key::Code(0);
     const D: Key = Key::Code(2);
+    const V: Key = Key::Code(9);
     const LSHIFT: Key = Key::Shift(Left);
+    const LCTRL: Key = Key::Ctrl(Left);
+    const LCMD: Key = Key::Cmd(Left);
 
     fn wispr() -> Engine {
         Engine::new(Bindings {
             dictate: vec![Key::Fn],
             polish: vec![Key::Fn, Key::Shift(Any)],
             hands_free: vec![Key::Fn, SPACE],
+            paste_last: vec![Key::Ctrl(Any), Key::Cmd(Any), V],
         })
     }
 
@@ -387,6 +423,7 @@ mod tests {
             dictate: v(&["RightCmd"]),
             polish: v(&["RightCmd"]),
             hands_free: v(&["A"]),
+            paste_last: vec![],
         });
         assert_eq!(b.dictate, vec![Key::Cmd(Right)]);
         assert!(b.polish.is_empty() && b.hands_free.is_empty());
@@ -593,5 +630,103 @@ mod tests {
         e.poll(500);
         let s = run(&mut e, &[(LSHIFT, true, 600), (Key::Fn, true, 610), (Key::Fn, false, 1400)]);
         assert_eq!(s, vec![Start(Mode::Polish), Finish]);
+    }
+
+    #[test]
+    fn ctrl_cmd_v_pastes_last_once_everything_is_up() {
+        let mut e = wispr();
+        assert!(!e.on_key(LCTRL, true, 0).swallow);
+        assert!(!e.on_key(LCMD, true, 10).swallow);
+        let v = e.on_key(V, true, 20);
+        assert_eq!(v.signal, None, "fires on release, not press");
+        assert!(v.swallow, "the V must not reach the focused app");
+        assert!(e.on_key(V, true, 60).swallow, "auto-repeat swallowed too");
+        let up = e.on_key(V, false, 100);
+        assert!(up.swallow && up.signal.is_none(), "modifiers still held");
+        assert_eq!(e.on_key(LCMD, false, 110).signal, None);
+        assert_eq!(e.on_key(LCTRL, false, 120).signal, Some(PasteLast));
+    }
+
+    #[test]
+    fn paste_last_never_starts_a_recording() {
+        let mut e = wispr();
+        let s = run(&mut e, &[
+            (LCTRL, true, 0), (LCMD, true, 10), (V, true, 20),
+            (V, false, 2000), (LCMD, false, 2010), (LCTRL, false, 2020),
+        ]);
+        assert_eq!(s, vec![PasteLast]);
+        e.poll(3000);
+        assert_eq!(e.on_key(Key::Fn, true, 3100).signal, Some(Start(Mode::Dictate)), "dictation unaffected");
+    }
+
+    #[test]
+    fn the_paste_it_triggers_does_not_retrigger_it() {
+        let mut e = wispr();
+        run(&mut e, &[(LCTRL, true, 0), (LCMD, true, 10), (V, true, 20), (V, false, 60), (LCMD, false, 70), (LCTRL, false, 80)]);
+        // what the injector then posts: ⌘V
+        assert_eq!(e.on_key(LCMD, true, 100), Verdict::default());
+        assert_eq!(e.on_key(V, true, 110), Verdict::default());
+        assert_eq!(run(&mut e, &[(V, false, 120), (LCMD, false, 130)]), vec![]);
+    }
+
+    #[test]
+    fn plain_cmd_v_and_ctrl_v_pass_through() {
+        let mut e = wispr();
+        e.on_key(LCMD, true, 0);
+        assert_eq!(e.on_key(V, true, 10), Verdict::default());
+        assert_eq!(run(&mut e, &[(V, false, 20), (LCMD, false, 30)]), vec![]);
+        e.on_key(LCTRL, true, 100);
+        assert_eq!(e.on_key(V, true, 110), Verdict::default());
+        assert_eq!(run(&mut e, &[(V, false, 120), (LCTRL, false, 130)]), vec![]);
+    }
+
+    #[test]
+    fn paste_last_is_ignored_while_recording() {
+        let mut e = wispr();
+        // hands-free
+        e.on_key(Key::Fn, true, 0);
+        run(&mut e, &[(SPACE, true, 50), (SPACE, false, 100), (Key::Fn, false, 150)]);
+        e.on_key(LCTRL, true, 1000);
+        e.on_key(LCMD, true, 1010);
+        assert_eq!(e.on_key(V, true, 1020), Verdict::default());
+        assert_eq!(run(&mut e, &[(V, false, 1030), (LCMD, false, 1040), (LCTRL, false, 1050)]), vec![]);
+        assert_eq!(e.on_key(Key::Fn, true, 2000).signal, Some(Finish));
+        e.on_key(Key::Fn, false, 2050);
+
+        // double-tap locked
+        let mut e = wispr();
+        run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 60), (Key::Fn, true, 150), (Key::Fn, false, 200)]);
+        e.on_key(LCTRL, true, 1000);
+        e.on_key(LCMD, true, 1010);
+        assert!(!e.on_key(V, true, 1020).swallow);
+        assert_eq!(run(&mut e, &[(V, false, 1030), (LCMD, false, 1040), (LCTRL, false, 1050)]), vec![]);
+    }
+
+    #[test]
+    fn empty_paste_last_binding_is_disabled() {
+        let mut e = Engine::new(Bindings { dictate: vec![Key::Fn], ..Default::default() });
+        e.on_key(LCTRL, true, 0);
+        e.on_key(LCMD, true, 10);
+        assert!(!e.on_key(V, true, 20).swallow);
+        assert_eq!(run(&mut e, &[(V, false, 30), (LCMD, false, 40), (LCTRL, false, 50)]), vec![]);
+    }
+
+    #[test]
+    fn paste_last_duplicating_another_binding_or_cmd_v_is_disabled() {
+        let v = |k: &[&str]| k.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let (b, errs) = Bindings::from_config(&Hotkeys { paste_last: v(&["Fn", "Shift"]), ..Hotkeys::default() });
+        assert!(b.paste_last.is_empty() && !b.polish.is_empty());
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        let (b, errs) = Bindings::from_config(&Hotkeys { paste_last: v(&["Cmd", "V"]), ..Hotkeys::default() });
+        assert!(b.paste_last.is_empty());
+        assert_eq!(errs.len(), 1, "{errs:?}");
+    }
+
+    #[test]
+    fn recorder_captures_a_paste_last_chord_without_pasting() {
+        let mut e = wispr();
+        e.start_recording();
+        let s = run(&mut e, &[(LCTRL, true, 0), (LCMD, true, 10), (V, true, 20), (V, false, 60), (LCMD, false, 70), (LCTRL, false, 80)]);
+        assert_eq!(s, vec![Recorded(vec![Key::Ctrl(Any), Key::Cmd(Any), V])]);
     }
 }

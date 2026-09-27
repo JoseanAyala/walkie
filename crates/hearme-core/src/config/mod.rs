@@ -24,6 +24,8 @@ pub struct Hotkeys {
     pub dictate: Vec<String>,
     pub polish: Vec<String>,
     pub hands_free: Vec<String>,
+    /// A one-shot tap, not a hold: re-inserts the most recent transcript.
+    pub paste_last: Vec<String>,
 }
 
 /// Accepts the current format and the original one (`dictate = "RightAlt"`
@@ -34,6 +36,7 @@ struct RawHotkeys {
     dictate: Option<OneOrMany>,
     polish: Option<Vec<String>>,
     hands_free: Option<Vec<String>>,
+    paste_last: Option<Vec<String>>,
     polish_modifier: Option<String>,
 }
 
@@ -66,7 +69,8 @@ impl From<RawHotkeys> for Hotkeys {
         });
         let hands_free =
             r.hands_free.unwrap_or_else(|| if legacy { with("Space") } else { d.hands_free.clone() });
-        Hotkeys { dictate, polish, hands_free }
+        let paste_last = r.paste_last.unwrap_or(d.paste_last);
+        Hotkeys { dictate, polish, hands_free, paste_last }
     }
 }
 
@@ -128,7 +132,12 @@ impl Default for Config {
 impl Default for Hotkeys {
     fn default() -> Self {
         let v = |keys: &[&str]| keys.iter().map(|k| k.to_string()).collect();
-        Self { dictate: v(&["Fn"]), polish: v(&["Fn", "Shift"]), hands_free: v(&["Fn", "Space"]) }
+        Self {
+            dictate: v(&["Fn"]),
+            polish: v(&["Fn", "Shift"]),
+            hands_free: v(&["Fn", "Space"]),
+            paste_last: v(&["Ctrl", "Cmd", "V"]),
+        }
     }
 }
 impl Default for Cleanup {
@@ -221,6 +230,7 @@ mod tests {
         assert_eq!(c.hotkeys.dictate, ["Fn"]);
         assert_eq!(c.hotkeys.polish, ["Fn", "Shift"]);
         assert_eq!(c.hotkeys.hands_free, ["Fn", "Space"]);
+        assert_eq!(c.hotkeys.paste_last, ["Ctrl", "Cmd", "V"]);
         assert!(c.cleanup.enabled);
         assert!(c.cleanup.fillers_en.contains(&"um".to_string()));
         assert!(c.cleanup.fillers_es.contains(&"este".to_string()));
@@ -274,6 +284,7 @@ mod tests {
         assert_eq!(c.hotkeys.dictate, ["RightCmd"]);
         assert_eq!(c.hotkeys.polish, ["RightCmd", "Shift"]);
         assert_eq!(c.hotkeys.hands_free, ["RightCmd", "Space"]);
+        assert_eq!(c.hotkeys.paste_last, Hotkeys::default().paste_last);
         let s = toml::to_string_pretty(&c).unwrap();
         assert!(!s.contains("polish_modifier"), "old field is dropped on save");
     }
@@ -290,6 +301,15 @@ mod tests {
         let c: Config = toml::from_str("[hotkeys]\ndictate = [\"Ctrl\", \"Opt\", \"D\"]").unwrap();
         assert_eq!(c.hotkeys.dictate, ["Ctrl", "Opt", "D"]);
         assert_eq!(c.hotkeys.polish, Hotkeys::default().polish);
+        assert_eq!(c.hotkeys.paste_last, Hotkeys::default().paste_last);
+    }
+
+    #[test]
+    fn paste_last_can_be_disabled_and_round_trips() {
+        let c: Config = toml::from_str("[hotkeys]\npaste_last = []").unwrap();
+        assert!(c.hotkeys.paste_last.is_empty());
+        let back: Config = toml::from_str(&toml::to_string_pretty(&c).unwrap()).unwrap();
+        assert!(back.hotkeys.paste_last.is_empty(), "disabled must stay disabled, not revert to default");
     }
 
     #[test]

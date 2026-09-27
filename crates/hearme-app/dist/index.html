@@ -78,6 +78,9 @@
     <div class="sc" data-k="hands_free"><span class="what">Hands-free
       <small>press to start, press again (or Dictate) to stop</small></span>
       <kbd></kbd><button class="rec">Record</button><button class="clr" title="Turn off">✕</button></div>
+    <div class="sc" data-k="paste_last"><span class="what">Paste last transcript
+      <small>press to insert your last dictation again (also in the tray menu)</small></span>
+      <kbd></kbd><button class="rec">Record</button><button class="clr" title="Turn off">✕</button></div>
     <div id="scMsg" class="hint">Holding Dictate and adding the extra key of another shortcut
       switches the running recording (e.g. Fn, then Space → hands-free).</div>
     <label>Injection</label>
@@ -202,7 +205,8 @@
     if (m) return m[1].toLowerCase() + ' ' + GLYPH[m[2]];
     return GLYPH[n] || n;
   };
-  const LABEL = { dictate: 'Dictate', polish: 'Dictate + polish', hands_free: 'Hands-free' };
+  const LABEL = { dictate: 'Dictate', polish: 'Dictate + polish', hands_free: 'Hands-free',
+                  paste_last: 'Paste last transcript' };
   let recording = null;
   function renderShortcuts() {
     document.querySelectorAll('.sc').forEach(row => {
