@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Signing with an identity turns on the hardened runtime, which denies
+       microphone access (silently: capture yields zeros) without this. -->
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+  <!-- The hardened runtime also only loads dylibs signed by the same team.
+       .cargo/config.toml links Homebrew's libiconv, which isn't, so without
+       this dyld aborts the app before main() — no window, no log. -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+</dict>
+</plist>

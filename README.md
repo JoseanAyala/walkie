@@ -17,6 +17,7 @@ machine.
 
 ```sh
 cargo install tauri-cli --locked
+./scripts/create-signing-cert.sh              # once per machine
 cargo run -p hearme-app --example gen_icons   # once
 cd crates/hearme-app && cargo tauri dev        # dev
 cargo tauri build                              # bundles hearme.app
@@ -26,6 +27,13 @@ cargo tauri build                              # bundles hearme.app
 — don't lower it. `cargo tauri build` propagates it into
 `MACOSX_DEPLOYMENT_TARGET` for the whole build graph, and whisper.cpp's use
 of `std::filesystem` doesn't link below 10.15.
+
+`cargo tauri build` signs with the self-signed "hearme local signing"
+identity, so macOS permission grants survive rebuilds. Without it the bundle
+is only ad-hoc signed and every rebuild silently invalidates Microphone,
+Accessibility and Input Monitoring — the toggles still show on, but no
+longer apply. `hearme.entitlements` carries `audio-input`; the hardened
+runtime otherwise mutes the mic.
 
 First launch downloads the Whisper model (~570MB) to `~/.cache/hearme/models`.
 macOS permissions needed: Microphone, Accessibility, Input Monitoring
