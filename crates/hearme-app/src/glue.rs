@@ -5,7 +5,7 @@ use hearme_core::history::History;
 use hearme_core::hotkey::engine::{Bindings, Engine, Signal};
 use hearme_core::hotkey::keys::{self, binding_names};
 use hearme_core::hotkey::tap::{self, TapStatus};
-use hearme_core::inject::{Injector, PasteInjector, TypeInjector};
+use hearme_core::inject::{Injector, MainThread, PasteInjector, TypeInjector};
 use hearme_core::pipeline::session::{Command, Deps, Event, Session, SessionState};
 use hearme_core::stt::whisper::WhisperEngine;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -89,8 +89,11 @@ pub fn start(app: AppHandle) -> Result<()> {
             model_status(&app, "ready");
 
             let injector: Box<dyn Injector> = match cfg.inject.strategy.as_str() {
-                "type" => Box::new(TypeInjector),
-                _ => Box::new(PasteInjector { restore_ms: cfg.inject.restore_clipboard_ms }),
+                "type" => Box::new(TypeInjector { main: Some(main_thread(&app)) }),
+                _ => Box::new(PasteInjector {
+                    restore_ms: cfg.inject.restore_clipboard_ms,
+                    main: Some(main_thread(&app)),
+                }),
             };
             let history = History::open(&config::db_path())
                 .map_err(|e| eprintln!("hearme: history disabled: {e}"))
@@ -168,6 +171,16 @@ pub fn start(app: AppHandle) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Keystroke synthesis has to run on the main thread (see `inject::MainThread`).
+fn main_thread(app: &AppHandle) -> MainThread {
+    let app = app.clone();
+    Arc::new(move |job| {
+        if let Err(e) = app.run_on_main_thread(job) {
+            eprintln!("hearme: couldn't reach the main thread to type: {e}");
+        }
+    })
 }
 
 fn handle_signal(app: &AppHandle, tx: &mpsc::Sender<Command>, ready: &AtomicBool, sig: Signal) {

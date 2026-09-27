@@ -10,9 +10,9 @@ fn main() -> anyhow::Result<()> {
     std::thread::sleep(std::time::Duration::from_secs(3));
     let text = "Hola, hearme funciona — ¡qué rápido! ✓";
     if use_type {
-        TypeInjector.inject(text)?;
+        TypeInjector { main: None }.inject(text)?;
     } else {
-        PasteInjector { restore_ms: 150 }.inject(text)?;
+        PasteInjector { restore_ms: 150, main: None }.inject(text)?;
     }
     println!("done");
     Ok(())
