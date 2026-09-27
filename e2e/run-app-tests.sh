@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds + installs /Applications/hearme.app, then runs the OS-level e2e
-# suite (e2e/tests/app.rs) against it. Your running hearme is stopped for
+# suite (e2e/tests/app*.rs) against it. Your running hearme is stopped for
 # the run and restarted afterwards; your config and history aren't touched.
 #
 #   e2e/run-app-tests.sh              all tests
@@ -16,4 +16,7 @@ trap restore EXIT
 
 "$root/scripts/dev.sh" --install-only
 cd "$root"
-cargo test -p hearme-e2e --features os-tests --test app -- --test-threads=1 "$@"
+# Every e2e/tests/app*.rs file is an OS-level suite.
+tests=$(for f in e2e/tests/app*.rs; do printf -- '--test %s ' "$(basename "$f" .rs)"; done)
+# shellcheck disable=SC2086
+cargo test -p hearme-e2e --features os-tests $tests -- --test-threads=1 "$@"
