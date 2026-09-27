@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn a_runner_that_drops_the_job_is_an_error_not_a_panic() {
-        let runner: MainThread = Arc::new(|job| drop(job));
+        let runner: MainThread = Arc::new(drop);
         assert!(on_main(&Some(runner), || Ok(())).is_err());
     }
 }

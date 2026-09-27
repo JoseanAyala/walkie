@@ -16,6 +16,12 @@ pub struct HotkeyMachine {
     state: State,
 }
 
+impl Default for HotkeyMachine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HotkeyMachine {
     pub fn new() -> Self {
         Self { state: State::Idle }

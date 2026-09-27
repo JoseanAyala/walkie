@@ -287,8 +287,10 @@ mod tests {
     fn save_load_roundtrip_in_tempdir() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.toml");
-        let mut c = Config::default();
-        c.language = "en".into();
+        let c = Config {
+            language: "en".into(),
+            ..Default::default()
+        };
         c.save_to(&path).unwrap();
         let back = Config::load_from(&path).unwrap();
         assert_eq!(c, back);

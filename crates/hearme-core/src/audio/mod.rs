@@ -102,6 +102,12 @@ pub struct CpalCapture {
     channels: u16,
 }
 
+impl Default for CpalCapture {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CpalCapture {
     pub fn new() -> Self {
         Self {
@@ -143,7 +149,7 @@ impl Capture for CpalCapture {
                 move |data: &[f32], _| {
                     buf.lock().unwrap().extend_from_slice(data);
                     tick += 1;
-                    if tick % 4 == 0 {
+                    if tick.is_multiple_of(4) {
                         on_level(dsp::rms(data));
                     }
                 },
@@ -156,7 +162,7 @@ impl Capture for CpalCapture {
                     let f: Vec<f32> = data.iter().map(|s| *s as f32 / 32768.0).collect();
                     buf.lock().unwrap().extend_from_slice(&f);
                     tick += 1;
-                    if tick % 4 == 0 {
+                    if tick.is_multiple_of(4) {
                         on_level(dsp::rms(&f));
                     }
                 },

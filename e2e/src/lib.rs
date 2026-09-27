@@ -87,8 +87,10 @@ impl Rig {
         );
         let (bindings, errors) = Bindings::from_config(&setup.hotkeys);
         assert!(errors.is_empty(), "bad hotkeys in test setup: {errors:?}");
-        let mut cfg = Config::default();
-        cfg.language = "auto".into();
+        let mut cfg = Config {
+            language: "auto".into(),
+            ..Default::default()
+        };
         cfg.polish.command = setup.polish_command.into();
         let typed = Rc::new(RefCell::new(Vec::new()));
         let copied = Rc::new(RefCell::new(Vec::new()));
