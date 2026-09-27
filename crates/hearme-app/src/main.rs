@@ -7,10 +7,12 @@ use tauri::Manager;
 
 mod commands;
 mod glue;
+mod logfile;
 
 pub struct TrayHandle(pub Mutex<tauri::tray::TrayIcon>);
 
 fn main() {
+    logfile::init();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::get_config,

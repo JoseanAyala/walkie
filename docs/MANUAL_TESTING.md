@@ -4,16 +4,16 @@ hearme v1 is implemented, unit-tested (61 tests), and reviewed, but the parts
 that need a human with real microphone/keyboard/permission access haven't
 been exercised yet. This is that checklist.
 
-**Note:** `/Applications/hearme.app` was built one commit before the final
-review's fixes (window-close handling, the error banner, config-typo
-safety). For testing, either use `cargo tauri dev` from `crates/hearme-app/`
-(always reflects current source), or rebuild the bundle first:
+**Run everything against the installed bundle:**
 
 ```sh
-cd crates/hearme-app
-cargo tauri build
-cp -r ../../target/release/bundle/macos/hearme.app /Applications/
+scripts/dev.sh           # build, sign, install to /Applications, relaunch, follow log
+scripts/dev.sh --debug   # same, plus HEARME_DEBUG_EVENTS=1 (dumps key events)
 ```
+
+The log is always at `~/Library/Logs/hearme/hearme.log`. Grant Microphone,
+Accessibility and Input Monitoring once — the bundle is signed with a stable
+local identity, so the grants survive rebuilds.
 
 > **Two environment gotchas cost a full debugging session. Check both first:**
 >

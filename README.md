@@ -21,6 +21,7 @@ cargo install tauri-cli --locked
 cargo run -p hearme-app --example gen_icons   # once
 cd crates/hearme-app && cargo tauri dev        # dev
 cargo tauri build                              # bundles hearme.app
+../../scripts/dev.sh                           # build + install + relaunch + follow log
 ```
 
 `bundle.macOS.minimumSystemVersion` in `tauri.conf.json` is pinned to `10.15`
