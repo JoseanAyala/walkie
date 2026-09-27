@@ -1709,6 +1709,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hearme-e2e"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hearme-core",
+ "hound",
+]
+
+[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
