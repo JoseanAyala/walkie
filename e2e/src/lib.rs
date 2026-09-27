@@ -7,6 +7,7 @@
 #[cfg(all(target_os = "macos", feature = "os-tests"))]
 pub mod os;
 
+use hearme_core::audio::duck::{Ducker, MemVolume};
 use hearme_core::audio::FileCapture;
 use hearme_core::config::{models, Config, Hotkeys};
 use hearme_core::history::History;
@@ -18,7 +19,7 @@ use hearme_core::stt::whisper::WhisperEngine;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 
 pub fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../crates/hearme-core/tests/fixtures").join(name)
@@ -42,6 +43,8 @@ pub struct Rig {
     /// Events the keyboard hook would have dropped, as (key name, down).
     pub swallowed: Vec<(String, bool)>,
     pub signals: Vec<Signal>,
+    /// The system output volume: starts at 0.8, ducked to 30% while recording.
+    pub volume: MemVolume,
     t: u128,
 }
 
@@ -78,13 +81,16 @@ impl Rig {
             history: Some(History::open_in_memory().unwrap()),
             cfg,
         };
+        let volume = MemVolume::new(0.8);
+        let ducker = Arc::new(Ducker::new(Box::new(volume.clone()), 30));
         Rig {
             engine: Engine::new(bindings),
-            session: Session::new(deps, tx),
+            session: Session::new(deps, tx).with_ducker(ducker),
             events,
             typed,
             swallowed: Vec::new(),
             signals: Vec::new(),
+            volume,
             t: 1_000,
         }
     }

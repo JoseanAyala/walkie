@@ -85,6 +85,9 @@
       <option value="paste">Paste (recommended)</option>
       <option value="type">Type keystrokes</option>
     </select>
+    <label><input type="checkbox" id="duck_while_recording"> Lower other audio while dictating</label>
+    <div class="hint">Volume while recording:
+      <input type="number" id="duck_percent" min="0" max="100" step="5" style="width:56px"> % of the current level</div>
     <p class="hint">Shortcuts and the microphone apply immediately. Other settings take effect after restarting hearme.</p>
   </section>
   <section id="status">
@@ -135,6 +138,8 @@
     renderShortcuts();
     await loadMics();
     $('strategy').value = cfg.inject.strategy;
+    $('duck_while_recording').checked = cfg.audio.duck_while_recording;
+    $('duck_percent').value = cfg.audio.duck_percent;
     $('cleanup_enabled').checked = cfg.cleanup.enabled;
     $('fillers_en').value = cfg.cleanup.fillers_en.join(', ');
     $('fillers_es').value = cfg.cleanup.fillers_es.join(', ');
@@ -149,6 +154,9 @@
     cfg.model = $('model').value;
     cfg.inject.strategy = $('strategy').value;
     cfg.audio.input_device = $('input_device').value;
+    cfg.audio.duck_while_recording = $('duck_while_recording').checked;
+    const pct = parseInt($('duck_percent').value);
+    cfg.audio.duck_percent = Number.isNaN(pct) ? 30 : Math.min(100, Math.max(0, pct));
     cfg.cleanup.enabled = $('cleanup_enabled').checked;
     cfg.cleanup.fillers_en = $('fillers_en').value.split(',').map(s => s.trim()).filter(Boolean);
     cfg.cleanup.fillers_es = $('fillers_es').value.split(',').map(s => s.trim()).filter(Boolean);

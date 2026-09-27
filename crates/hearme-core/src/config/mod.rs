@@ -98,9 +98,13 @@ pub struct HistoryCfg {
     pub enabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct AudioCfg {
+    /// Lower (not mute) other audio while recording.
+    pub duck_while_recording: bool,
+    /// Volume during recording, as % of the volume before it.
+    pub duck_percent: u32,
     /// Microphone name as `audio::input_device_names` reports it; empty =
     /// follow the system default.
     pub input_device: String,
@@ -149,6 +153,11 @@ impl Default for Inject {
 impl Default for HistoryCfg {
     fn default() -> Self {
         Self { enabled: true }
+    }
+}
+impl Default for AudioCfg {
+    fn default() -> Self {
+        Self { duck_while_recording: true, duck_percent: 30, input_device: String::new() }
     }
 }
 
@@ -221,6 +230,8 @@ mod tests {
         assert_eq!(c.inject.restore_clipboard_ms, 150);
         assert!(c.history.enabled);
         assert_eq!(c.audio.input_device, "");
+        assert!(c.audio.duck_while_recording);
+        assert_eq!(c.audio.duck_percent, 30);
     }
 
     #[test]

@@ -61,6 +61,7 @@ pub fn record_shortcut(hk: State<HotkeyState>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn restart_app(app: tauri::AppHandle) {
+    crate::glue::unduck(&app);
     app.restart();
 }
 

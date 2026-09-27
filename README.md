@@ -65,6 +65,16 @@ timeout_secs = 60
 input_device = ""   # a device name from Settings; empty = system default
 ```
 
+While you dictate, other audio is lowered (not muted) to `duck_percent` of
+its volume and put back when the recording ends — unless you changed the
+volume yourself meanwhile. Settings → General, or:
+
+```toml
+[audio]
+duck_while_recording = true
+duck_percent = 30
+```
+
 History lives in `~/.local/share/hearme/history.sqlite3` (off switch in
 settings). Failed transcriptions keep their audio in `~/.cache/hearme/spool/`.
 

@@ -1,4 +1,5 @@
 pub mod dsp;
+pub mod duck;
 
 use anyhow::{Context, Result};
 use std::sync::atomic::{AtomicBool, Ordering};

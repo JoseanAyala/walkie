@@ -80,6 +80,11 @@ fn main() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running hearme");
+        .build(tauri::generate_context!())
+        .expect("error while running hearme")
+        .run(|app, ev| {
+            if let tauri::RunEvent::Exit = ev {
+                glue::unduck(app);
+            }
+        });
 }

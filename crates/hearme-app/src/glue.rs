@@ -1,4 +1,5 @@
 use anyhow::Result;
+use hearme_core::audio::duck::{Ducker, SystemVolume};
 use hearme_core::audio::{Capture, CpalCapture, FileCapture};
 use hearme_core::config::{self, models, Config};
 use hearme_core::history::History;
@@ -50,6 +51,12 @@ pub fn start(app: AppHandle) -> Result<()> {
     // listener checks this before forwarding commands, since it starts
     // immediately and would otherwise queue commands nobody is consuming yet.
     let ready = Arc::new(AtomicBool::new(false));
+    let ducker = cfg.audio.duck_while_recording.then(|| {
+        let d = Arc::new(Ducker::new(Box::new(SystemVolume), cfg.audio.duck_percent));
+        restore_on_signal(d.clone());
+        app.manage(Duck(d.clone()));
+        d
+    });
 
     // Worker thread: owns every !Send dep. Downloads/loads the model, then
     // runs the session loop until shutdown.
@@ -120,8 +127,12 @@ pub fn start(app: AppHandle) -> Result<()> {
                 history,
                 cfg,
             };
+            let mut session = Session::new(deps, evt_tx);
+            if let Some(d) = ducker {
+                session = session.with_ducker(d);
+            }
             ready.store(true, Ordering::SeqCst);
-            Session::new(deps, evt_tx).run(cmd_rx);
+            session.run(cmd_rx);
         });
     }
 
@@ -172,6 +183,54 @@ pub fn start(app: AppHandle) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// The ducker, so quitting mid-recording can put the volume back.
+pub struct Duck(Arc<Ducker>);
+
+/// Restores the volume if a recording is ducking it. For every way out of
+/// the app that bypasses the session (quit, restart).
+pub fn unduck(app: &AppHandle) {
+    if let Some(d) = app.try_state::<Duck>() {
+        d.0.restore();
+    }
+}
+
+static SIGNAL_PIPE: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
+
+extern "C" fn on_signal(sig: libc::c_int) {
+    let b = sig as u8;
+    // SAFETY: write(2) is async-signal-safe; the fd stays open for the process' life.
+    unsafe { libc::write(SIGNAL_PIPE.load(Ordering::Relaxed), &b as *const u8 as *const _, 1) };
+}
+
+/// `kill`/Ctrl-C skip Tauri's exit path, so a recording killed that way
+/// would leave the volume lowered. A signal handler can't safely call
+/// CoreAudio, so it hands the signal to a thread that restores, then dies
+/// of the signal as it would have.
+fn restore_on_signal(d: Arc<Ducker>) {
+    let mut fds = [0; 2];
+    // SAFETY: plain libc calls on fds we own.
+    unsafe {
+        if libc::pipe(fds.as_mut_ptr()) != 0 {
+            return;
+        }
+        SIGNAL_PIPE.store(fds[1], Ordering::SeqCst);
+        for sig in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP] {
+            libc::signal(sig, on_signal as extern "C" fn(libc::c_int) as libc::sighandler_t);
+        }
+    }
+    std::thread::spawn(move || {
+        let mut b = 0u8;
+        // SAFETY: reads one byte into `b`.
+        if unsafe { libc::read(fds[0], &mut b as *mut u8 as *mut _, 1) } == 1 {
+            d.restore();
+            unsafe {
+                libc::signal(b as libc::c_int, libc::SIG_DFL);
+                libc::raise(b as libc::c_int);
+            }
+        }
+    });
 }
 
 /// Keystroke synthesis has to run on the main thread (see `inject::MainThread`).

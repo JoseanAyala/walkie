@@ -1,3 +1,4 @@
+use crate::audio::duck::Ducker;
 use crate::audio::Capture;
 use crate::config::{self, Config};
 use crate::history::History;
@@ -7,6 +8,7 @@ use crate::inject::Injector;
 use crate::pipeline::{cleanup, polish};
 use crate::stt::{LangHint, SttEngine};
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,13 +63,26 @@ pub struct Session {
     pub deps: Deps,
     tx: Sender<Event>,
     mode: Option<Mode>,
+    ducker: Option<Arc<Ducker>>,
 }
 
 const MIN_UTTERANCE_MS: usize = 300;
 
 impl Session {
     pub fn new(deps: Deps, tx: Sender<Event>) -> Self {
-        Self { deps, tx, mode: None }
+        Self { deps, tx, mode: None, ducker: None }
+    }
+
+    /// Lowers other audio while recording (see `audio::duck`).
+    pub fn with_ducker(mut self, d: Arc<Ducker>) -> Self {
+        self.ducker = Some(d);
+        self
+    }
+
+    fn unduck(&self) {
+        if let Some(d) = &self.ducker {
+            d.restore();
+        }
     }
 
     /// Blocks processing commands until Shutdown or channel close.
@@ -104,6 +119,9 @@ impl Session {
         })) {
             Ok(()) => {
                 self.mode = Some(mode);
+                if let Some(d) = &self.ducker {
+                    d.duck();
+                }
                 self.emit(Event::State(SessionState::Recording));
             }
             Err(e) => {
@@ -124,6 +142,7 @@ impl Session {
             return;
         }
         let _ = self.deps.capture.stop();
+        self.unduck();
         self.emit(Event::State(SessionState::Idle));
     }
 
@@ -131,7 +150,9 @@ impl Session {
         let Some(mode) = self.mode.take() else { return };
         self.emit(Event::State(SessionState::Transcribing));
 
-        let samples = match self.deps.capture.stop() {
+        let stopped = self.deps.capture.stop();
+        self.unduck();
+        let samples = match stopped {
             Ok(s) => s,
             Err(e) => {
                 self.emit(Event::Error(format!("capture failed: {e}")));
@@ -208,6 +229,13 @@ impl Session {
     }
 }
 
+/// Shutdown, or a panic mid-session: never leave the volume lowered.
+impl Drop for Session {
+    fn drop(&mut self) {
+        self.unduck();
+    }
+}
+
 fn spool(samples: &[f32]) {
     let dir = config::spool_dir();
     if std::fs::create_dir_all(&dir).is_err() {
@@ -230,6 +258,7 @@ fn spool(samples: &[f32]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::audio::duck::MemVolume;
     use crate::audio::Capture;
 use crate::hotkey::Mode;
     use crate::inject::Injector;
@@ -289,6 +318,7 @@ use crate::hotkey::Mode;
         rx: mpsc::Receiver<Event>,
         injected: Rc<RefCell<Vec<String>>>,
         stt_calls: Rc<RefCell<u32>>,
+        volume: MemVolume,
     }
 
     fn rig(text: &str, lang: Option<&str>, opts: (bool, bool, bool)) -> Rig {
@@ -310,7 +340,9 @@ use crate::hotkey::Mode;
             history: Some(crate::history::History::open_in_memory().unwrap()),
             cfg,
         };
-        Rig { session: Session::new(deps, tx), rx, injected, stt_calls }
+        let volume = MemVolume::new(0.8);
+        let ducker = Arc::new(Ducker::new(Box::new(volume.clone()), 25));
+        Rig { session: Session::new(deps, tx).with_ducker(ducker), rx, injected, stt_calls, volume }
     }
 
     fn states(rx: &mpsc::Receiver<Event>) -> Vec<String> {
@@ -370,6 +402,7 @@ use crate::hotkey::Mode;
         assert!(evs.contains(&"Error".to_string()));
         assert_eq!(evs.last().unwrap(), "Idle");
         assert!(spool_root.path().join("hearme/spool/last-failed.wav").exists());
+        assert_eq!(r.volume.volume(), 0.8, "error path must restore the volume");
         std::env::remove_var("XDG_CACHE_HOME");
     }
 
@@ -449,5 +482,47 @@ use crate::hotkey::Mode;
         let mut r = rig("x", None, (false, false, false));
         r.session.finish();
         assert!(states(&r.rx).is_empty());
+    }
+
+    #[test]
+    fn volume_is_lowered_while_recording_and_restored_after() {
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.start(Mode::Dictate);
+        assert!((r.volume.volume() - 0.2).abs() < 1e-6, "{}", r.volume.volume());
+        r.session.finish();
+        assert_eq!(r.volume.volume(), 0.8);
+    }
+
+    #[test]
+    fn cancel_restores_the_volume() {
+        let mut r = rig("x", None, (false, false, false));
+        r.session.start(Mode::Dictate);
+        r.session.cancel();
+        assert_eq!(r.volume.volume(), 0.8);
+    }
+
+    #[test]
+    fn user_volume_change_mid_recording_survives_finish() {
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.start(Mode::Dictate);
+        r.volume.user_set(0.5);
+        r.session.finish();
+        assert_eq!(r.volume.volume(), 0.5);
+    }
+
+    #[test]
+    fn failed_start_never_touches_the_volume() {
+        let mut r = rig("x", None, (false, false, true));
+        r.session.start(Mode::Dictate);
+        assert_eq!(r.volume.volume(), 0.8);
+    }
+
+    #[test]
+    fn dropping_a_recording_session_restores_the_volume() {
+        let mut r = rig("x", None, (false, false, false));
+        r.session.start(Mode::Dictate);
+        let volume = r.volume.clone();
+        drop(r);
+        assert_eq!(volume.volume(), 0.8);
     }
 }
