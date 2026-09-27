@@ -54,6 +54,21 @@ First launch downloads the Whisper model (~570MB) to `~/.cache/hearme/models`.
 macOS permissions needed: Microphone, Accessibility, Input Monitoring
 (the onboarding window has deep links).
 
+## Release
+
+CI (`.github/workflows/ci.yml`) runs fmt, clippy and unit tests on every PR
+and push to `main`; pushes to `main` also build `hearme.app` and upload it as
+a workflow artifact. To release, bump `version` in `tauri.conf.json`, then:
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The release workflow builds an ad-hoc-signed zip (`scripts/package.sh`) and
+attaches it to a GitHub Release. Ad-hoc means no Gatekeeper trust: first
+launch needs right-click → Open, and macOS permissions must be re-granted
+after each update.
+
 ## Config
 
 `~/.config/hearme/config.toml` — created on first run. Polish example:
