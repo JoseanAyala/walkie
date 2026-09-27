@@ -32,6 +32,9 @@ fn model_status(app: &AppHandle, s: impl Into<String>) {
 /// milliseconds since `Error` is immediately followed by further state
 /// transitions down to `Idle`, which used to hide the overlay synchronously.
 const ERROR_GRACE: Duration = Duration::from_secs(2);
+/// Same, for an `Event::Notice` (e.g. "copied to clipboard" — it tells you
+/// what to do next, so it gets a little longer).
+const NOTICE_GRACE: Duration = Duration::from_millis(2500);
 
 /// Paste-last: the newest transcript (from `Event::Done`; history covers a
 /// restart) and the way to the session worker, which owns the injector.
@@ -201,17 +204,17 @@ pub fn start(app: AppHandle) -> Result<()> {
     startup_check(app.clone(), cfg.first_run);
 
     // Event pump: session events → UI events + tray icon + overlay visibility.
-    // `last_error_at` and `epoch` are local to this loop (pump is only ever
+    // `linger_until` and `epoch` are local to this loop (pump is only ever
     // driven sequentially from here), but the delayed-hide timer they enable
     // needs to outlive a single pump() call, so `epoch` is a shared counter
     // rather than a plain local.
     {
         let app = app.clone();
         std::thread::spawn(move || {
-            let mut last_error_at: Option<Instant> = None;
+            let mut linger_until: Option<Instant> = None;
             let epoch = Arc::new(AtomicU64::new(0));
             for ev in evt_rx {
-                pump(&app, ev, &mut last_error_at, &epoch);
+                pump(&app, ev, &mut linger_until, &epoch);
             }
         });
     }
@@ -343,7 +346,7 @@ fn state_name(s: SessionState) -> &'static str {
     }
 }
 
-fn pump(app: &AppHandle, ev: Event, last_error_at: &mut Option<Instant>, epoch: &Arc<AtomicU64>) {
+fn pump(app: &AppHandle, ev: Event, linger_until: &mut Option<Instant>, epoch: &Arc<AtomicU64>) {
     match ev {
         Event::State(s) => {
             // Bump first: any timer scheduled by a *previous* Idle event
@@ -353,8 +356,9 @@ fn pump(app: &AppHandle, ev: Event, last_error_at: &mut Option<Instant>, epoch: 
             set_tray(app, &s);
 
             if s == SessionState::Idle {
-                let remaining =
-                    (*last_error_at).and_then(|t| ERROR_GRACE.checked_sub(t.elapsed()));
+                let remaining = (*linger_until)
+                    .and_then(|t| t.checked_duration_since(Instant::now()))
+                    .filter(|d| !d.is_zero());
                 match remaining {
                     Some(delay) => defer_idle(app.clone(), delay, epoch.clone()),
                     None => {
@@ -371,7 +375,7 @@ fn pump(app: &AppHandle, ev: Event, last_error_at: &mut Option<Instant>, epoch: 
                     // grace period is no longer relevant — don't let it
                     // delay hiding the overlay for *this* (possibly clean)
                     // recording once it finishes.
-                    *last_error_at = None;
+                    *linger_until = None;
                     if let Some(w) = app.get_webview_window("overlay") {
                         let _ = position_overlay(&w);
                         let _ = w.show();
@@ -389,9 +393,14 @@ fn pump(app: &AppHandle, ev: Event, last_error_at: &mut Option<Instant>, epoch: 
             let _ = app.emit("transcribed", text);
         }
         Event::Error(msg) => {
-            *last_error_at = Some(Instant::now());
+            *linger_until = Some(Instant::now() + ERROR_GRACE);
             eprintln!("hearme error: {msg}");
             let _ = app.emit("app-error", msg);
+        }
+        Event::Notice(msg) => {
+            *linger_until = Some(Instant::now() + NOTICE_GRACE);
+            eprintln!("hearme: notice: {msg}");
+            let _ = app.emit("app-notice", msg);
         }
     }
 }

@@ -7,6 +7,9 @@
   .busy #dot { background: #f39c12 }
   #bars { display: flex; gap: 2px; align-items: flex-end; height: 16px; margin-left: auto }
   #bars i { width: 3px; height: 3px; background: #2ecc71; display: block; transition: height .06s }
+  .notice #dot { background: #3498db }
+  .notice #bars { display: none }
+  .notice #label { font-size: 12px; line-height: 1.25 }
 </style></head><body>
 <div id="pill">
   <span id="dot"></span><span id="label">listening…</span>
@@ -21,6 +24,7 @@
                   polishing: 'polishing…', injecting: 'typing…' };
   listen('state', e => {
     pill.classList.toggle('busy', e.payload !== 'recording');
+    pill.classList.remove('notice');
     label.textContent = names[e.payload] || e.payload;
   });
   listen('level', e => {
@@ -30,4 +34,6 @@
     });
   });
   listen('app-error', e => { label.textContent = '⚠ ' + e.payload; });
+  // Informational, not a failure: blue dot, no ⚠.
+  listen('app-notice', e => { pill.classList.add('notice'); label.textContent = e.payload; });
 </script></body></html>

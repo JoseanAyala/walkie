@@ -4,7 +4,7 @@ use crate::config::{self, Config};
 use crate::history::History;
 use crate::hotkey::engine::Signal;
 use crate::hotkey::Mode;
-use crate::inject::Injector;
+use crate::inject::{Injected, Injector};
 use crate::pipeline::{cleanup, polish};
 use crate::stt::{LangHint, SttEngine};
 use std::sync::mpsc::{Receiver, Sender};
@@ -38,7 +38,11 @@ pub enum Event {
     Level(f32),
     Done { text: String, lang: Option<String> },
     Error(String),
+    /// Worth telling the user, but nothing went wrong (e.g. copied, not pasted).
+    Notice(String),
 }
+
+pub const NO_FIELD_NOTICE: &str = "No text field — copied to clipboard (⌘V to paste)";
 
 impl Command {
     /// The session command a hotkey signal maps to. Recorder signals have
@@ -222,8 +226,10 @@ impl Session {
         }
 
         self.emit(Event::State(SessionState::Injecting));
-        if let Err(e) = self.deps.injector.inject(&final_text) {
-            self.emit(Event::Error(e.to_string()));
+        match self.deps.injector.inject(&final_text) {
+            Ok(Injected::Typed) => {}
+            Ok(Injected::CopiedNoField) => self.emit(Event::Notice(NO_FIELD_NOTICE.into())),
+            Err(e) => self.emit(Event::Error(e.to_string())),
         }
 
         if self.deps.cfg.history.enabled {
@@ -320,12 +326,21 @@ use crate::hotkey::Mode;
         fail: bool,
     }
     impl Injector for MockInjector {
-        fn inject(&mut self, text: &str) -> anyhow::Result<()> {
+        fn inject(&mut self, text: &str) -> anyhow::Result<Injected> {
             if self.fail {
                 anyhow::bail!("blocked")
             }
             self.sink.borrow_mut().push(text.to_string());
-            Ok(())
+            Ok(Injected::Typed)
+        }
+    }
+
+    /// Focus on the desktop: the text goes to the clipboard, not an app.
+    struct NoFieldInjector(Rc<RefCell<Vec<String>>>);
+    impl Injector for NoFieldInjector {
+        fn inject(&mut self, text: &str) -> anyhow::Result<Injected> {
+            self.0.borrow_mut().push(text.to_string());
+            Ok(Injected::CopiedNoField)
         }
     }
 
@@ -368,6 +383,7 @@ use crate::hotkey::Mode;
                 Event::Done { .. } => "Done".into(),
                 Event::Error(_) => "Error".into(),
                 Event::Level(_) => "Level".into(),
+                Event::Notice(_) => "Notice".into(),
             })
             .collect()
     }
@@ -431,6 +447,33 @@ use crate::hotkey::Mode;
         let rows = r.session.deps.history.as_ref().unwrap().recent(10).unwrap();
         assert_eq!(rows.len(), 1, "transcript should be recorded even though injection failed");
         assert_eq!(rows[0].cleaned, "Hello");
+    }
+
+    #[test]
+    fn no_text_field_is_a_notice_not_an_error_and_still_records_history() {
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        let copied = Rc::new(RefCell::new(Vec::new()));
+        r.session.deps.injector = Box::new(NoFieldInjector(copied.clone()));
+        r.session.start(Mode::Dictate);
+        r.session.finish();
+        assert_eq!(copied.borrow().as_slice(), ["Hello"]);
+        let evs: Vec<Event> = r.rx.try_iter().collect();
+        let notices: Vec<&str> =
+            evs.iter().filter_map(|e| if let Event::Notice(m) = e { Some(m.as_str()) } else { None }).collect();
+        assert_eq!(notices, [NO_FIELD_NOTICE]);
+        assert!(!evs.iter().any(|e| matches!(e, Event::Error(_))), "{evs:?}");
+        assert!(matches!(evs.last(), Some(Event::State(SessionState::Idle))));
+        let rows = r.session.deps.history.as_ref().unwrap().recent(10).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].cleaned, "Hello");
+    }
+
+    #[test]
+    fn typed_injection_emits_no_notice() {
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.start(Mode::Dictate);
+        r.session.finish();
+        assert!(!states(&r.rx).contains(&"Notice".to_string()));
     }
 
     #[test]

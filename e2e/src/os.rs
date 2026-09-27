@@ -400,6 +400,27 @@ impl App {
         .unwrap_or_default()
     }
 
+    /// All visible text in every hearme window — the untitled overlay included.
+    pub fn all_text(&self) -> String {
+        step("reading text of every hearme window");
+        osa(
+            r#"set out to ""
+            tell application "System Events" to tell application process "hearme"
+                repeat with w in (every window)
+                    set els to entire contents of w
+                    repeat with e in els
+                        try
+                            if role of e is "AXStaticText" then set out to out & (value of e as text) & linefeed
+                        end try
+                    end repeat
+                end repeat
+            end tell
+            return out"#,
+            &[],
+        )
+        .unwrap_or_default()
+    }
+
     /// Closes a window if it's showing (e.g. Settings opened by a failing check).
     pub fn close_if_open(&self) -> bool {
         if self.windows().iter().any(|w| w == "hearme") {
@@ -616,6 +637,25 @@ pub const TARGET: &str = "typing-target";
 pub fn frontmost() -> String {
     osa(r#"tell application "System Events" to get name of first process whose frontmost is true"#, &[])
         .unwrap_or_default()
+}
+
+pub fn clipboard() -> String {
+    Command::new("pbpaste").output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default()
+}
+
+pub fn set_clipboard(text: &str) {
+    use std::io::Write;
+    let mut p = Command::new("pbcopy").stdin(std::process::Stdio::piped()).spawn().unwrap();
+    p.stdin.take().unwrap().write_all(text.as_bytes()).unwrap();
+    assert!(p.wait().unwrap().success(), "pbcopy failed");
+}
+
+/// Brings Finder to the front (its window or, with none open, the desktop):
+/// a place with no text field to dictate into.
+pub fn focus_finder() {
+    step("bringing Finder to the front");
+    osa(r#"tell application "Finder" to activate"#, &[]).unwrap_or_else(|e| panic!("activating Finder: {e}"));
+    assert!(wait_until(3, || frontmost() == "Finder"), "Finder never came to the front (front: {:?})", frontmost());
 }
 
 /// A fresh, focused text window to dictate into; quit on drop. Its text is

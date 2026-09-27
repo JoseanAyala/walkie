@@ -1,3 +1,5 @@
+pub mod focus;
+
 use anyhow::{Context, Result};
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use std::sync::{mpsc, Arc};
@@ -23,8 +25,27 @@ fn on_main<T: Send + 'static>(main: &Option<MainThread>, f: impl FnOnce() -> Res
     }
 }
 
+/// How the text was delivered — both are success; neither loses words.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Injected {
+    Typed,
+    /// Nothing editable had focus: the text was left on the clipboard instead.
+    CopiedNoField,
+}
+
 pub trait Injector {
-    fn inject(&mut self, text: &str) -> Result<()>;
+    fn inject(&mut self, text: &str) -> Result<Injected>;
+}
+
+/// If focus clearly isn't a text field, puts `text` on the clipboard (not
+/// restored later) and says so; otherwise None and the caller injects.
+fn copy_if_no_field(text: &str) -> Result<Option<Injected>> {
+    if focus::current() != focus::Focus::NoField {
+        return Ok(None);
+    }
+    let mut cb = arboard::Clipboard::new().context("clipboard unavailable")?;
+    cb.set_text(text.to_string()).context("setting clipboard")?;
+    Ok(Some(Injected::CopiedNoField))
 }
 
 /// Save clipboard → set text → paste keystroke → restore clipboard.
@@ -35,7 +56,10 @@ pub struct PasteInjector {
 }
 
 impl Injector for PasteInjector {
-    fn inject(&mut self, text: &str) -> Result<()> {
+    fn inject(&mut self, text: &str) -> Result<Injected> {
+        if let Some(copied) = copy_if_no_field(text)? {
+            return Ok(copied);
+        }
         let mut cb = arboard::Clipboard::new().context("clipboard unavailable")?;
         let saved = cb.get_text().ok();
         cb.set_text(text.to_string()).context("setting clipboard")?;
@@ -57,7 +81,7 @@ impl Injector for PasteInjector {
         if let Some(old) = saved {
             let _ = cb.set_text(old);
         }
-        Ok(())
+        Ok(Injected::Typed)
     }
 }
 
@@ -67,7 +91,10 @@ pub struct TypeInjector {
 }
 
 impl Injector for TypeInjector {
-    fn inject(&mut self, text: &str) -> Result<()> {
+    fn inject(&mut self, text: &str) -> Result<Injected> {
+        if let Some(copied) = copy_if_no_field(text)? {
+            return Ok(copied);
+        }
         let owned = text.to_string();
         let type_it = move || -> Result<()> {
             let mut enigo = Enigo::new(&Settings::default()).context("enigo init — check Accessibility permission")?;
@@ -83,7 +110,7 @@ impl Injector for TypeInjector {
             }
             anyhow::bail!("typing blocked ({e}) and clipboard fallback also failed; text lost: {text}");
         }
-        Ok(())
+        Ok(Injected::Typed)
     }
 }
 

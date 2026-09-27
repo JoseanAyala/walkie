@@ -13,7 +13,7 @@ use hearme_core::config::{models, Config, Hotkeys};
 use hearme_core::history::History;
 use hearme_core::hotkey::engine::{Bindings, Engine, Signal};
 use hearme_core::hotkey::keys::Key;
-use hearme_core::inject::Injector;
+use hearme_core::inject::{Injected, Injector};
 use hearme_core::pipeline::session::{Command, Deps, Event, Session};
 use hearme_core::stt::whisper::WhisperEngine;
 use std::cell::RefCell;
@@ -26,12 +26,21 @@ pub fn fixture(name: &str) -> PathBuf {
 }
 
 
-/// The "focused app": collects what would have been pasted.
-struct FocusedApp(Rc<RefCell<Vec<String>>>);
+/// The "focused app": collects what would have been pasted — or, with no
+/// text field focused, what was left on the "clipboard" instead.
+struct FocusedApp {
+    typed: Rc<RefCell<Vec<String>>>,
+    copied: Rc<RefCell<Vec<String>>>,
+    no_text_field: bool,
+}
 impl Injector for FocusedApp {
-    fn inject(&mut self, text: &str) -> anyhow::Result<()> {
-        self.0.borrow_mut().push(text.to_string());
-        Ok(())
+    fn inject(&mut self, text: &str) -> anyhow::Result<Injected> {
+        if self.no_text_field {
+            self.copied.borrow_mut().push(text.to_string());
+            return Ok(Injected::CopiedNoField);
+        }
+        self.typed.borrow_mut().push(text.to_string());
+        Ok(Injected::Typed)
     }
 }
 
@@ -40,6 +49,7 @@ pub struct Rig {
     session: Session,
     events: mpsc::Receiver<Event>,
     typed: Rc<RefCell<Vec<String>>>,
+    copied: Rc<RefCell<Vec<String>>>,
     /// Events the keyboard hook would have dropped, as (key name, down).
     pub swallowed: Vec<(String, bool)>,
     pub signals: Vec<Signal>,
@@ -52,11 +62,13 @@ pub struct Setup {
     pub hotkeys: Hotkeys,
     pub audio: &'static str,
     pub polish_command: &'static str,
+    /// Focus is somewhere nothing can be typed (the desktop, a Finder list).
+    pub no_text_field: bool,
 }
 
 impl Default for Setup {
     fn default() -> Self {
-        Self { hotkeys: Hotkeys::default(), audio: "en.wav", polish_command: "" }
+        Self { hotkeys: Hotkeys::default(), audio: "en.wav", polish_command: "", no_text_field: false }
     }
 }
 
@@ -73,11 +85,16 @@ impl Rig {
         cfg.language = "auto".into();
         cfg.polish.command = setup.polish_command.into();
         let typed = Rc::new(RefCell::new(Vec::new()));
+        let copied = Rc::new(RefCell::new(Vec::new()));
         let (tx, events) = mpsc::channel();
         let deps = Deps {
             capture: Box::new(FileCapture::open(&fixture(setup.audio)).unwrap()),
             stt: Box::new(WhisperEngine::load(&model).unwrap()),
-            injector: Box::new(FocusedApp(typed.clone())),
+            injector: Box::new(FocusedApp {
+                typed: typed.clone(),
+                copied: copied.clone(),
+                no_text_field: setup.no_text_field,
+            }),
             history: Some(History::open_in_memory().unwrap()),
             cfg,
         };
@@ -88,6 +105,7 @@ impl Rig {
             session: Session::new(deps, tx).with_ducker(ducker),
             events,
             typed,
+            copied,
             swallowed: Vec::new(),
             signals: Vec::new(),
             volume,
@@ -143,6 +161,30 @@ impl Rig {
 
     pub fn typed(&self) -> Vec<String> {
         self.typed.borrow().clone()
+    }
+
+    /// What was left on the clipboard because no text field had focus.
+    pub fn copied(&self) -> Vec<String> {
+        self.copied.borrow().clone()
+    }
+
+    /// The cleaned transcripts in history, newest first.
+    pub fn history(&self) -> Vec<String> {
+        let h = self.session.deps.history.as_ref().expect("rig always has history");
+        h.recent(10).unwrap().into_iter().map(|r| r.cleaned).collect()
+    }
+
+    /// Drains the events so far into (errors, notices).
+    pub fn messages(&self) -> (Vec<String>, Vec<String>) {
+        let (mut errors, mut notices) = (Vec::new(), Vec::new());
+        for e in self.events.try_iter() {
+            match e {
+                Event::Error(m) => errors.push(m),
+                Event::Notice(m) => notices.push(m),
+                _ => {}
+            }
+        }
+        (errors, notices)
     }
 
     pub fn errors(&self) -> Vec<String> {
