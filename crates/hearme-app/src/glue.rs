@@ -41,6 +41,7 @@ pub fn start(app: AppHandle) -> Result<()> {
         eprintln!("hearme: config error, using defaults: {e}");
         Config::default()
     });
+    hearme_core::audio::set_preferred_input(&cfg.audio.input_device);
     app.manage(ModelStatus(Mutex::new("starting".into())));
     let (cmd_tx, cmd_rx) = mpsc::channel::<Command>();
     let (evt_tx, evt_rx) = mpsc::channel::<Event>();
@@ -226,7 +227,7 @@ fn startup_check(app: AppHandle, first_run: bool) {
         for c in &checks {
             eprintln!("hearme: status {} {}: {}", if c.ok { "ok  " } else { "FAIL" }, c.label, c.detail);
         }
-        let blocking = checks.iter().any(|c| !c.ok && c.id != "model");
+        let blocking = checks.iter().any(|c| !c.ok && c.id != "model" && c.id != "device-missing");
         if blocking && !first_run {
             if let Some(w) = app.get_webview_window("settings") {
                 let _ = app.emit("show-tab", "status");

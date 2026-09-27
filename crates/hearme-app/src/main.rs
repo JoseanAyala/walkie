@@ -31,6 +31,7 @@ fn main() {
             commands::get_status,
             commands::record_shortcut,
             commands::restart_app,
+            commands::list_input_devices,
         ])
         .on_window_event(|window, event| {
             // The settings/overlay/onboarding windows are declared once in

@@ -21,6 +21,9 @@ to any key or combo):
   read live rather than stored in the config; it needs the installed
   `hearme.app`, not `cargo tauri dev`. `hearme --login-item status|on|off`
   does the same from a terminal.
+- Microphone: Settings → General (applies to the next dictation). If the
+  chosen mic is unplugged, hearme records from the system default and the
+  Status tab says so.
 
 ## Build
 
@@ -57,6 +60,9 @@ macOS permissions needed: Microphone, Accessibility, Input Monitoring
 [polish]
 command = "claude -p 'Clean up this dictated text. Output only the cleaned text.'"
 timeout_secs = 60
+
+[audio]
+input_device = ""   # a device name from Settings; empty = system default
 ```
 
 History lives in `~/.local/share/hearme/history.sqlite3` (off switch in

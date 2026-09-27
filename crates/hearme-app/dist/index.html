@@ -35,6 +35,9 @@
   .chk .mark { width: 20px } .chk .body { flex: 1 } .chk .body small { display: block; color: #666 }
   .chk button { font: inherit; padding: 3px 10px; border-radius: 6px; border: 1px solid #ccc;
                 background: #fff; cursor: pointer }
+  .mic { display: flex; gap: 6px; max-width: 440px }
+  .mic button { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid #ccc;
+                background: #fff; cursor: pointer }
   #errorBanner span { flex: 1 }
   #errorBanner button { border: 0; background: none; cursor: pointer; font: inherit;
                         color: inherit; padding: 0 4px }
@@ -62,6 +65,9 @@
     <label>Model</label>
     <select id="model"><option>large-v3-turbo-q5_0</option><option>base</option></select>
     <div id="modelStatus">model: …</div>
+    <label>Microphone</label>
+    <div class="mic"><select id="input_device"></select>
+      <button id="micRefresh" title="Refresh the device list">↻</button></div>
     <label>Shortcuts</label>
     <div class="sc" data-k="dictate"><span class="what">Dictate
       <small>hold to talk · double-tap to lock</small></span>
@@ -79,7 +85,7 @@
       <option value="paste">Paste (recommended)</option>
       <option value="type">Type keystrokes</option>
     </select>
-    <p class="hint">Shortcuts apply immediately. Other settings take effect after restarting hearme.</p>
+    <p class="hint">Shortcuts and the microphone apply immediately. Other settings take effect after restarting hearme.</p>
   </section>
   <section id="status">
     <div id="checks"></div>
@@ -127,6 +133,7 @@
     $('language').value = cfg.language;
     $('model').value = cfg.model;
     renderShortcuts();
+    await loadMics();
     $('strategy').value = cfg.inject.strategy;
     $('cleanup_enabled').checked = cfg.cleanup.enabled;
     $('fillers_en').value = cfg.cleanup.fillers_en.join(', ');
@@ -141,6 +148,7 @@
     cfg.language = $('language').value;
     cfg.model = $('model').value;
     cfg.inject.strategy = $('strategy').value;
+    cfg.audio.input_device = $('input_device').value;
     cfg.cleanup.enabled = $('cleanup_enabled').checked;
     cfg.cleanup.fillers_en = $('fillers_en').value.split(',').map(s => s.trim()).filter(Boolean);
     cfg.cleanup.fillers_es = $('fillers_es').value.split(',').map(s => s.trim()).filter(Boolean);
@@ -155,6 +163,28 @@
       showError(e);
     }
   }
+
+  // ---- microphone ----
+  // A saved device that's unplugged stays listed (and selected) instead of
+  // silently turning back into "System default".
+  async function loadMics() {
+    const { default: def, devices } = await inv('list_input_devices');
+    const sel = $('input_device');
+    const want = sel.options.length ? sel.value : cfg.audio.input_device;
+    sel.innerHTML = '';
+    const add = (value, text) => {
+      const o = document.createElement('option');
+      o.value = value; o.textContent = text;
+      sel.appendChild(o);
+    };
+    add('', `System default (${def || 'none'})`);
+    devices.forEach(d => add(d, d));
+    if (want && !devices.includes(want)) add(want, `${want} (not connected)`);
+    sel.value = want;
+  }
+  $('input_device').onchange = () => save();
+  $('micRefresh').onclick = () => loadMics();
+  window.addEventListener('focus', () => { if (cfg) loadMics(); });
 
   // ---- shortcuts ----
   const GLYPH = { Fn: 'fn', Cmd: '⌘', Opt: '⌥', Ctrl: '⌃', Shift: '⇧', Space: 'space',

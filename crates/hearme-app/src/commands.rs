@@ -1,5 +1,6 @@
 use crate::login_item::{self, LoginItem};
 use crate::status::{self, Check, HotkeyState, ModelStatus};
+use hearme_core::audio;
 use hearme_core::config::{self, Config};
 use hearme_core::history::{History, Record};
 use hearme_core::hotkey::engine::Bindings;
@@ -14,11 +15,13 @@ pub fn get_config() -> Result<Config, String> {
     Config::load().map_err(estr)
 }
 
-/// Saves, then applies the shortcuts immediately. Problems with a shortcut
-/// come back as the error (the rest of the config is still saved).
+/// Saves, then applies the shortcuts and microphone immediately. Problems
+/// with a shortcut come back as the error (the rest of the config is still
+/// saved).
 #[tauri::command]
 pub fn save_config(cfg: Config, hk: State<HotkeyState>) -> Result<(), String> {
     cfg.save().map_err(estr)?;
+    audio::set_preferred_input(&cfg.audio.input_device);
     let (bindings, errors) = Bindings::from_config(&cfg.hotkeys);
     hk.engine.lock().unwrap().set_bindings(bindings);
     *hk.errors.lock().unwrap() = errors.clone();
@@ -27,6 +30,17 @@ pub fn save_config(cfg: Config, hk: State<HotkeyState>) -> Result<(), String> {
     } else {
         Err(errors.join("; "))
     }
+}
+
+#[derive(serde::Serialize)]
+pub struct InputDevices {
+    pub default: Option<String>,
+    pub devices: Vec<String>,
+}
+
+#[tauri::command]
+pub fn list_input_devices() -> InputDevices {
+    InputDevices { default: audio::default_input_name(), devices: audio::input_device_names() }
 }
 
 #[tauri::command]

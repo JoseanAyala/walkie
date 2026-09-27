@@ -372,6 +372,28 @@ impl App {
         )
     }
 
+    /// The selected option of every dropdown in a window's web content.
+    pub fn dropdowns(&self, window: &str) -> Vec<String> {
+        step(format!("reading dropdowns of {window:?}"));
+        osa(
+            r#"on run argv
+                set out to ""
+                tell application "System Events" to tell application process "hearme"
+                    set els to entire contents of window (item 1 of argv)
+                    repeat with e in els
+                        try
+                            if role of e is "AXPopUpButton" then set out to out & (value of e as text) & linefeed
+                        end try
+                    end repeat
+                end tell
+                return out
+            end run"#,
+            &[window],
+        )
+        .map(|s| s.lines().map(String::from).collect())
+        .unwrap_or_default()
+    }
+
     /// Closes a window if it's showing (e.g. Settings opened by a failing check).
     pub fn close_if_open(&self) -> bool {
         if self.windows().iter().any(|w| w == "hearme") {

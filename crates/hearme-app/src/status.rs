@@ -212,23 +212,36 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
         }
     }
 
-    let device = audio::default_input_name();
+    let (device, missing) = audio::current_input();
     let silent = audio::LAST_CAPTURE_SILENT.load(Ordering::Relaxed);
-    let (ok, detail) = match &device {
-        None => (false, "no input device".to_string()),
-        Some(d) if silent => (false, format!("{d} — last recording was silent")),
-        Some(d) if looks_virtual(d) => {
-            (false, format!("{d} — a virtual device, may record silence"))
-        }
-        Some(d) => (true, d.clone()),
-    };
-    out.push(Check {
-        id: "device",
-        label: "Input device",
-        ok,
-        detail,
-        fix: (!ok).then_some("sound"),
-    });
+    if let Some(m) = missing {
+        // Not a broken setup (the desk mic is just unplugged), so it gets
+        // its own id: startup_check doesn't pop Settings open for it.
+        let using = device.unwrap_or_else(|| "no input device".into());
+        out.push(Check {
+            id: "device-missing",
+            label: "Input device",
+            ok: false,
+            detail: format!("{m} is not connected — using the system default, {using}"),
+            fix: None,
+        });
+    } else {
+        let (ok, detail) = match &device {
+            None => (false, "no input device".to_string()),
+            Some(d) if silent => (false, format!("{d} — last recording was silent")),
+            Some(d) if looks_virtual(d) => {
+                (false, format!("{d} — a virtual device, may record silence"))
+            }
+            Some(d) => (true, d.clone()),
+        };
+        out.push(Check {
+            id: "device",
+            label: "Input device",
+            ok,
+            detail,
+            fix: (!ok).then_some("sound"),
+        });
+    }
 
     let m = model.0.lock().unwrap().clone();
     out.push(Check {

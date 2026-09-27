@@ -11,10 +11,77 @@ const SILENCE_RMS: f32 = 1e-4;
 /// Whether the most recent recording was near-silent (for the status page).
 pub static LAST_CAPTURE_SILENT: AtomicBool = AtomicBool::new(false);
 
-/// Name of the device a recording would use right now.
+/// Name of the system default input device.
 pub fn default_input_name() -> Option<String> {
     use cpal::traits::HostTrait;
     cpal::default_host().default_input_device().map(|d| d.to_string())
+}
+
+/// Names of every input device currently connected.
+pub fn input_device_names() -> Vec<String> {
+    use cpal::traits::HostTrait;
+    cpal::default_host()
+        .input_devices()
+        .map(|ds| ds.map(|d| d.to_string()).collect())
+        .unwrap_or_default()
+}
+
+/// The microphone chosen in settings (`[audio] input_device`); empty means
+/// follow the system default. Read at every recording start, so a settings
+/// change or a plugged-in device applies to the next dictation.
+static PREFERRED_INPUT: Mutex<String> = Mutex::new(String::new());
+
+pub fn set_preferred_input(name: &str) {
+    *PREFERRED_INPUT.lock().unwrap() = name.to_string();
+}
+
+pub fn preferred_input() -> String {
+    PREFERRED_INPUT.lock().unwrap().clone()
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Resolved {
+    /// No preference: use the system default.
+    Default,
+    /// The preferred device, at this index of the available list.
+    Chosen(usize),
+    /// The preferred device isn't connected: fall back to the system default.
+    Missing,
+}
+
+pub fn resolve(preferred: &str, available: &[String]) -> Resolved {
+    if preferred.is_empty() {
+        return Resolved::Default;
+    }
+    match available.iter().position(|n| n == preferred) {
+        Some(i) => Resolved::Chosen(i),
+        None => Resolved::Missing,
+    }
+}
+
+/// The device a recording would use right now, plus the preferred device's
+/// name when it had to be passed over because it isn't connected.
+fn pick_input() -> (Option<cpal::Device>, Option<String>) {
+    use cpal::traits::HostTrait;
+    let host = cpal::default_host();
+    let preferred = preferred_input();
+    if preferred.is_empty() {
+        return (host.default_input_device(), None);
+    }
+    let mut devices: Vec<cpal::Device> = host.input_devices().map(|ds| ds.collect()).unwrap_or_default();
+    let names: Vec<String> = devices.iter().map(|d| d.to_string()).collect();
+    match resolve(&preferred, &names) {
+        Resolved::Chosen(i) => (Some(devices.swap_remove(i)), None),
+        Resolved::Default => (host.default_input_device(), None),
+        Resolved::Missing => (host.default_input_device(), Some(preferred)),
+    }
+}
+
+/// For the status page: (name of the device a recording would use, the
+/// preferred device if it isn't connected).
+pub fn current_input() -> (Option<String>, Option<String>) {
+    let (d, missing) = pick_input();
+    (d.map(|d| d.to_string()), missing)
 }
 
 pub trait Capture {
@@ -37,9 +104,12 @@ impl CpalCapture {
 
 impl Capture for CpalCapture {
     fn start(&mut self, on_level: Box<dyn Fn(f32) + Send>) -> Result<()> {
-        use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-        let host = cpal::default_host();
-        let device = host.default_input_device().context("no input device — check mic permission")?;
+        use cpal::traits::{DeviceTrait, StreamTrait};
+        let (device, missing) = pick_input();
+        if let Some(m) = missing {
+            eprintln!("hearme: warning: chosen microphone {m:?} isn't connected, using the system default");
+        }
+        let device = device.context("no input device — check mic permission")?;
         let cfg = device.default_input_config().context("no default input config")?;
         // Name the device we're actually recording from. macOS keeps whatever
         // was last set as the system default input, which can be a virtual
@@ -137,6 +207,40 @@ impl Capture for FileCapture {
     }
     fn stop(&mut self) -> Result<Vec<f32>> {
         Ok(self.samples.clone())
+    }
+}
+
+#[cfg(test)]
+mod resolve_tests {
+    use super::*;
+
+    fn names(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn empty_preference_follows_the_system_default() {
+        assert_eq!(resolve("", &names(&["MacBook Pro Microphone"])), Resolved::Default);
+        assert_eq!(resolve("", &[]), Resolved::Default);
+    }
+
+    #[test]
+    fn connected_preference_is_chosen() {
+        let avail = names(&["MacBook Pro Microphone", "Shure MV7"]);
+        assert_eq!(resolve("Shure MV7", &avail), Resolved::Chosen(1));
+    }
+
+    #[test]
+    fn unplugged_preference_falls_back() {
+        assert_eq!(resolve("Shure MV7", &names(&["MacBook Pro Microphone"])), Resolved::Missing);
+        assert_eq!(resolve("Shure MV7", &[]), Resolved::Missing);
+    }
+
+    #[test]
+    fn names_match_exactly() {
+        let avail = names(&["Shure MV7 (2)"]);
+        assert_eq!(resolve("Shure MV7", &avail), Resolved::Missing);
+        assert_eq!(resolve("shure mv7 (2)", &avail), Resolved::Missing);
     }
 }
 

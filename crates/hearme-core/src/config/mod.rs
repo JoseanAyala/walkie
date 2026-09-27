@@ -13,6 +13,7 @@ pub struct Config {
     pub polish: Polish,
     pub inject: Inject,
     pub history: HistoryCfg,
+    pub audio: AudioCfg,
 }
 
 /// Each binding is the key names held together (see `hotkey::keys`); an
@@ -97,6 +98,14 @@ pub struct HistoryCfg {
     pub enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default)]
+pub struct AudioCfg {
+    /// Microphone name as `audio::input_device_names` reports it; empty =
+    /// follow the system default.
+    pub input_device: String,
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -108,6 +117,7 @@ impl Default for Config {
             polish: Polish::default(),
             inject: Inject::default(),
             history: HistoryCfg::default(),
+            audio: AudioCfg::default(),
         }
     }
 }
@@ -210,6 +220,7 @@ mod tests {
         assert_eq!(c.inject.strategy, "paste");
         assert_eq!(c.inject.restore_clipboard_ms, 150);
         assert!(c.history.enabled);
+        assert_eq!(c.audio.input_device, "");
     }
 
     #[test]
@@ -268,6 +279,14 @@ mod tests {
         let c: Config = toml::from_str("[hotkeys]\ndictate = [\"Ctrl\", \"Opt\", \"D\"]").unwrap();
         assert_eq!(c.hotkeys.dictate, ["Ctrl", "Opt", "D"]);
         assert_eq!(c.hotkeys.polish, Hotkeys::default().polish);
+    }
+
+    #[test]
+    fn audio_input_device_roundtrips() {
+        let c: Config = toml::from_str("[audio]\ninput_device = \"Shure MV7\"").unwrap();
+        assert_eq!(c.audio.input_device, "Shure MV7");
+        let back: Config = toml::from_str(&toml::to_string_pretty(&c).unwrap()).unwrap();
+        assert_eq!(back.audio.input_device, "Shure MV7");
     }
 
     #[test]
