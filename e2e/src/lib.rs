@@ -4,6 +4,9 @@
 //! signals through the same `Command::from_signal` the app uses, and speech
 //! through the real Whisper model.
 
+#[cfg(all(target_os = "macos", feature = "os-tests"))]
+pub mod os;
+
 use hearme_core::audio::FileCapture;
 use hearme_core::config::{models, Config, Hotkeys};
 use hearme_core::history::History;

@@ -63,4 +63,14 @@ settings). Failed transcriptions keep their audio in `~/.cache/hearme/spool/`.
 cargo test -p hearme-core                       # fast unit tests
 cargo run -p hearme-core --example fetch_model -- base
 cargo test -p hearme-core --features stt-tests  # real STT on en/es fixtures
+cargo test -p hearme-e2e                        # keystrokes → engine → session → Whisper, in-process
+e2e/run-app-tests.sh                            # the real app: key events, tray, windows (~30s)
 ```
+
+`e2e/run-app-tests.sh` builds and installs the app, then drives it the way
+a person would: real key events through macOS, the tray menu, the Settings
+and onboarding windows, dictating into a bare test window. It plays a WAV
+instead of the mic and uses temp config/history, so your setup isn't
+touched. Needs Accessibility for hearme and your terminal, and
+"Press 🌐 key to" set to Do Nothing. Each test must finish within 10s; a
+stuck one aborts the run and says where it stopped. Don't type while it runs.

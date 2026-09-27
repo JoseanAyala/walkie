@@ -1,5 +1,11 @@
 # Manual Testing Checklist
 
+> **Mostly automated now.** `e2e/run-app-tests.sh` covers sections 2, 3
+> (English, polish, hands-free, locking), 3b, 4, the Settings window parts
+> of 5 and 6, against the installed app. Spanish transcription is covered
+> in-process by `cargo test -p hearme-e2e`. What's left by hand is
+> section 8's edge cases.
+
 hearme v1 is implemented, unit-tested (61 tests), and reviewed, but the parts
 that need a human with real microphone/keyboard/permission access haven't
 been exercised yet. This is that checklist.

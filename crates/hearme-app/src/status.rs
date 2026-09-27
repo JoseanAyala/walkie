@@ -79,13 +79,24 @@ pub fn pretty(keys: &[Key]) -> String {
     if keys.is_empty() {
         "off".into()
     } else {
-        keys.iter().map(|k| k.name()).collect::<Vec<_>>().join(" + ")
+        keys.iter()
+            .map(|k| k.name())
+            .collect::<Vec<_>>()
+            .join(" + ")
     }
 }
 
 fn looks_virtual(name: &str) -> bool {
     let n = name.to_lowercase();
-    ["virtual", "aggregate", "blackhole", "loopback", "soundflower"].iter().any(|v| n.contains(v))
+    [
+        "virtual",
+        "aggregate",
+        "blackhole",
+        "loopback",
+        "soundflower",
+    ]
+    .iter()
+    .any(|v| n.contains(v))
 }
 
 pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
@@ -95,17 +106,27 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
     #[cfg(target_os = "macos")]
     {
         let mic = mac::microphone();
-        out.push(Check {
-            id: "mic",
-            label: "Microphone",
-            ok: mic == 3,
-            detail: match mic {
-                3 => "granted".into(),
-                0 => "not asked yet — it's requested on your first dictation".into(),
-                _ => "denied — hearme records silence".into(),
-            },
-            fix: (mic != 3).then_some("mic"),
-        });
+        if let Some(p) = std::env::var_os("HEARME_TEST_AUDIO") {
+            out.push(Check {
+                id: "mic",
+                label: "Microphone",
+                ok: true,
+                detail: format!("test mode — playing {}", std::path::Path::new(&p).display()),
+                fix: None,
+            });
+        } else {
+            out.push(Check {
+                id: "mic",
+                label: "Microphone",
+                ok: mic == 3,
+                detail: match mic {
+                    3 => "granted".into(),
+                    0 => "not asked yet — it's requested on your first dictation".into(),
+                    _ => "denied — hearme records silence".into(),
+                },
+                fix: (mic != 3).then_some("mic"),
+            });
+        }
         let ax = mac::accessibility();
         out.push(Check {
             id: "accessibility",
@@ -196,10 +217,18 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
     let (ok, detail) = match &device {
         None => (false, "no input device".to_string()),
         Some(d) if silent => (false, format!("{d} — last recording was silent")),
-        Some(d) if looks_virtual(d) => (false, format!("{d} — a virtual device, may record silence")),
+        Some(d) if looks_virtual(d) => {
+            (false, format!("{d} — a virtual device, may record silence"))
+        }
         Some(d) => (true, d.clone()),
     };
-    out.push(Check { id: "device", label: "Input device", ok, detail, fix: (!ok).then_some("sound") });
+    out.push(Check {
+        id: "device",
+        label: "Input device",
+        ok,
+        detail,
+        fix: (!ok).then_some("sound"),
+    });
 
     let m = model.0.lock().unwrap().clone();
     out.push(Check {

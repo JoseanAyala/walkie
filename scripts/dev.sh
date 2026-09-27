@@ -3,6 +3,7 @@
 #
 #   scripts/dev.sh           build + install + launch + tail log
 #   scripts/dev.sh --debug   same, with HEARME_DEBUG_EVENTS=1 (dumps key events)
+#   scripts/dev.sh --install-only   build + install, don't launch (used by e2e/run-app-tests.sh)
 #
 # Launches through `open` on purpose: running the binary from a terminal makes
 # the terminal the "responsible process", so macOS checks the *terminal's*
@@ -22,6 +23,7 @@ fi
 pkill -x hearme 2>/dev/null && sleep 0.5 || true
 rm -rf "$app"
 cp -R "$root/target/release/bundle/macos/hearme.app" "$app"
+[ "${1:-}" = "--install-only" ] && exit 0
 
 mkdir -p "$(dirname "$log")"
 touch "$log"
