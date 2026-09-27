@@ -3,6 +3,10 @@ pub mod dsp;
 use anyhow::{Context, Result};
 use std::sync::{Arc, Mutex};
 
+/// RMS below which a whole recording is treated as "no signal". Quiet room
+/// speech sits well above this; a muted or disconnected input sits at 0.0.
+const SILENCE_RMS: f32 = 1e-4;
+
 pub trait Capture {
     fn start(&mut self, on_level: Box<dyn Fn(f32) + Send>) -> Result<()>;
     fn stop(&mut self) -> Result<Vec<f32>>;
@@ -27,6 +31,13 @@ impl Capture for CpalCapture {
         let host = cpal::default_host();
         let device = host.default_input_device().context("no input device — check mic permission")?;
         let cfg = device.default_input_config().context("no default input config")?;
+        // Name the device we're actually recording from. macOS keeps whatever
+        // was last set as the system default input, which can be a virtual
+        // device (a DAW/mixer routing device, say) that is still selected long
+        // after its hardware is unplugged. Those open cleanly and return pure
+        // silence, so without this line a silent recording is indistinguishable
+        // from a broken mic or a denied permission.
+        eprintln!("hearme: recording from {device}");
         self.rate = cfg.sample_rate();
         self.channels = cfg.channels();
         let buf = self.buf.clone();
@@ -70,6 +81,16 @@ impl Capture for CpalCapture {
         self.stream.take(); // dropping the stream stops capture
         let raw = std::mem::take(&mut *self.buf.lock().unwrap());
         let mono = dsp::to_mono(&raw, self.channels);
+        // Whisper does not return "nothing" for silence — it hallucinates a
+        // stock phrase ("Thank you.", "Thanks for watching!"), which reads as a
+        // transcription bug rather than a dead input. Say so at the source.
+        if !mono.is_empty() && dsp::rms(&mono) < SILENCE_RMS {
+            eprintln!(
+                "hearme: captured {:.1}s of near-silence — check System Settings \
+                 → Sound → Input, and that the mic permission is granted",
+                mono.len() as f32 / self.rate as f32
+            );
+        }
         Ok(dsp::resample_16k(&mono, self.rate))
     }
 }

@@ -30,11 +30,19 @@ pub fn spawn_listener(
 ) -> Result<()> {
     let router = Arc::new(Mutex::new(Router::new()));
     let start = Instant::now();
+    // Set HEARME_DEBUG_EVENTS=1 to dump every tap event. Useful for the one
+    // failure this can't detect on its own: without Input Monitoring, macOS
+    // hands the tap mouse events but silently withholds key events, so
+    // `rdev::listen` succeeds and the hotkey simply never fires.
+    let debug_events = std::env::var_os("HEARME_DEBUG_EVENTS").is_some();
 
     {
         let router = router.clone();
         std::thread::spawn(move || {
             let result = rdev::listen(move |ev| {
+                if debug_events {
+                    eprintln!("hearme: raw event {:?}", ev.event_type);
+                }
                 let (key, down) = match ev.event_type {
                     rdev::EventType::KeyPress(k) => (k, true),
                     rdev::EventType::KeyRelease(k) => (k, false),

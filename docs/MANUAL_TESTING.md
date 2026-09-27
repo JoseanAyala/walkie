@@ -15,7 +15,27 @@ cargo tauri build
 cp -r ../../target/release/bundle/macos/hearme.app /Applications/
 ```
 
-## 1. Mic quality
+> **Two environment gotchas cost a full debugging session. Check both first:**
+>
+> 1. **Default input device.** macOS keeps whatever was last selected as the
+>    system default input. A virtual device (e.g. "MOTIV Mix Virtual") stays
+>    selected long after its hardware is unplugged, opens cleanly, and returns
+>    pure silence. Whisper does not report silence — it hallucinates "Thank
+>    you." / "Thanks for watching!", which reads like a transcription bug.
+>    Check System Settings → Sound → Input. `hearme: recording from <device>`
+>    is now logged on every capture.
+> 2. **Input Monitoring is per-binary.** Without it, macOS hands the event tap
+>    mouse events but *silently withholds key events* — `rdev::listen` returns
+>    `Ok`, no prompt, no error, the hotkey just never fires. The grant is tied
+>    to the responsible process, so a terminal that works for `hotkey_demo`
+>    does not cover the app launched from a different parent process. Run
+>    `HEARME_DEBUG_EVENTS=1` to dump tap events: mouse events but no
+>    `KeyPress` = Input Monitoring is not granted.
+
+## 1. Mic quality - FAILED NOTHING REGISTERED
+
+**Resolved:** the default input device was a disconnected virtual device
+returning silence, not a capture bug. See the note above.
 
 ```sh
 cargo run -p hearme-core --example record_5s
@@ -30,7 +50,7 @@ afplay /tmp/hearme-record-test.wav
 Confirm it's intelligible and at the correct speed (not sped up/slowed down
 — that would indicate a resampling bug).
 
-## 2. Hotkey gestures
+## 2. Hotkey gestures It registered
 
 ```sh
 cargo run -p hearme-core --example hotkey_demo
@@ -45,7 +65,7 @@ pairs match:
 - Double-tap, wait, then tap → locks (`Start`), then stops (`Finish`)
 - Hold Shift + Right Option → `Polish Start` (not `Dictate`)
 
-## 3. Full live dictation
+## 3. Full live dictation - PASSED in `cargo tauri dev`
 
 ```sh
 cd crates/hearme-app
