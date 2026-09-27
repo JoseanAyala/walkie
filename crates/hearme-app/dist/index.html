@@ -50,6 +50,9 @@
 </nav>
 <main>
   <section id="general" class="on">
+    <label><input type="checkbox" id="login_item"> Launch hearme at login</label>
+    <div class="hint"><span id="loginHint"></span>
+      <button id="loginOpen" style="display:none">Open Login Items</button></div>
     <label>Language</label>
     <select id="language">
       <option value="auto">Auto-detect (en/es)</option>
@@ -207,6 +210,26 @@
   listen('shortcut-error', e => { recording = null; scMsg(e.payload, true); renderShortcuts(); });
   listen('shortcut-cancelled', () => { recording = null; scMsg('Recording cancelled.'); renderShortcuts(); });
 
+  // ---- launch at login: macOS owns this, so it's applied on toggle and
+  // read back live (never saved in the config)
+  async function loadLogin(item) {
+    item = item || await inv('get_launch_at_login');
+    $('login_item').checked = item.on;
+    $('loginHint').textContent = item.hint || '';
+    $('loginOpen').style.display = item.status === 'requires_approval' ? '' : 'none';
+  }
+  $('login_item').onchange = async () => {
+    try {
+      await loadLogin(await inv('set_launch_at_login', { enabled: $('login_item').checked }));
+    } catch (e) {
+      showError(e);
+      loadLogin();
+    }
+  };
+  $('loginOpen').onclick = () => inv('open_settings_pane', { pane: 'loginitems' });
+  // e.g. back from approving it in System Settings
+  window.addEventListener('focus', () => loadLogin());
+
   // ---- status ----
   async function loadStatus() {
     const checks = await inv('get_status');
@@ -259,4 +282,5 @@
   listen('app-error', e => showError(e.payload));
   $('errorBannerDismiss').onclick = () => $('errorBanner').classList.remove('on');
   load();
+  loadLogin();
 </script></body></html>

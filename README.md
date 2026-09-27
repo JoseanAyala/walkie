@@ -16,6 +16,11 @@ to any key or combo):
 - **Hold fn + shift** — dictate + polish: the transcript is piped
   through your configured command (`claude -p`, `codex exec`, ollama, …).
 - Tray icon: gray idle · red recording · amber working.
+- **Launch at login**: Settings → General (on by default from onboarding).
+  It's a real macOS login item (System Settings → General → Login Items),
+  read live rather than stored in the config; it needs the installed
+  `hearme.app`, not `cargo tauri dev`. `hearme --login-item status|on|off`
+  does the same from a terminal.
 
 ## Build
 

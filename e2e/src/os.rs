@@ -15,7 +15,7 @@ use hearme_core::hotkey::keys::{Key, Side};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 // ---------------------------------------------------------------- budget
@@ -71,6 +71,7 @@ pub fn begin(name: &'static str) -> TestGuard {
             }
         }
         quit();
+        restore_login_item();
         std::process::exit(101);
     });
     TestGuard { _serial: serial, done }
@@ -115,6 +116,7 @@ pub struct App {
 impl App {
     /// Fresh dirs; nothing launched yet.
     pub fn new() -> App {
+        LOGIN_ITEM_BEFORE.get_or_init(|| login_item("status"));
         let root = std::env::temp_dir()
             .join(format!("hearme-os-e2e-{}-{}", std::process::id(), RUN.fetch_add(1, Ordering::SeqCst)));
         let _ = std::fs::remove_dir_all(&root);
@@ -315,6 +317,61 @@ impl App {
         .unwrap_or_default()
     }
 
+    /// A checkbox's state (by its label) in a window's web content.
+    pub fn checkbox(&self, window: &str, title: &str) -> Option<bool> {
+        let r = self.checkbox_do(window, title, "get");
+        r.ok().and_then(|v| match v.as_str() {
+            "1" | "true" => Some(true),
+            "0" | "false" => Some(false),
+            _ => None,
+        })
+    }
+
+    pub fn click_checkbox(&self, window: &str, title: &str) {
+        step(format!("clicking checkbox {title:?} in {window:?}"));
+        let mut r = Err(String::new());
+        let found = wait_until(3, || {
+            r = self.checkbox_do(window, title, "click");
+            r.as_deref() == Ok("ok")
+        });
+        assert!(found, "checkbox {title:?} in window {window:?}: {r:?}");
+    }
+
+    fn checkbox_do(&self, window: &str, title: &str, what: &str) -> Result<String, String> {
+        osa(
+            r#"on run argv
+                set target to item 2 of argv
+                tell application "System Events" to tell application process "hearme"
+                    set els to entire contents of window (item 1 of argv)
+                    repeat with e in els
+                        try
+                            if role of e is "AXCheckBox" then
+                                set t to ""
+                                try
+                                    set t to title of e as text
+                                end try
+                                if t is not target then
+                                    try
+                                        set t to description of e as text
+                                    end try
+                                end if
+                                if t contains target then
+                                    if item 3 of argv is "click" then
+                                        click e
+                                        return "ok"
+                                    end if
+                                    return value of e as text
+                                end if
+                            end if
+                        end try
+                    end repeat
+                end tell
+                return "missing"
+            end run"#,
+            &[window, title, what],
+        )
+    }
+
     /// Closes a window if it's showing (e.g. Settings opened by a failing check).
     pub fn close_if_open(&self) -> bool {
         if self.windows().iter().any(|w| w == "hearme") {
@@ -342,6 +399,7 @@ impl App {
 impl Drop for App {
     fn drop(&mut self) {
         quit();
+        restore_login_item();
         if !std::thread::panicking() {
             let _ = std::fs::remove_dir_all(&self.root);
         }
@@ -362,6 +420,47 @@ pub fn require_globe_does_nothing() {
         "System Settings → Keyboard → \"Press 🌐 key to\" must be \"Do Nothing\" \
          (currently {v:?}); otherwise fn opens the emoji picker, which steals focus mid-test"
     );
+}
+
+// ---------------------------------------------------------------- login item
+
+/// The real login-item state when the run started; every App puts it back
+/// on drop, since onboarding and the Settings checkbox change it for real.
+static LOGIN_ITEM_BEFORE: OnceLock<String> = OnceLock::new();
+
+/// `hearme --login-item status|on|off` against the installed app: asks
+/// SMAppService directly, so it's macOS's answer, not the UI's.
+pub fn login_item(arg: &str) -> String {
+    try_login_item(arg).unwrap_or_else(|e| panic!("hearme --login-item {arg}: {e}"))
+}
+
+fn try_login_item(arg: &str) -> Result<String, String> {
+    let out = Command::new(format!("{APP}/Contents/MacOS/hearme"))
+        .args(["--login-item", arg])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if out.status.success() {
+        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
+/// Registered (possibly awaiting approval) — what the checkbox shows.
+pub fn login_item_on(status: &str) -> bool {
+    matches!(status, "enabled" | "requires_approval")
+}
+
+/// Never panics: it runs from Drop and the watchdog.
+pub fn restore_login_item() {
+    let Some(before) = LOGIN_ITEM_BEFORE.get() else { return };
+    let want = login_item_on(before);
+    let now = try_login_item("status");
+    if now.as_deref().map(login_item_on) != Ok(want) {
+        if let Err(e) = try_login_item(if want { "on" } else { "off" }) {
+            eprintln!("couldn't restore the login item to {before:?}: {e}");
+        }
+    }
 }
 
 pub fn quit() {

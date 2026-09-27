@@ -21,10 +21,13 @@
 <p>Then try it: click into any text field, hold <b>fn</b>, speak, release.
    <b>fn + space</b> goes hands-free (press fn to stop). <b>fn + shift</b> dictates and polishes.
    Change any of them in Settings → General; Settings → Status shows what's missing.</p>
+<label class="row" style="justify-content:flex-start">
+  <input type="checkbox" id="login" checked> Launch hearme at login</label>
 <button id="done">I've granted everything — finish</button>
 <script>
   const inv = window.__TAURI__.core.invoke;
+  const $ = id => document.getElementById(id);
   document.querySelectorAll('button[data-p]').forEach(b =>
     b.onclick = () => inv('open_settings_pane', { pane: b.dataset.p }));
-  document.getElementById('done').onclick = () => inv('finish_onboarding');
+  document.getElementById('done').onclick = () => inv('finish_onboarding', { launchAtLogin: $('login').checked });
 </script></body></html>

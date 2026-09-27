@@ -8,11 +8,15 @@ use tauri::Manager;
 mod commands;
 mod glue;
 mod logfile;
+mod login_item;
 mod status;
 
 pub struct TrayHandle(pub Mutex<tauri::tray::TrayIcon>);
 
 fn main() {
+    if let Some(code) = login_item::cli() {
+        std::process::exit(code);
+    }
     logfile::init();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -22,6 +26,8 @@ fn main() {
             commands::history_search,
             commands::open_settings_pane,
             commands::finish_onboarding,
+            commands::get_launch_at_login,
+            commands::set_launch_at_login,
             commands::get_status,
             commands::record_shortcut,
             commands::restart_app,
