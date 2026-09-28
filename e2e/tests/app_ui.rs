@@ -59,10 +59,10 @@ fn changing_a_setting_saves_it_without_a_save_button() {
         sleep(100);
     }
     assert_ne!(now, before, "the change wasn't saved\n{}", app.log_text());
-    let text = wait_text(&app, "Walkie", "Restart to apply: ducking", true);
+    let text = app.text("Walkie");
     assert!(
-        text.contains("Restart to apply: ducking"),
-        "ducking is read at launch, so a restart hint should show:\n{text}"
+        !text.to_lowercase().contains("restart"),
+        "settings apply live, nothing should ask for a restart:\n{text}"
     );
 }
 

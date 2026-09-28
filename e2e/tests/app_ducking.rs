@@ -150,6 +150,27 @@ fn quitting_mid_recording_restores_the_volume() {
 }
 
 #[test]
+fn turning_it_off_in_settings_applies_without_a_restart() {
+    let _t = begin("turning_it_off_in_settings_applies_without_a_restart");
+    let _keep = KeepVolume::at(50);
+    let app = app_with(true);
+    app.tray("Settings…");
+    assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
+    app.click_checkbox("Walkie", "Lower other audio while dictating");
+    app.wait_log("walkie: settings applied", 2);
+    let _doc = Target::open();
+    let mut kb = start_locked(&app);
+    sleep(800);
+    assert_eq!(
+        volume(),
+        50,
+        "ducking was turned off but the volume changed\n{}",
+        app.log_text()
+    );
+    kb.down("Fn").wait(60).up("Fn");
+}
+
+#[test]
 fn turned_off_leaves_the_volume_alone() {
     let _t = begin("turned_off_leaves_the_volume_alone");
     let _keep = KeepVolume::at(50);

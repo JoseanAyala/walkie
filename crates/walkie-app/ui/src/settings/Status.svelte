@@ -3,8 +3,7 @@ import { api, type Check } from "@/lib/api";
 
 let { checks, version }: { checks: Check[]; version: string } = $props();
 
-const fix = (c: Check) =>
-  c.fix === "restart" ? api.restartApp() : api.openSettingsPane(c.fix ?? "");
+const fix = (c: Check) => api.openSettingsPane(c.fix ?? "");
 </script>
 
 {#each checks as c (c.id)}
@@ -12,7 +11,7 @@ const fix = (c: Check) =>
     <span class="chip" class:warn={!c.ok}>{c.ok ? "OK" : "!!"}</span>
     <span>{c.label}<small>{c.detail}</small></span>
     {#if c.fix}
-      <button onclick={() => fix(c)}>{c.fix === "restart" ? "Restart walkie" : "Fix"}</button>
+      <button onclick={() => fix(c)}>Fix</button>
     {:else}
       <span></span>
     {/if}

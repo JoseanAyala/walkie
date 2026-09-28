@@ -8,11 +8,12 @@ use walkie_core::audio::{Capture, CpalCapture, FileCapture};
 use walkie_core::config::{self, models, Config};
 use walkie_core::history::History;
 use walkie_core::hotkey::engine::{Bindings, Engine, Signal};
-use walkie_core::hotkey::keys::{self, binding_names};
+use walkie_core::hotkey::keys::{self, binding_names, Key};
 use walkie_core::hotkey::tap::{self, TapStatus};
 use walkie_core::inject::{Injector, MainThread, PasteInjector, TypeInjector};
 use walkie_core::pipeline::session::{Command, Deps, Event, Session, SessionState};
 use walkie_core::stt::whisper::WhisperEngine;
+use walkie_core::stt::{LangHint, SttEngine, Transcript};
 
 use crate::status::{self, HotkeyState, ModelStatus};
 
@@ -118,75 +119,34 @@ pub fn start(app: AppHandle) -> Result<()> {
     app.manage(ModelStatus(Mutex::new("starting".into())));
     let (cmd_tx, cmd_rx) = mpsc::channel::<Command>();
     let (evt_tx, evt_rx) = mpsc::channel::<Event>();
-    // Set to true only once the worker thread has finished loading the model
-    // and is about to start consuming `cmd_rx` via `Session::run`. The hotkey
-    // listener checks this before forwarding commands, since it starts
-    // immediately and would otherwise queue commands nobody is consuming yet.
+    // Set to true once a speech model is loaded (see `load_model`). The
+    // hotkey listener checks this before forwarding commands, so nothing is
+    // recorded that couldn't be transcribed.
     let ready = Arc::new(AtomicBool::new(false));
-    let ducker = cfg.audio.duck_while_recording.then(|| {
-        let d = Arc::new(Ducker::new(Box::new(SystemVolume), cfg.audio.duck_percent));
-        restore_on_signal(d.clone());
-        app.manage(Duck(d.clone()));
-        d
-    });
+    // Always there: whether a recording ducks is the session's config.
+    let ducker = Arc::new(Ducker::new(Box::new(SystemVolume), cfg.audio.duck_percent));
+    restore_on_signal(ducker.clone());
+    app.manage(Duck(ducker.clone()));
     let (stopped_tx, stopped_rx) = mpsc::channel::<()>();
     app.manage(Worker {
         tx: Mutex::new(cmd_tx.clone()),
         stopped: Mutex::new(stopped_rx),
+        ready: ready.clone(),
+        model: Mutex::new(String::new()),
     });
     app.manage(PasteLast {
         last: Mutex::new(None),
         tx: Mutex::new(cmd_tx.clone()),
         ready: ready.clone(),
     });
+    app.manage(GlobeWarning::default());
 
-    // Worker thread: owns every !Send dep. Downloads/loads the model, then
-    // runs the session loop until shutdown.
+    // Worker thread: owns every !Send dep and runs the session loop until
+    // shutdown. The speech model arrives separately (`load_model`).
     {
         let cfg = cfg.clone();
         let app = app.clone();
-        let ready = ready.clone();
         std::thread::spawn(move || {
-            let key = cfg.model.clone();
-            if !models::is_downloaded(&key) {
-                model_status(&app, "downloading");
-                let ap = app.clone();
-                if let Err(e) = models::download(&key, &mut |done, total| {
-                    let _ = ap.emit("download-progress", done * 100 / total.max(1));
-                }) {
-                    eprintln!("walkie: model {key} failed to download: {e}");
-                    model_status(&app, format!("error: {e}"));
-                    return;
-                }
-            }
-            model_status(&app, "loading");
-            let path = match models::model_path(&key) {
-                Some(p) => p,
-                None => {
-                    eprintln!("walkie: unknown model {key}");
-                    model_status(&app, format!("error: unknown model {key}"));
-                    return;
-                }
-            };
-            let stt = match WhisperEngine::load(&path) {
-                Ok(e) => e,
-                Err(e) => {
-                    eprintln!("walkie: model {key} failed to load: {e}");
-                    model_status(&app, format!("error: {e}"));
-                    return;
-                }
-            };
-            model_status(&app, "ready");
-
-            let injector: Box<dyn Injector> = match cfg.inject.strategy.as_str() {
-                "type" => Box::new(TypeInjector {
-                    main: Some(main_thread(&app)),
-                }),
-                _ => Box::new(PasteInjector {
-                    restore_ms: cfg.inject.restore_clipboard_ms,
-                    main: Some(main_thread(&app)),
-                }),
-            };
             let history = History::open(&config::db_path())
                 .map_err(|e| eprintln!("walkie: history disabled: {e}"))
                 .ok();
@@ -203,22 +163,26 @@ pub fn start(app: AppHandle) -> Result<()> {
                 },
                 None => Box::new(CpalCapture::new()),
             };
+            let injector_for = {
+                let main = main_thread(&app);
+                move |c: &config::Inject| injector(c, main.clone())
+            };
             let deps = Deps {
                 capture,
-                stt: Box::new(stt),
-                injector,
+                stt: Box::new(NoModel),
+                injector: injector_for(&cfg.inject),
                 history,
                 cfg,
             };
-            let mut session = Session::new(deps, evt_tx).with_ai_helper(ai_helper());
-            if let Some(d) = ducker {
-                session = session.with_ducker(d);
-            }
-            ready.store(true, Ordering::SeqCst);
+            let session = Session::new(deps, evt_tx)
+                .with_ai_helper(ai_helper())
+                .with_ducker(ducker)
+                .with_injector_for(Box::new(injector_for));
             session.run(cmd_rx); // consumes the session: the model is freed here
             let _ = stopped_tx.send(());
         });
     }
+    load_model(&app, &cfg.model);
 
     // Keyboard hook → engine → signals. The hook thread only forwards; all
     // handling (session commands, UI events) happens on this thread so a slow
@@ -269,16 +233,115 @@ pub fn start(app: AppHandle) -> Result<()> {
     Ok(())
 }
 
-/// The session worker, so quitting can stop it (see `shutdown`).
+/// The session worker, so settings can reach it and quitting can stop it
+/// (see `shutdown`).
 pub struct Worker {
     tx: Mutex<mpsc::Sender<Command>>,
     stopped: Mutex<mpsc::Receiver<()>>,
+    /// A speech model is loaded.
+    ready: Arc<AtomicBool>,
+    /// The model last asked for: a load that finishes after another was
+    /// asked for is dropped.
+    model: Mutex<String>,
+}
+
+/// Stands in until the first speech model has loaded (`ready` keeps
+/// recordings from reaching it).
+struct NoModel;
+
+impl SttEngine for NoModel {
+    fn transcribe(&mut self, _: &[f32], _: &LangHint) -> Result<Transcript> {
+        anyhow::bail!("the speech model isn't loaded yet")
+    }
+}
+
+fn injector(c: &config::Inject, main: MainThread) -> Box<dyn Injector> {
+    match c.strategy.as_str() {
+        "type" => Box::new(TypeInjector { main: Some(main) }),
+        _ => Box::new(PasteInjector {
+            restore_ms: c.restore_clipboard_ms,
+            main: Some(main),
+        }),
+    }
+}
+
+/// Settings changed: the session takes them from its next command on, and
+/// a different speech model starts loading (the current one keeps working
+/// until it's ready).
+pub fn reconfigure(app: &AppHandle, cfg: &Config) {
+    let Some(w) = app.try_state::<Worker>() else {
+        return;
+    };
+    let _ =
+        w.tx.lock()
+            .unwrap()
+            .send(Command::Reconfigure(Box::new(cfg.clone())));
+    eprintln!("walkie: settings applied");
+    if *w.model.lock().unwrap() != cfg.model {
+        load_model(app, &cfg.model);
+    }
+}
+
+/// Downloads (if needed) and loads the speech model `key` off the worker
+/// thread, then hands it to the session.
+fn load_model(app: &AppHandle, key: &str) {
+    let w = app.state::<Worker>();
+    *w.model.lock().unwrap() = key.to_string();
+    let app = app.clone();
+    let key = key.to_string();
+    std::thread::spawn(move || {
+        let current = || *app.state::<Worker>().model.lock().unwrap() == key;
+        if !models::is_downloaded(&key) {
+            model_status(&app, "downloading");
+            let ap = app.clone();
+            if let Err(e) = models::download(&key, &mut |done, total| {
+                let _ = ap.emit("download-progress", done * 100 / total.max(1));
+            }) {
+                eprintln!("walkie: model {key} failed to download: {e}");
+                if current() {
+                    model_status(&app, format!("error: {e}"));
+                }
+                return;
+            }
+        }
+        if !current() {
+            return;
+        }
+        model_status(&app, "loading");
+        let Some(path) = models::model_path(&key) else {
+            eprintln!("walkie: unknown model {key}");
+            model_status(&app, format!("error: unknown model {key}"));
+            return;
+        };
+        let stt = match WhisperEngine::load(&path) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("walkie: model {key} failed to load: {e}");
+                model_status(&app, format!("error: {e}"));
+                return;
+            }
+        };
+        let w = app.state::<Worker>();
+        // Asked for another meanwhile: that load takes over.
+        if *w.model.lock().unwrap() != key {
+            return;
+        }
+        if w.tx
+            .lock()
+            .unwrap()
+            .send(Command::SetStt(Box::new(stt)))
+            .is_ok()
+        {
+            w.ready.store(true, Ordering::SeqCst);
+            model_status(&app, "ready");
+        }
+    });
 }
 
 /// How long quitting waits for the worker (it may be mid-transcription).
 const SHUTDOWN_WAIT: Duration = Duration::from_secs(3);
 
-/// Quit and restart end in `exit()`, whose C++ static destructors include
+/// Quitting ends in `exit()`, whose C++ static destructors include
 /// ggml's Metal device: it aborts (GGML_ASSERT on its residency sets) if the
 /// Whisper model's GPU buffers are still alive. So free the model first by
 /// stopping the worker that owns it.
@@ -299,7 +362,7 @@ pub fn shutdown(app: &AppHandle) {
 pub struct Duck(Arc<Ducker>);
 
 /// Restores the volume if a recording is ducking it. For every way out of
-/// the app that bypasses the session (quit, restart).
+/// the app that bypasses the session (quitting).
 pub fn unduck(app: &AppHandle) {
     if let Some(d) = app.try_state::<Duck>() {
         d.0.restore();
@@ -362,6 +425,35 @@ fn main_thread(app: &AppHandle) -> MainThread {
     })
 }
 
+/// Set when a shortcut with Fn fired while macOS still gives 🌐 a job of its
+/// own (emoji, input source): the overlay says so once that run is over.
+#[derive(Default)]
+pub struct GlobeWarning(AtomicBool);
+
+pub const GLOBE_WARNING: &str =
+    "Fn also did macOS's 🌐 action — set Keyboard → “Press 🌐 key to” → Do Nothing";
+
+/// Whether the shortcut `keys` also triggers macOS's own 🌐 action.
+fn globe_clash(keys: &[Key], globe_does_nothing: impl FnOnce() -> bool) -> bool {
+    keys.contains(&Key::Fn) && !globe_does_nothing()
+}
+
+fn check_globe(app: &AppHandle, cmd: &Command) {
+    let hk = app.state::<HotkeyState>();
+    let keys = {
+        let engine = hk.engine.lock().unwrap();
+        let b = engine.bindings();
+        match cmd {
+            Command::Start => b.dictate.clone(),
+            Command::Polish => b.polish.clone(),
+            _ => return,
+        }
+    };
+    if globe_clash(&keys, status::globe_does_nothing) {
+        app.state::<GlobeWarning>().0.store(true, Ordering::SeqCst);
+    }
+}
+
 fn handle_signal(app: &AppHandle, tx: &mpsc::Sender<Command>, ready: &AtomicBool, sig: Signal) {
     let cmd = match sig {
         Signal::Recorded(ref k) => {
@@ -392,6 +484,7 @@ fn handle_signal(app: &AppHandle, tx: &mpsc::Sender<Command>, ready: &AtomicBool
         }
         return;
     }
+    check_globe(app, &cmd);
     let _ = tx.send(cmd);
 }
 
@@ -443,6 +536,12 @@ fn pump(app: &AppHandle, ev: Event, linger_until: &mut Option<Instant>, epoch: &
             // its captured epoch as stale and bail out.
             epoch.fetch_add(1, Ordering::SeqCst);
             set_tray(app, &s);
+            let globe = app.try_state::<GlobeWarning>();
+            if s == SessionState::Idle && globe.is_some_and(|g| g.0.swap(false, Ordering::SeqCst)) {
+                *linger_until = Some(Instant::now() + ERROR_GRACE);
+                eprintln!("walkie error: {GLOBE_WARNING}");
+                let _ = app.emit("app-error", GLOBE_WARNING);
+            }
 
             if s == SessionState::Idle {
                 let remaining = (*linger_until)
@@ -549,6 +648,14 @@ fn position_overlay(w: &tauri::WebviewWindow) -> tauri::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fn_shortcuts_clash_with_the_globe_key_until_it_does_nothing() {
+        assert!(globe_clash(&[Key::Fn], || false));
+        assert!(!globe_clash(&[Key::Fn], || true));
+        let never_asked = || panic!("no Fn: no need to check");
+        assert!(!globe_clash(&[Key::Code(49)], never_asked));
+    }
 
     #[test]
     fn done_lingers_but_never_shortens_an_errors_grace() {

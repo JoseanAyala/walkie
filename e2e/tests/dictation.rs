@@ -33,6 +33,31 @@ fn hold_fn_types_spanish() {
     assert!(one(&r).contains("hola"), "{:?}", r.typed());
 }
 
+#[test]
+fn changed_settings_apply_to_the_next_dictation() {
+    let mut r = Rig::new(Setup {
+        polish_command: "tr 'a-z' 'A-Z'",
+        field: "hello there",
+        ..Default::default()
+    });
+    r.press("Fn").wait(3000).release("Fn");
+    assert_eq!(r.history().len(), 1);
+    r.configure(|c| {
+        c.history.enabled = false;
+        c.polish.command = "rev".into();
+    });
+    r.wait(1000).press("Fn").wait(3000).release("Fn");
+    assert_eq!(r.typed().len(), 2, "(errors: {:?})", r.errors());
+    assert_eq!(r.history().len(), 1, "history is off now");
+    r.wait(1000);
+    tap_fn_shift(&mut r);
+    assert_eq!(
+        r.typed().last().unwrap(),
+        "ereht olleh",
+        "the new command polished"
+    );
+}
+
 /// Shift, then Fn, both released: what the default polish shortcut is.
 fn tap_fn_shift(r: &mut Rig) {
     r.press("Shift")

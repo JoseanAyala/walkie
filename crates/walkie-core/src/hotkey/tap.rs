@@ -3,8 +3,9 @@
 //! live in the engine, which is unit-tested.
 //!
 //! Needs Accessibility (an active tap can modify the event stream). Without
-//! it `CGEventTapCreate` returns NULL and `spawn` reports that through
-//! `TapStatus` instead of failing silently.
+//! it `CGEventTapCreate` returns NULL: `spawn` reports that through
+//! `TapStatus` and keeps trying, so granting it takes effect without a
+//! restart.
 
 use super::engine::{Engine, Signal};
 use super::keys::Key;
@@ -36,13 +37,16 @@ extern "C" {
 /// The live tap's port, so the callback can re-enable it after a timeout.
 static TAP_PORT: AtomicPtr<std::ffi::c_void> = AtomicPtr::new(std::ptr::null_mut());
 
+/// How often a tap that couldn't start (no Accessibility yet) tries again.
+const RETRY: std::time::Duration = std::time::Duration::from_secs(1);
+
 /// Starts the tap on its own thread (it needs a run loop). Signals are handed
 /// to `on_signal` synchronously on the tap thread, so it must not block —
 /// forward them over a channel.
 pub fn spawn(
     engine: Arc<Mutex<Engine>>,
     status: Arc<TapStatus>,
-    on_signal: impl Fn(Signal) + Send + 'static,
+    on_signal: impl Fn(Signal) + Send + Sync + 'static,
 ) {
     let debug = std::env::var_os("WALKIE_DEBUG_EVENTS").is_some();
     let start = Instant::now();
@@ -56,8 +60,11 @@ pub fn spawn(
         });
     }
 
-    std::thread::spawn(move || {
+    let on_signal = Arc::new(on_signal);
+    std::thread::spawn(move || loop {
         let cb_status = status.clone();
+        let engine = engine.clone();
+        let on_signal = on_signal.clone();
         let tap = CGEventTap::new(
             CGEventTapLocation::Session,
             CGEventTapPlacement::HeadInsertEventTap,
@@ -133,12 +140,18 @@ pub fn spawn(
         let tap = match tap {
             Ok(t) => t,
             Err(()) => {
-                let msg = "keyboard hook couldn't start — grant Accessibility, then restart walkie";
-                eprintln!("walkie: {msg}");
-                *status.error.lock().unwrap() = Some(msg.into());
-                return;
+                let msg = "waiting for Accessibility — walkie starts listening once it's granted";
+                let mut error = status.error.lock().unwrap();
+                if error.is_none() {
+                    eprintln!("walkie: keyboard hook couldn't start: {msg}");
+                }
+                *error = Some(msg.into());
+                drop(error);
+                std::thread::sleep(RETRY);
+                continue;
             }
         };
+        *status.error.lock().unwrap() = None;
         TAP_PORT.store(
             tap.mach_port().as_concrete_TypeRef() as *mut _,
             Ordering::SeqCst,
@@ -153,5 +166,6 @@ pub fn spawn(
         eprintln!("walkie: keyboard hook running");
         CFRunLoop::run_current();
         status.running.store(false, Ordering::SeqCst);
+        return;
     });
 }

@@ -66,7 +66,7 @@ async function test() {
 </script>
 
 {#if cfg}
-  <Field label="Model" restart>
+  <Field label="Model">
     <Select
       label="Polish model"
       bind:value={cfg.polish.provider}
@@ -90,7 +90,7 @@ async function test() {
     {/if}
   </Field>
   {#if apple}
-    <Field label="Tone" restart>
+    <Field label="Tone">
       <Select
         label="Polish tone"
         bind:value={cfg.polish.tone}
@@ -100,7 +100,7 @@ async function test() {
       <div class="example" data-testid="tone-example">{example}</div>
     </Field>
   {:else}
-    <Field label="Command" restart>
+    <Field label="Command">
       <input
         type="text"
         aria-label="Polish command"
@@ -119,7 +119,7 @@ async function test() {
       {/if}
     </Field>
   {/if}
-  <Field label="Timeout" restart>
+  <Field label="Timeout">
     <div class="range">
       <input
         type="range"
@@ -145,7 +145,6 @@ async function test() {
       {/if}
     </div>
   </Field>
-  <p class="hint"><span class="req">*</span> applies after restarting walkie.</p>
 {/if}
 
 <style>

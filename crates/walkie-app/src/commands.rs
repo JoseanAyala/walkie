@@ -17,9 +17,9 @@ pub fn get_config() -> Result<Config, String> {
     Config::load().map_err(estr)
 }
 
-/// Saves, then applies the shortcuts, microphone and theme immediately.
+/// Saves, then applies everything immediately: nothing needs a restart.
 /// Problems with a shortcut come back as the error (the rest of the config
-/// is still saved).
+/// is still saved and applied).
 #[tauri::command]
 pub fn save_config(
     app: tauri::AppHandle,
@@ -34,6 +34,7 @@ pub fn save_config(
         let _ = app.emit("theme", &cfg.theme);
     }
     audio::set_preferred_input(&cfg.audio.input_device);
+    glue::reconfigure(&app, &cfg);
     let (bindings, errors) = Bindings::from_config(&cfg.hotkeys);
     hk.engine.lock().unwrap().set_bindings(bindings);
     *hk.errors.lock().unwrap() = errors.clone();
@@ -73,16 +74,10 @@ pub fn get_status(hk: State<HotkeyState>, model: State<ModelStatus>) -> Vec<Chec
 #[tauri::command]
 pub fn record_shortcut(hk: State<HotkeyState>) -> Result<(), String> {
     if !hk.tap.running.load(std::sync::atomic::Ordering::SeqCst) {
-        return Err("the keyboard hook isn't running — see the Status tab".into());
+        return Err("the keyboard hook isn't running — grant Accessibility first".into());
     }
     hk.engine.lock().unwrap().start_recording();
     Ok(())
-}
-
-#[tauri::command]
-pub fn restart_app(app: tauri::AppHandle) {
-    crate::glue::shutdown(&app);
-    app.restart();
 }
 
 #[tauri::command]

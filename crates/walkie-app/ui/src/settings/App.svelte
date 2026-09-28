@@ -130,12 +130,6 @@ onMount(() => {
         {/if}
       </div>
     {/key}
-    {#if settings.pending.length}
-      <div class="restart">
-        <span>Restart to apply: {settings.pending.join(", ")}</span>
-        <button class="primary" onclick={() => api.restartApp()}>Restart walkie</button>
-      </div>
-    {/if}
   </main>
 </div>
 
@@ -242,17 +236,5 @@ main {
   line-height: 17px;
   -webkit-user-select: text;
   user-select: text;
-}
-.restart {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 34px;
-  border-top: 1px solid var(--ink);
-  background: var(--lime);
-  animation: enter 150ms ease both;
-}
-.restart span {
-  flex: 1;
 }
 </style>

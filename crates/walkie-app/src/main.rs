@@ -43,7 +43,6 @@ fn main() {
             commands::set_launch_at_login,
             commands::get_status,
             commands::record_shortcut,
-            commands::restart_app,
             commands::list_input_devices,
         ])
         .on_window_event(|window, event| {

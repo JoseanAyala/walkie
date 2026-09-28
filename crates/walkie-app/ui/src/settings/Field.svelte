@@ -1,19 +1,14 @@
 <script lang="ts">
 // A labelled row: the name on the left, controls on the right, a hairline
-// above. `restart` marks settings that only apply after restarting walkie.
+// above.
 import type { Snippet } from "svelte";
 
-let {
-  label,
-  restart = false,
-  children,
-}: { label: string; restart?: boolean; children: Snippet } = $props();
+let { label, children }: { label: string; children: Snippet } = $props();
 </script>
 
 <div class="f">
   <span class="k"
-    >{label}{#if restart}<span class="req" title="applies after a restart">*</span>{/if}</span
-  >
+>{label}</span>
   <div class="v">{@render children()}</div>
 </div>
 
@@ -37,8 +32,5 @@ let {
 }
 .v :global(.hint) {
   line-height: 17px;
-}
-.req {
-  margin-left: 3px;
 }
 </style>

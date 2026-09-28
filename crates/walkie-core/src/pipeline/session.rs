@@ -1,6 +1,6 @@
 use crate::audio::duck::Ducker;
 use crate::audio::Capture;
-use crate::config::{self, Config};
+use crate::config::{self, Config, Inject};
 use crate::history::History;
 use crate::hotkey::engine::Signal;
 use crate::inject::{Injected, Injector};
@@ -19,7 +19,6 @@ pub enum SessionState {
     Injecting,
 }
 
-#[derive(Debug)]
 pub enum Command {
     Start,
     Finish,
@@ -28,7 +27,26 @@ pub enum Command {
     Polish,
     /// Insert this text again (paste-last). Not written to history.
     Reinject(String),
+    /// Settings changed: use these from the next command on.
+    Reconfigure(Box<Config>),
+    /// A (new) speech model finished loading.
+    SetStt(Box<dyn SttEngine + Send>),
     Shutdown,
+}
+
+impl std::fmt::Debug for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Command::Start => write!(f, "Start"),
+            Command::Finish => write!(f, "Finish"),
+            Command::Cancel => write!(f, "Cancel"),
+            Command::Polish => write!(f, "Polish"),
+            Command::Reinject(t) => write!(f, "Reinject({t:?})"),
+            Command::Reconfigure(_) => write!(f, "Reconfigure"),
+            Command::SetStt(_) => write!(f, "SetStt"),
+            Command::Shutdown => write!(f, "Shutdown"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -69,11 +87,16 @@ pub struct Deps {
     pub cfg: Config,
 }
 
+/// Builds the injector for an `[inject]` config, so a new strategy applies
+/// without restarting.
+pub type InjectorFor = Box<dyn Fn(&Inject) -> Box<dyn Injector>>;
+
 pub struct Session {
     pub deps: Deps,
     tx: Sender<Event>,
     recording: bool,
     ducker: Option<Arc<Ducker>>,
+    injector_for: Option<InjectorFor>,
     /// walkie-ai, for the Apple polish provider.
     ai_helper: PathBuf,
 }
@@ -87,6 +110,7 @@ impl Session {
             tx,
             recording: false,
             ducker: None,
+            injector_for: None,
             ai_helper: polish::apple_helper(),
         }
     }
@@ -97,10 +121,31 @@ impl Session {
         self
     }
 
-    /// Lowers other audio while recording (see `audio::duck`).
+    /// Lowers other audio while recording (see `audio::duck`), when the
+    /// config asks for it.
     pub fn with_ducker(mut self, d: Arc<Ducker>) -> Self {
+        d.set_percent(self.deps.cfg.audio.duck_percent);
         self.ducker = Some(d);
         self
+    }
+
+    /// Rebuilds the injector with `f` when `[inject]` changes.
+    pub fn with_injector_for(mut self, f: InjectorFor) -> Self {
+        self.injector_for = Some(f);
+        self
+    }
+
+    /// Takes new settings. A recording in progress finishes with them.
+    pub fn reconfigure(&mut self, cfg: Config) {
+        if cfg.inject != self.deps.cfg.inject {
+            if let Some(f) = &self.injector_for {
+                self.deps.injector = f(&cfg.inject);
+            }
+        }
+        if let Some(d) = &self.ducker {
+            d.set_percent(cfg.audio.duck_percent);
+        }
+        self.deps.cfg = cfg;
     }
 
     fn unduck(&self) {
@@ -126,6 +171,8 @@ impl Session {
             Command::Cancel => self.cancel(),
             Command::Polish => self.polish(),
             Command::Reinject(text) => self.reinject(&text),
+            Command::Reconfigure(cfg) => self.reconfigure(*cfg),
+            Command::SetStt(stt) => self.deps.stt = stt,
             Command::Shutdown => {}
         }
     }
@@ -145,7 +192,9 @@ impl Session {
             Ok(()) => {
                 self.recording = true;
                 if let Some(d) = &self.ducker {
-                    d.duck();
+                    if self.deps.cfg.audio.duck_while_recording {
+                        d.duck();
+                    }
                 }
                 self.emit(Event::State(SessionState::Recording));
             }
@@ -424,6 +473,7 @@ mod tests {
         let mut cfg = crate::config::Config::default();
         cfg.polish.provider = crate::config::PolishProvider::Command;
         cfg.polish.command = "tr 'a-z' 'A-Z'".into(); // deterministic local "LLM"
+        cfg.audio.duck_percent = 25;
         let deps = Deps {
             capture: Box::new(MockCapture {
                 samples: vec![0.05; 16_000],
@@ -730,6 +780,94 @@ mod tests {
         );
         r.session.finish();
         assert_eq!(r.volume.volume(), 0.8);
+    }
+
+    #[test]
+    fn ducking_turned_off_leaves_the_volume_alone() {
+        let mut r = rig("Hello", Some("en"), (false, false, false));
+        let mut cfg = r.session.deps.cfg.clone();
+        cfg.audio.duck_while_recording = false;
+        r.session.apply(Command::Reconfigure(Box::new(cfg)));
+        r.session.start();
+        assert_eq!(r.volume.volume(), 0.8);
+    }
+
+    #[test]
+    fn a_new_duck_percent_applies_to_the_next_recording() {
+        let mut r = rig("Hello", Some("en"), (false, false, false));
+        let mut cfg = r.session.deps.cfg.clone();
+        cfg.audio.duck_percent = 50;
+        r.session.apply(Command::Reconfigure(Box::new(cfg)));
+        r.session.start();
+        assert!(
+            (r.volume.volume() - 0.4).abs() < 1e-6,
+            "{}",
+            r.volume.volume()
+        );
+    }
+
+    #[test]
+    fn a_new_polish_command_applies_without_a_restart() {
+        let mut r = rig("x", None, (false, false, false));
+        let mut cfg = r.session.deps.cfg.clone();
+        cfg.polish.command = "rev".into();
+        r.session.apply(Command::Reconfigure(Box::new(cfg)));
+        r.session.polish();
+        assert_eq!(r.injected.borrow().as_slice(), ["ereht olleh os mu"]);
+    }
+
+    #[test]
+    fn turning_history_off_stops_recording_it() {
+        let mut r = rig("Hello", Some("en"), (false, false, false));
+        let mut cfg = r.session.deps.cfg.clone();
+        cfg.history.enabled = false;
+        r.session.apply(Command::Reconfigure(Box::new(cfg)));
+        r.session.start();
+        r.session.finish();
+        assert_eq!(r.injected.borrow().as_slice(), ["Hello"]);
+        let rows = r.session.deps.history.as_ref().unwrap().recent(10).unwrap();
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn a_new_inject_strategy_rebuilds_the_injector() {
+        let r = rig("Hello", Some("en"), (false, false, false));
+        let built = Rc::new(RefCell::new(Vec::new()));
+        let sink = r.injected.clone();
+        let b = built.clone();
+        let mut session = r.session.with_injector_for(Box::new(move |c| {
+            b.borrow_mut().push(c.strategy.clone());
+            Box::new(MockInjector {
+                sink: sink.clone(),
+                fail: false,
+                field: None,
+            })
+        }));
+        let same = session.deps.cfg.clone();
+        session.apply(Command::Reconfigure(Box::new(same.clone())));
+        assert!(built.borrow().is_empty(), "unchanged: kept as is");
+        let mut typed = same;
+        typed.inject.strategy = "type".into();
+        session.apply(Command::Reconfigure(Box::new(typed)));
+        assert_eq!(built.borrow().as_slice(), ["type"]);
+    }
+
+    #[test]
+    fn a_new_speech_model_takes_over() {
+        let mut r = rig("old model", Some("en"), (false, false, false));
+        struct NewModel;
+        impl SttEngine for NewModel {
+            fn transcribe(&mut self, _s: &[f32], _l: &LangHint) -> anyhow::Result<Transcript> {
+                Ok(Transcript {
+                    text: "new model".into(),
+                    lang: None,
+                })
+            }
+        }
+        r.session.apply(Command::SetStt(Box::new(NewModel)));
+        r.session.start();
+        r.session.finish();
+        assert_eq!(r.injected.borrow().as_slice(), ["new model"]);
     }
 
     #[test]

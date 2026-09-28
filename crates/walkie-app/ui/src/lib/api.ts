@@ -47,7 +47,7 @@ export interface Check {
   label: string;
   ok: boolean;
   detail: string;
-  /** a pane for open_settings_pane, or "restart" */
+  /** a pane for open_settings_pane */
   fix: string | null;
 }
 
@@ -89,7 +89,6 @@ export const api = {
   listModels: () => invoke<ModelChoice[]>("list_models"),
   listInputDevices: () => invoke<InputDevices>("list_input_devices"),
   recordShortcut: () => invoke<void>("record_shortcut"),
-  restartApp: () => invoke<void>("restart_app"),
   historyRecent: (limit: number) => invoke<HistoryRecord[]>("history_recent", { limit }),
   historySearch: (q: string, limit: number) =>
     invoke<HistoryRecord[]>("history_search", { q, limit }),

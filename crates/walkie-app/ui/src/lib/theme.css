@@ -23,7 +23,7 @@
   /* a quiet fill: tags, hover */
   --tag: #ebe5d4;
   /* the blocks: recording, warnings and the note in red; the menu in
-     lavender; the restart bar in lime */
+     lavender; confirmations in lime */
   --red: #e0402f;
   --on-red: #f5f1e6;
   --lav: #cfb3dc;
@@ -153,10 +153,6 @@ textarea {
   font: 500 11px / 18px var(--sans);
   background: var(--tag);
   padding: 0 6px;
-}
-/* marks a setting that applies after a restart */
-.req {
-  color: var(--red);
 }
 .muted,
 .hint {

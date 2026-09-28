@@ -76,7 +76,7 @@ onMount(load);
   <label class="cb"
     ><input type="checkbox" bind:checked={cfg.history.enabled} onchange={() => settings.save()}>
     {"Keep local history"}</label
-  ><span class="rs" title="applies after a restart">*</span>
+  >
 {/if}
 <div class="tools">
   <input type="search" placeholder="search…" bind:value={q} oninput={typed} onkeydown={enter}>
@@ -117,10 +117,6 @@ onMount(load);
 {/if}
 
 <style>
-.rs {
-  opacity: 0.6;
-  margin-left: 4px;
-}
 .tools {
   display: flex;
   gap: 8px;

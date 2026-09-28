@@ -1,6 +1,7 @@
 //! Lowers the system output volume while recording ("ducking") and puts it
 //! back afterwards — lowered, never muted, so you still hear what's playing.
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// The system output volume, 0.0–1.0.
@@ -22,7 +23,8 @@ struct Saved {
 /// with the app so quitting mid-recording can restore too.
 pub struct Ducker {
     out: Box<dyn OutputVolume>,
-    level: f32,
+    /// The volume during recording, as % of the volume before it.
+    percent: AtomicU32,
     saved: Mutex<Option<Saved>>,
 }
 
@@ -31,9 +33,14 @@ impl Ducker {
     pub fn new(out: Box<dyn OutputVolume>, percent: u32) -> Self {
         Self {
             out,
-            level: percent.min(100) as f32 / 100.0,
+            percent: AtomicU32::new(percent.min(100)),
             saved: Mutex::new(None),
         }
+    }
+
+    /// Changes how far the next `duck` lowers the volume.
+    pub fn set_percent(&self, percent: u32) {
+        self.percent.store(percent.min(100), Ordering::SeqCst);
     }
 
     pub fn duck(&self) {
@@ -43,7 +50,7 @@ impl Ducker {
         }
         // Muted, silent, or nothing to lower: leave it alone.
         let Some(before) = self.out.get() else { return };
-        let target = before * self.level;
+        let target = before * self.percent.load(Ordering::SeqCst) as f32 / 100.0;
         if before < SAME || before - target < SAME {
             return;
         }
@@ -240,6 +247,15 @@ mod tests {
         assert!((v.volume() - 0.24).abs() < 1e-6, "{}", v.volume());
         d.restore();
         assert_eq!(v.volume(), 0.8);
+    }
+
+    #[test]
+    fn a_new_percent_applies_to_the_next_duck() {
+        let v = MemVolume::new(0.8);
+        let d = ducker(&v, 30);
+        d.set_percent(50);
+        d.duck();
+        assert!((v.volume() - 0.4).abs() < 1e-6, "{}", v.volume());
     }
 
     #[test]

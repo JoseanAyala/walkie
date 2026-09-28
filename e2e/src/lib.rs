@@ -128,6 +128,7 @@ impl Rig {
         };
         cfg.polish.command = setup.polish_command.into();
         cfg.polish.tone = setup.tone;
+        cfg.audio.duck_percent = 30;
         let typed = Rc::new(RefCell::new(Vec::new()));
         let copied = Rc::new(RefCell::new(Vec::new()));
         let (tx, events) = mpsc::channel();
@@ -208,6 +209,14 @@ impl Rig {
     pub fn wait(&mut self, ms: u128) -> &mut Self {
         self.t += ms;
         self.engine.poll(self.t);
+        self
+    }
+
+    /// Changes settings the way saving in Settings does: live, no restart.
+    pub fn configure(&mut self, f: impl FnOnce(&mut Config)) -> &mut Self {
+        let mut cfg = self.session.deps.cfg.clone();
+        f(&mut cfg);
+        self.session.apply(Command::Reconfigure(Box::new(cfg)));
         self
     }
 

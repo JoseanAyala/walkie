@@ -107,20 +107,20 @@ onMount(() => {
       <button title="Refresh the device list" onclick={loadMics}>↻</button>
     </div>
   </Field>
-  <Field label="Language" restart>
+  <Field label="Language">
     <Select label="Language" bind:value={cfg.language} options={LANGUAGES} onchange={save} />
   </Field>
-  <Field label="Model" restart>
+  <Field label="Model">
     <Select label="Model" bind:value={cfg.model} options={modelOptions} onchange={save} />
     {#if chosen}
       <div class="hint">about {megabytes(chosen.memory_mb)} of RAM while walkie is open</div>
     {/if}
     <div class="hint">model: {modelStatus}</div>
   </Field>
-  <Field label="Injection" restart>
+  <Field label="Injection">
     <Select label="Injection" bind:value={cfg.inject.strategy} options={STRATEGIES} onchange={save} />
   </Field>
-  <Field label="Ducking" restart>
+  <Field label="Ducking">
     <label class="cb"
       ><input
         type="checkbox"
@@ -143,5 +143,4 @@ onMount(() => {
     </div>
     <div class="hint">volume while recording, as % of the current level</div>
   </Field>
-  <p class="hint"><span class="req">*</span> applies after restarting walkie. Everything saves as you change it.</p>
 {/if}

@@ -90,6 +90,14 @@ mod mac {
     }
 }
 
+/// Whether "Press 🌐 key to" is Do Nothing, so Fn only reaches walkie.
+pub fn globe_does_nothing() -> bool {
+    #[cfg(target_os = "macos")]
+    return mac::globe_does_nothing();
+    #[cfg(not(target_os = "macos"))]
+    true
+}
+
 /// Asks for the microphone the way a first dictation would, if macOS hasn't
 /// asked yet. False when it already has: then only System Settings helps.
 pub fn ask_for_microphone() -> bool {
@@ -193,9 +201,9 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
                 n => format!("running (macOS paused it {n}× — recovered)"),
             }
         } else {
-            tap_error.unwrap_or_else(|| "not running — restart walkie".into())
+            tap_error.unwrap_or_else(|| "not running".into())
         },
-        fix: (!tap_running).then_some("restart"),
+        fix: (!tap_running).then_some("accessibility"),
     });
 
     let bindings: Bindings = hk.engine.lock().unwrap().bindings().clone();
@@ -216,27 +224,6 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
         },
         fix: None,
     });
-
-    #[cfg(target_os = "macos")]
-    {
-        let uses_fn = [&bindings.dictate, &bindings.polish, &bindings.paste_last]
-            .iter()
-            .any(|b| b.contains(&Key::Fn));
-        if uses_fn {
-            let ok = mac::globe_does_nothing();
-            out.push(Check {
-                id: "globe",
-                label: "Globe (Fn) key",
-                ok,
-                detail: if ok {
-                    "\"Press 🌐 key to\" is Do Nothing".into()
-                } else {
-                    "set Keyboard → \"Press 🌐 key to\" → Do Nothing, or Fn also opens emoji / switches input".into()
-                },
-                fix: (!ok).then_some("keyboard"),
-            });
-        }
-    }
 
     let (device, missing) = audio::current_input();
     let silent = audio::LAST_CAPTURE_SILENT.load(Ordering::Relaxed);

@@ -1,7 +1,6 @@
 // Settings-window state shared by every tab: the config being edited, the
-// autosave, the restart hint and the error banner.
+// autosave and the error banner.
 import { api, type Config, message } from "@/lib/api";
-import { pendingRestart } from "./restart";
 
 class Settings {
   cfg = $state<Config | null>(null);
@@ -9,18 +8,12 @@ class Settings {
   saved = $state(false);
   /** counts saves, so each one replays the `saved ✓` blink */
   saves = $state(0);
-  pending = $state<string[]>([]);
-  // What the running app launched with. This page loads at launch too (the
-  // window is hidden, never destroyed), so the first read is that config.
-  #boot: Config | null = null;
   #savedTimer: ReturnType<typeof setTimeout> | undefined;
   #typing: ReturnType<typeof setTimeout> | undefined;
 
   async load() {
     try {
-      const c = await api.getConfig();
-      this.#boot = structuredClone(c);
-      this.cfg = c;
+      this.cfg = await api.getConfig();
     } catch (e) {
       this.fail(e);
     }
@@ -43,7 +36,6 @@ class Settings {
     } catch (e) {
       this.fail(e);
     }
-    if (this.#boot) this.pending = pendingRestart(this.#boot, snapshot);
   }
 
   /** For typing and dragging: save once the person pauses. */
