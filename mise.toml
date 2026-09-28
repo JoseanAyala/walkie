@@ -3,6 +3,8 @@
 
 [tools]
 rust = { version = "1.98.0", components = "rustfmt,clippy" }
+# whisper-rs builds whisper.cpp with it
+cmake = "4.4.3"
 # The Svelte UI in crates/walkie-app/ui
 bun = "1.4.2"
 # Lets mise fetch cargo tools as prebuilt binaries instead of compiling them.
