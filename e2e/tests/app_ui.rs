@@ -260,3 +260,46 @@ fn settings_window_drags_by_its_top_strip_and_desk() {
         );
     }
 }
+
+/// walkie draws its own dropdowns: picking from one must save, like the
+/// native popup did. (Its keyboard rules are unit-tested in listbox.ts; a
+/// menu-bar app can't be made frontmost to type into from here.)
+#[test]
+fn a_dropdown_picks_with_the_mouse_and_saves() {
+    let _t = begin("a_dropdown_picks_with_the_mouse_and_saves");
+    let mut c = App::test_config();
+    c.language = "auto".into();
+    let app = settings_with("General", None, c);
+    app.click_popup("Walkie", "Auto-detect (en/es)");
+    app.click_list_item("Walkie", "English");
+    step("waiting for the config to say en");
+    let mut now = String::new();
+    for _ in 0..20 {
+        now = app.config().language;
+        if now == "en" {
+            break;
+        }
+        sleep(100);
+    }
+    assert_eq!(
+        now,
+        "en",
+        "clicking English should pick it\n{}",
+        app.log_text()
+    );
+    assert!(
+        app.dropdowns("Walkie").iter().any(|d| d == "English"),
+        "the dropdown should now show English: {:?}",
+        app.dropdowns("Walkie")
+    );
+}
+
+/// Settings can't be squeezed below the size its layout needs
+/// (tauri.conf.json's minWidth/minHeight).
+#[test]
+fn settings_window_stops_shrinking_at_its_minimum() {
+    let _t = begin("settings_window_stops_shrinking_at_its_minimum");
+    let app = settings("General", None);
+    let (w, h) = app.resize("Walkie", 300, 200);
+    assert_eq!((w, h), (680, 440), "the window went below its minimum");
+}

@@ -533,6 +533,89 @@ impl App {
         .unwrap_or_default()
     }
 
+    /// Clicks, with the real mouse, the item titled `title` in an open
+    /// dropdown's list (Select.svelte). A UI-scripting click can't pick it:
+    /// the option isn't a native control.
+    pub fn click_list_item(&self, window: &str, title: &str) {
+        step(format!("clicking {title:?} in an open list in {window:?}"));
+        let mut r = Err(String::new());
+        let found = wait_until(3, || {
+            r = osa(
+                r#"on run argv
+                    tell application "System Events" to tell application process "walkie"
+                        set els to entire contents of window (item 1 of argv)
+                        repeat with e in els
+                            try
+                                if role of e is "AXList" then
+                                    repeat with k in (UI elements of e)
+                                        if (title of k as text) is (item 2 of argv) then
+                                            set {x, y} to position of k
+                                            set {w, h} to size of k
+                                            return ((x + w / 2) as text) & "," & ((y + h / 2) as text)
+                                        end if
+                                    end repeat
+                                end if
+                            end try
+                        end repeat
+                    end tell
+                    return "missing"
+                end run"#,
+                &[window, title],
+            );
+            r.as_deref().is_ok_and(|s| s.contains(','))
+        });
+        assert!(found, "list item {title:?} in {window:?}: {r:?}");
+        let s = r.unwrap();
+        let (x, y) = s.split_once(',').unwrap();
+        click_at((x.parse().unwrap(), y.parse().unwrap()));
+    }
+
+    /// Asks macOS to resize a window, then reads back the size it got.
+    pub fn resize(&self, window: &str, w: u32, h: u32) -> (u32, u32) {
+        step(format!("resizing {window:?} to {w}×{h}"));
+        let r = osa(
+            r#"on run argv
+                tell application "System Events" to tell application process "walkie"
+                    set size of window (item 1 of argv) to {(item 2 of argv) as integer, (item 3 of argv) as integer}
+                    delay 0.3
+                    set {a, b} to size of window (item 1 of argv)
+                    return (a as text) & "," & (b as text)
+                end tell
+            end run"#,
+            &[window, &w.to_string(), &h.to_string()],
+        )
+        .unwrap_or_else(|e| panic!("resizing {window:?}: {e}"));
+        let (a, b) = r.split_once(',').unwrap_or_else(|| panic!("size {r:?}"));
+        (a.parse().unwrap(), b.parse().unwrap())
+    }
+
+    /// Opens the dropdown (AXPopUpButton) currently showing `choice`.
+    pub fn click_popup(&self, window: &str, choice: &str) {
+        step(format!("opening the {choice:?} dropdown in {window:?}"));
+        let mut r = Err(String::new());
+        let found = wait_until(3, || {
+            r = osa(
+                r#"on run argv
+                    tell application "System Events" to tell application process "walkie"
+                        set els to entire contents of window (item 1 of argv)
+                        repeat with e in els
+                            try
+                                if role of e is "AXPopUpButton" and (title of e as text) is (item 2 of argv) then
+                                    click e
+                                    return "ok"
+                                end if
+                            end try
+                        end repeat
+                    end tell
+                    return "missing"
+                end run"#,
+                &[window, choice],
+            );
+            r.as_deref() == Ok("ok")
+        });
+        assert!(found, "dropdown {choice:?} in {window:?}: {r:?}");
+    }
+
     /// The overlay pill's text, or "" while it's hidden. Only that window:
     /// walking Settings too takes longer than the pill stays up.
     pub fn overlay_text(&self) -> String {
@@ -832,6 +915,29 @@ pub fn drag(from: (f64, f64), by: (f64, f64)) {
         post(CGEventType::LeftMouseDragged, x + by.0 * t, y + by.1 * t);
     }
     post(CGEventType::LeftMouseUp, x + by.0, y + by.1);
+}
+
+/// A left click at a screen point.
+pub fn click_at(at: (f64, f64)) {
+    use core_graphics::event::CGMouseButton;
+    use core_graphics::geometry::CGPoint;
+    step(format!("clicking at {at:?}"));
+    let src = CGEventSource::new(CGEventSourceStateID::HIDSystemState).unwrap();
+    for kind in [
+        CGEventType::MouseMoved,
+        CGEventType::LeftMouseDown,
+        CGEventType::LeftMouseUp,
+    ] {
+        CGEvent::new_mouse_event(
+            src.clone(),
+            kind,
+            CGPoint::new(at.0, at.1),
+            CGMouseButton::Left,
+        )
+        .unwrap()
+        .post(CGEventTapLocation::HID);
+        sleep(30);
+    }
 }
 
 // ---------------------------------------------------------------- target

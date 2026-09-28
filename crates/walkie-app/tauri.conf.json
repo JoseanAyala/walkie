@@ -22,7 +22,9 @@
         "trafficLightPosition": { "x": 12, "y": 22 },
         "visible": false,
         "width": 760,
-        "height": 560
+        "height": 560,
+        "minWidth": 680,
+        "minHeight": 440
       },
       {
         "label": "overlay",
@@ -47,7 +49,9 @@
         "trafficLightPosition": { "x": 12, "y": 22 },
         "visible": false,
         "width": 560,
-        "height": 660
+        "height": 660,
+        "minWidth": 520,
+        "minHeight": 420
       }
     ]
   },

@@ -150,7 +150,7 @@ $effect(() => {
         onmousemove={() => (active = i)}
         onclick={() => choose(i)}
       >
-        <span class="mark">{i === chosen ? "■" : ""}</span>{o.text}
+        <span class="mark" aria-hidden="true">{i === chosen ? "■" : ""}</span>{o.text}
       </li>
     {/each}
   </ul>

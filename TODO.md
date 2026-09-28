@@ -21,7 +21,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       an illustration for the empty History.
 - [x] **Own the dropdowns.** A custom listbox instead of native `<select>`
       popups (microphone, language, model, injection).
-- [ ] **Window limits.** `minWidth`/`minHeight` on settings so resizing can't
+- [x] **Window limits.** `minWidth`/`minHeight` on settings so resizing can't
       break the grid.
 - [ ] **Overlay meter.** Last; talk it over first. Peak-hold on the VU meter;
       a fixed pill width so the label doesn't reflow between states.
