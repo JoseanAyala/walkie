@@ -468,7 +468,7 @@ fn pump(app: &AppHandle, ev: Event, linger_until: &mut Option<Instant>, epoch: &
                     *linger_until = None;
                     if let Some(w) = app.get_webview_window("overlay") {
                         let _ = position_overlay(&w);
-                        let _ = w.show();
+                        crate::overlay::show(&w);
                     }
                 }
             }

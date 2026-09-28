@@ -8,7 +8,9 @@
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET);
 //! past that the run aborts and reports the step it was stuck on.
 
-use walkie_e2e::os::{begin, clipboard, set_clipboard, sleep, step, App, Keyboard, Target};
+use walkie_e2e::os::{
+    begin, clipboard, frontmost, set_clipboard, sleep, step, App, Keyboard, Target, TARGET,
+};
 
 fn ready_app() -> App {
     let app = App::new();
@@ -249,6 +251,35 @@ fn a_live_mic_never_says_it_cant_hear_you() {
         "the overlay should still be listening; it showed {seen:?}\n{}",
         app.log_text()
     );
+}
+
+/// The pill is a panel: showing it never takes the front from the app the
+/// transcript is going into.
+#[test]
+fn the_overlay_never_takes_focus() {
+    let _t = begin("the_overlay_never_takes_focus");
+    let app = ready_app();
+    app.require_keyboard();
+    let _doc = Target::open();
+    let mut kb = Keyboard::new();
+    kb.down("Fn").wait(600);
+    step("waiting for the overlay");
+    let mut seen = String::new();
+    for _ in 0..20 {
+        seen = app.overlay_text();
+        if !seen.is_empty() {
+            break;
+        }
+        sleep(50);
+    }
+    let front = frontmost();
+    kb.up("Fn");
+    assert!(
+        !seen.is_empty(),
+        "the overlay never showed\n{}",
+        app.log_text()
+    );
+    assert_eq!(front, TARGET, "the overlay took the front");
 }
 
 /// Regression: typed text arrives as keyDowns with no keyUps; the hook read

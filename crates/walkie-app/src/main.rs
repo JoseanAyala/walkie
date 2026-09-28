@@ -10,6 +10,7 @@ mod commands;
 mod glue;
 mod logfile;
 mod login_item;
+mod overlay;
 mod status;
 
 pub struct TrayHandle(pub Mutex<tauri::tray::TrayIcon>);
@@ -96,6 +97,9 @@ fn main() {
                 })
                 .build(app)?;
             app.manage(TrayHandle(Mutex::new(tray)));
+            if let Some(w) = app.get_webview_window("overlay") {
+                overlay::setup(&w);
+            }
             glue::start(app.handle().clone())?;
             // Opened by hand (Dock, Finder, Spotlight): show a window, since a
             // menu-bar app otherwise gives no sign it started. Not at login.
