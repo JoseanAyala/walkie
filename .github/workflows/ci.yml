@@ -20,18 +20,16 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - uses: jdx/mise-action@v2
       - uses: Swatinem/rust-cache@v2
       - name: Format
-        run: cargo fmt --all --check
+        run: make fmt-check
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: make lint
       # default-members only: the e2e crate needs the Whisper model and,
       # for the app suite, macOS permissions a hosted runner can't grant.
       - name: Unit tests
-        run: cargo test
+        run: make test
 
   build:
     if: github.event_name == 'push'
@@ -40,16 +38,13 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: jdx/mise-action@v2
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: tauri-cli
       - name: Build hearme.app
-        id: package
-        run: echo "zip=$(scripts/package.sh | tail -n 1)" >> "$GITHUB_OUTPUT"
+        run: make package
       - uses: actions/upload-artifact@v4
         with:
           name: hearme-${{ github.sha }}
-          path: ${{ steps.package.outputs.zip }}
+          path: target/release/bundle/hearme-*.zip
+          if-no-files-found: error
           retention-days: 14
