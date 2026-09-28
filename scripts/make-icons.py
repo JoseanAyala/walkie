@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Draws walkie's icons in the Settings window's palette (ui/src/lib/theme.css):
-a cream sheet with the checker trim, and an ink microphone whose grille is
+a square cream sheet with the checker trim, and an ink microphone whose grille is
 the same checker. Writes icons/icon.png (then `cargo tauri icon` makes the
 app icon sizes) and the three 32×32 tray icons.
 
@@ -17,7 +17,6 @@ SHEET = (251, 249, 243, 255)  # --sheet
 BG = (245, 241, 230, 255)  # --bg
 INK = (28, 27, 34, 255)  # --ink
 RED = (224, 64, 47, 255)  # --red
-LAV = (207, 179, 220, 255)  # --lav
 CLEAR = (0, 0, 0, 0)
 
 SS = 4  # supersampling for the app icon's curves
@@ -41,17 +40,14 @@ def app_icon():
     u = lambda v: int(v * SS)  # noqa: E731
     img = Image.new("RGBA", (s, s), CLEAR)
 
-    # the body: macOS's icon grid, 824 of 1024, with a lavender block below
-    # the sheet and the checker trim above it, like the Settings window
+    # the body: macOS's icon grid, 824 of 1024, a square sheet with the
+    # checker trim above it, like the Settings window
     body = [u(100), u(100), u(924), u(924)]
-    radius = u(185)
     art = Image.new("RGBA", (s, s), CLEAR)
     d = ImageDraw.Draw(art)
     d.rectangle(body, fill=SHEET)
     checker(d, (u(100), u(100), u(924), u(212)), 14, 2, INK, SHEET)
     d.rectangle([u(100), u(212), u(924), u(222)], fill=INK)
-    d.rectangle([u(100), u(760), u(924), u(924)], fill=LAV)
-    d.rectangle([u(100), u(750), u(924), u(760)], fill=INK)
 
     # the microphone: an ink capsule, its top half a checker grille
     cx = 512
@@ -75,15 +71,14 @@ def app_icon():
     d.arc([u(cx - 164), u(372), u(cx + 164), u(700)], 0, 180, fill=INK, width=u(w))
     d.line([u(cx - 164 + w / 2), u(536), u(cx - 164 + w / 2), u(470)], fill=INK, width=u(w))
     d.line([u(cx + 164 - w / 2), u(536), u(cx + 164 - w / 2), u(470)], fill=INK, width=u(w))
-    d.rectangle([u(cx - 14), u(698), u(cx + 14), u(750)], fill=INK)
+    d.rectangle([u(cx - 14), u(698), u(cx + 14), u(770)], fill=INK)
+    d.rectangle([u(cx - 110), u(758), u(cx + 110), u(782)], fill=INK)
     # the red dot: on air
     d.ellipse([u(cx + 168), u(270), u(cx + 228), u(330)], fill=RED)
 
-    # round the corners, then the ink edge on top
-    corners = Image.new("L", (s, s), 0)
-    ImageDraw.Draw(corners).rounded_rectangle(body, radius=radius, fill=255)
-    img.paste(art, (0, 0), corners)
-    ImageDraw.Draw(img).rounded_rectangle(body, radius=radius, outline=INK, width=u(20))
+    # the ink edge on top
+    img.paste(art, (0, 0), art)
+    ImageDraw.Draw(img).rectangle(body, outline=INK, width=u(20))
     img.resize((1024, 1024), Image.LANCZOS).save(ICONS / "icon.png")
 
 
