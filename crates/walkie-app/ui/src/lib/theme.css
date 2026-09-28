@@ -92,6 +92,9 @@ textarea {
 /* the checker trim: small, even, ink and sheet */
 .trim {
   flex: none;
+  /* the border goes below both rows, not inside them: border-box would
+     leave the bottom row a pixel short */
+  box-sizing: content-box;
   height: 10px;
   background: repeating-conic-gradient(var(--ink) 0 25%, var(--sheet) 0 50%) 0 0 / 10px 10px;
   border-bottom: 1px solid var(--ink);
