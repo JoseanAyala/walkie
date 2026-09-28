@@ -11,3 +11,6 @@ crates/walkie-app/gen/
 # Built from crates/walkie-app/ui by `make ui` (or tauri's beforeBuildCommand)
 crates/walkie-app/dist/
 node_modules/
+
+# walkie-ai, built from crates/walkie-app/swift by build.rs
+crates/walkie-app/binaries/
