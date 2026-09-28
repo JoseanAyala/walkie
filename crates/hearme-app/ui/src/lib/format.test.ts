@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chord, glyph, sameKeys, when, words } from "./format";
+import { chord, glyph, megabytes, sameKeys, when, words } from "./format";
 
 describe("glyph", () => {
   it("shows modifiers as symbols and sides in words", () => {
@@ -45,5 +45,13 @@ describe("sameKeys", () => {
   it("ignores order", () => {
     expect(sameKeys(["Fn", "Space"], ["Space", "Fn"])).toBe(true);
     expect(sameKeys(["Fn"], ["Fn", "Space"])).toBe(false);
+  });
+});
+
+describe("megabytes", () => {
+  it("uses MB below a gigabyte and GB from there", () => {
+    expect(megabytes(148)).toBe("148 MB");
+    expect(megabytes(1000)).toBe("1 GB");
+    expect(megabytes(1540)).toBe("1.5 GB");
   });
 });

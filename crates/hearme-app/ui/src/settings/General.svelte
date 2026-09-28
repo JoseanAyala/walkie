@@ -1,6 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { api, type LoginItem, type ModelChoice } from "../lib/api";
+import { megabytes } from "../lib/format";
 import Field from "./Field.svelte";
 import Shortcuts from "./Shortcuts.svelte";
 import { settings } from "./state.svelte";
@@ -44,8 +45,8 @@ async function loadMics() {
 }
 
 let models = $state<ModelChoice[]>([]);
-const modelText = (m: ModelChoice) =>
-  `${m.key} · ${m.size_mb} MB · ${m.note}${m.downloaded ? "" : " · downloads on restart"}`;
+const modelText = (m: ModelChoice) => `${m.key} · ${m.note}`;
+const chosen = $derived(models.find((m) => m.key === cfg?.model));
 
 onMount(() => {
   loadLogin();
@@ -103,6 +104,22 @@ onMount(() => {
         <option value={cfg.model}>{cfg.model}</option>
       {/if}
     </select>
+    {#if chosen}
+      <dl class="hint about">
+        <dt>disk</dt>
+        <dd>
+          {megabytes(chosen.size_mb)}
+          {chosen.downloaded ? "downloaded" : "to download on the next restart"}
+        </dd>
+        <dt>memory</dt>
+        <dd>about {megabytes(chosen.memory_mb)} of RAM, the whole time hearme is open</dd>
+        <dt>runs on</dt>
+        <dd>
+          your Mac's GPU. On Apple Silicon it shares the Mac's regular memory, so there's no
+          separate VRAM: that RAM figure is all it takes.
+        </dd>
+      </dl>
+    {/if}
     <div class="hint">model: {modelStatus}</div>
   </Field>
   <Field label="Injection" restart>
@@ -136,3 +153,14 @@ onMount(() => {
   </Field>
   <p class="hint">* applies after restarting hearme. Everything saves as you change it.</p>
 {/if}
+
+<style>
+.about {
+  display: grid;
+  grid-template-columns: 66px 1fr;
+  margin: 4px 0 0;
+}
+.about dd {
+  margin: 0;
+}
+</style>

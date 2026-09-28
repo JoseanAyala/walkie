@@ -117,6 +117,7 @@ pub struct ModelChoice {
     pub key: &'static str,
     pub note: &'static str,
     pub size_mb: u64,
+    pub memory_mb: u64,
     pub downloaded: bool,
 }
 
@@ -128,6 +129,7 @@ pub fn list_models() -> Vec<ModelChoice> {
             key: m.key,
             note: m.note,
             size_mb: m.approx_bytes / 1_000_000,
+            memory_mb: m.memory_bytes / 1_000_000,
             downloaded: models::is_downloaded(m.key),
         })
         .collect()
@@ -225,6 +227,7 @@ mod tests {
         assert_eq!(m.len(), models::REGISTRY.len());
         let turbo = m.iter().find(|m| m.key == "large-v3-turbo-q5_0").unwrap();
         assert_eq!(turbo.size_mb, 574);
+        assert_eq!(turbo.memory_mb, 1000);
         assert!(!turbo.note.is_empty());
     }
 }

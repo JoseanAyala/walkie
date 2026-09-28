@@ -9,6 +9,11 @@ pub struct ModelInfo {
     /// Approximate size — only a progress-display fallback when the server
     /// sends no Content-Length. Not used for verification.
     pub approx_bytes: u64,
+    /// Memory it takes while loaded (it stays loaded while hearme runs):
+    /// the weights plus whisper.cpp's KV cache and compute buffers, as
+    /// whisper.cpp logs them at load. It runs on the GPU (Metal), which on
+    /// Apple Silicon shares system RAM, so this is RAM, not separate VRAM.
+    pub memory_bytes: u64,
     /// One line for the Settings picker.
     pub note: &'static str,
 }
@@ -19,6 +24,7 @@ pub const REGISTRY: &[ModelInfo] = &[
         file: "ggml-base.bin",
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
         approx_bytes: 148_000_000,
+        memory_bytes: 390_000_000, // 147 weights + 28 KV + 213 compute
         note: "fast, less accurate",
     },
     ModelInfo {
@@ -27,6 +33,7 @@ pub const REGISTRY: &[ModelInfo] = &[
         url:
             "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         approx_bytes: 574_000_000,
+        memory_bytes: 1_000_000_000, // 573 weights + 50 KV + 378 compute
         note: "best accuracy",
     },
 ];
@@ -94,6 +101,13 @@ mod tests {
             find("large-v3-turbo-q5_0").unwrap().file,
             "ggml-large-v3-turbo-q5_0.bin"
         );
+    }
+
+    #[test]
+    fn memory_covers_the_weights() {
+        for m in REGISTRY {
+            assert!(m.memory_bytes > m.approx_bytes, "{}", m.key);
+        }
     }
 
     #[test]

@@ -40,6 +40,7 @@ export interface ModelChoice {
   key: string;
   note: string;
   size_mb: number;
+  memory_mb: number;
   downloaded: boolean;
 }
 

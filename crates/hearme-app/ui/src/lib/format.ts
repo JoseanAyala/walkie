@@ -44,3 +44,9 @@ export function when(s: string, now = new Date()): string {
 
 export const sameKeys = (a: string[], b: string[]) =>
   a.length === b.length && a.every((x) => b.includes(x));
+
+/** 148 → "148 MB", 1000 → "1 GB", 1500 → "1.5 GB" */
+export function megabytes(mb: number): string {
+  if (mb < 1000) return `${mb} MB`;
+  return `${Number((mb / 1000).toFixed(1))} GB`;
+}

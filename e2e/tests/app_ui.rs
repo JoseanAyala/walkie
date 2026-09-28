@@ -61,6 +61,17 @@ fn changing_a_setting_saves_it_without_a_save_button() {
 }
 
 #[test]
+fn model_picker_explains_disk_and_memory() {
+    let _t = begin("model_picker_explains_disk_and_memory");
+    let app = settings("General", None); // test config picks "base"
+    let text = wait_text(&app, "hearme", "about 390 MB of RAM", true);
+    assert!(
+        text.contains("about 390 MB of RAM") && text.contains("148 MB"),
+        "the model's disk and memory use should be spelled out:\n{text}"
+    );
+}
+
+#[test]
 fn history_delete_removes_the_row() {
     let _t = begin("history_delete_removes_the_row");
     let app = settings("History", Some("delete me from history"));
