@@ -1,11 +1,12 @@
 # hearme — every day-to-day command in one place. `make help` lists them.
 
 .DEFAULT_GOAL := help
-.PHONY: help dev debug install build package run \
+.PHONY: help dev debug install build package run ui ui-deps \
         fmt fmt-check lint test check test-stt test-e2e test-app test-all \
         model icons cert tauri-cli release clean
 
 APP_DIR := crates/hearme-app
+UI_DIR := $(APP_DIR)/ui
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -26,6 +27,14 @@ run: ## Run with hot reload (cargo tauri dev)
 
 # --- Build -------------------------------------------------------------------
 
+ui-deps:
+	cd $(UI_DIR) && bun install --frozen-lockfile
+
+# The Rust app embeds the built UI at compile time (tauri::generate_context!),
+# so anything that compiles hearme-app needs it built first.
+ui: ui-deps ## Build the Svelte UI into crates/hearme-app/dist
+	cd $(UI_DIR) && bun run build
+
 build: ## Bundle hearme.app, signed with the local identity
 	cd $(APP_DIR) && cargo tauri build
 
@@ -34,17 +43,22 @@ package: ## Ad-hoc-signed release zip (what CI ships)
 
 # --- Quality -----------------------------------------------------------------
 
-fmt: ## Format all code
+fmt: ui-deps ## Format all code (Rust + UI)
 	cargo fmt --all
+	cd $(UI_DIR) && bun run fmt
 
-fmt-check: ## Fail if code isn't formatted
+fmt-check: ui-deps ## Fail if code isn't formatted
 	cargo fmt --all --check
+	cd $(UI_DIR) && bun run biome format .
 
-lint: ## Clippy, warnings are errors
+lint: ui ## Clippy + oxlint + Biome + svelte-check, warnings are errors
 	cargo clippy --workspace --all-targets -- -D warnings
+	cd $(UI_DIR) && bun run lint
+	cd $(UI_DIR) && bun run check
 
-test: ## Fast unit tests
+test: ui ## Fast unit tests (Rust + UI)
 	cargo test
+	cd $(UI_DIR) && bun run test
 
 check: fmt-check lint test ## What CI runs: fmt-check + lint + test
 

@@ -18,6 +18,9 @@ if ! security find-certificate -c "hearme local signing" >/dev/null 2>&1; then
     "$root/scripts/create-signing-cert.sh"
 fi
 
+# The UI itself is built by tauri's beforeBuildCommand; it needs its packages.
+(cd "$root/crates/hearme-app/ui" && bun install --frozen-lockfile)
+
 # HEARME_FEATURES=test-hooks is set by e2e/run-app-tests.sh only.
 (cd "$root/crates/hearme-app" && cargo tauri build ${HEARME_FEATURES:+--features "$HEARME_FEATURES"})
 

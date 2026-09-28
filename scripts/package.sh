@@ -15,6 +15,8 @@ arch=$(uname -m)
 bundle="$root/target/release/bundle/macos"
 zip="$root/target/release/bundle/hearme-$version-macos-$arch.zip"
 
+# The UI itself is built by tauri's beforeBuildCommand; it needs its packages.
+(cd "$root/crates/hearme-app/ui" && bun install --frozen-lockfile)
 (cd "$root/crates/hearme-app" &&
     cargo tauri build --config '{"bundle":{"macOS":{"signingIdentity":"-"}}}')
 
