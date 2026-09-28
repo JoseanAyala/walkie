@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help dev debug install build package run ui ui-deps \
         fmt fmt-check lint test check test-stt test-e2e test-app test-all \
-        model icons cert tauri-cli release clean
+        model icons cert hooks tauri-cli release clean
 
 APP_DIR := crates/hearme-app
 UI_DIR := $(APP_DIR)/ui
@@ -86,6 +86,9 @@ icons: ## Regenerate app icons
 
 cert: ## Create the local signing identity (once per machine)
 	scripts/create-signing-cert.sh
+
+hooks: ## Enable the pre-commit hook (format + lint)
+	git config core.hooksPath .githooks
 
 tauri-cli: ## Install the Tauri CLI
 	cargo install tauri-cli --locked

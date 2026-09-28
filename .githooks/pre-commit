@@ -1,0 +1,30 @@
+#!/bin/sh
+# Formats the staged files, then lints (`make fmt lint`).
+# Enabled by `make hooks`; skip once with `git commit --no-verify`.
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -n "$staged" ] || exit 0
+
+# Staged files that also have unstaged edits. Re-adding them after formatting
+# would sweep those edits into the commit, so they're left for the user.
+partial=$(git diff --name-only -- $staged)
+before=$(for f in $partial; do git hash-object "$f"; done)
+
+make -s fmt
+
+for f in $staged; do
+	case " $(echo $partial) " in
+	*" $f "*) ;;
+	*) [ -f "$f" ] && git add -- "$f" ;;
+	esac
+done
+
+after=$(for f in $partial; do git hash-object "$f"; done)
+if [ "$before" != "$after" ]; then
+	echo "pre-commit: formatted partially staged files; review and stage them:" >&2
+	echo "$partial" | sed 's/^/  /' >&2
+	exit 1
+fi
+
+make -s lint

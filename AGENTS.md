@@ -16,6 +16,7 @@ make test-app     # OS-level e2e against installed /Applications/hearme.app (~30
 make run          # cargo tauri dev
 make dev          # build + install + relaunch + follow log (make debug adds key-event logging)
 make model        # download base Whisper model (needed by test-stt / test-e2e)
+make hooks        # enable the pre-commit hook (.githooks: make fmt, then make lint)
 ```
 
 Single tests:
