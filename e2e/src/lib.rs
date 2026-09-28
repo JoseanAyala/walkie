@@ -63,6 +63,9 @@ pub struct Setup {
     pub hotkeys: Hotkeys,
     pub audio: &'static str,
     pub polish_command: &'static str,
+    /// Polish with the Apple provider, through this stand-in walkie-ai
+    /// (a shell script: `respond <prompt>` with the text on stdin).
+    pub apple_helper: Option<&'static str>,
     /// Focus is somewhere nothing can be typed (the desktop, a Finder list).
     pub no_text_field: bool,
 }
@@ -73,9 +76,26 @@ impl Default for Setup {
             hotkeys: Hotkeys::default(),
             audio: "en.wav",
             polish_command: "",
+            apple_helper: None,
             no_text_field: false,
         }
     }
+}
+
+/// Writes `script` as an executable walkie-ai in a fresh temp folder.
+fn fake_helper(script: &str) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let dir = std::env::temp_dir().join(format!(
+        "walkie-e2e-ai-{}-{}",
+        std::process::id(),
+        N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("walkie-ai");
+    std::fs::write(&path, format!("#!/bin/sh\n{script}\n")).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    path
 }
 
 impl Rig {
@@ -91,7 +111,10 @@ impl Rig {
             language: "auto".into(),
             ..Default::default()
         };
-        cfg.polish.provider = PolishProvider::Command;
+        cfg.polish.provider = match setup.apple_helper {
+            Some(_) => PolishProvider::Apple,
+            None => PolishProvider::Command,
+        };
         cfg.polish.command = setup.polish_command.into();
         let typed = Rc::new(RefCell::new(Vec::new()));
         let copied = Rc::new(RefCell::new(Vec::new()));
@@ -111,7 +134,9 @@ impl Rig {
         let ducker = Arc::new(Ducker::new(Box::new(volume.clone()), 30));
         Rig {
             engine: Engine::new(bindings),
-            session: Session::new(deps, tx).with_ducker(ducker),
+            session: Session::new(deps, tx)
+                .with_ducker(ducker)
+                .with_ai_helper(setup.apple_helper.map(fake_helper).unwrap_or_default()),
             events,
             typed,
             copied,

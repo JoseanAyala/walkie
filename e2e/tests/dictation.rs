@@ -53,6 +53,25 @@ fn fn_shift_polishes() {
 }
 
 #[test]
+fn fn_shift_polishes_with_apples_model() {
+    let mut r = Rig::new(Setup {
+        // walkie-ai's contract: `respond <prompt>`, the transcript on stdin
+        apple_helper: Some(
+            r#"[ "$1" = respond ] && [ -n "$2" ] && { printf 'apple: '; tr a-z A-Z; }"#,
+        ),
+        ..Default::default()
+    });
+    r.press("Shift")
+        .press("Fn")
+        .wait(3000)
+        .release("Fn")
+        .release("Shift");
+    let t = r.typed();
+    assert_eq!(t.len(), 1, "{t:?} (errors: {:?})", r.errors());
+    assert!(t[0].starts_with("apple: HELLO"), "{t:?}");
+}
+
+#[test]
 fn adding_shift_mid_hold_polishes_the_same_recording() {
     let mut r = Rig::new(Setup {
         polish_command: "tr 'a-z' 'A-Z'",

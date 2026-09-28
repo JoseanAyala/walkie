@@ -5,11 +5,17 @@
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET).
 
-use walkie_e2e::os::{begin, sleep, step, App};
+use walkie_core::config::PolishProvider;
+use walkie_core::pipeline::polish::{apple_status, describe_apple_status};
+use walkie_e2e::os::{begin, sleep, step, App, APP};
 
 fn settings(tab: &str, seed: Option<&str>) -> App {
+    settings_with(tab, seed, App::test_config())
+}
+
+fn settings_with(tab: &str, seed: Option<&str>, cfg: walkie_core::config::Config) -> App {
     let app = App::new();
-    app.write_config(&App::test_config());
+    app.write_config(&cfg);
     if let Some(text) = seed {
         app.seed_history(text);
     }
@@ -105,6 +111,59 @@ fn polish_test_button_shows_the_commands_output() {
     let want = "QUICK TEST OF THE POLISH COMMAND";
     let text = wait_text(&app, "Walkie", want, true);
     assert!(text.contains(want), "no polish output:\n{text}");
+}
+
+/// What the installed walkie-ai says about this Mac: the tests below expect
+/// the app to agree, whether or not Apple Intelligence is on.
+fn installed_apple_status() -> String {
+    let s = apple_status(&std::path::Path::new(APP).join("Contents/MacOS/walkie-ai"));
+    assert_ne!(s, "missing", "Walkie.app has no working walkie-ai");
+    s
+}
+
+fn apple_config() -> walkie_core::config::Config {
+    let mut c = App::test_config();
+    c.polish.provider = PolishProvider::Apple;
+    c
+}
+
+#[test]
+fn polish_tab_says_whether_apples_model_is_ready_and_tests_it() {
+    let _t = begin("polish_tab_says_whether_apples_model_is_ready_and_tests_it");
+    let status = installed_apple_status();
+    let app = settings_with("Polish", None, apple_config());
+    let want = describe_apple_status(&status);
+    let text = wait_text(&app, "Walkie", want, true);
+    assert!(text.contains(want), "expected {want:?} ({status}):\n{text}");
+    assert!(text.contains("Prompt"), "Apple shows its prompt:\n{text}");
+    assert!(
+        !text.contains("Command"),
+        "the command field is hidden:\n{text}"
+    );
+
+    app.click("Walkie", "Test", 1);
+    let want = if status == "available" {
+        "→"
+    } else {
+        "apple model unavailable"
+    };
+    let text = wait_text(&app, "Walkie", want, true);
+    assert!(text.contains(want), "Test with {status}:\n{text}");
+}
+
+#[test]
+fn status_lists_apple_intelligence_when_polish_uses_it() {
+    let _t = begin("status_lists_apple_intelligence_when_polish_uses_it");
+    let status = installed_apple_status();
+    let app = App::new();
+    app.write_config(&apple_config());
+    app.launch();
+    assert_eq!(
+        app.status("Apple Intelligence"),
+        Some(status == "available"),
+        "{}",
+        app.log_text()
+    );
 }
 
 #[test]
