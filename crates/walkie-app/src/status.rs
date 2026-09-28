@@ -286,7 +286,9 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
 
     let cfg = Config::load().unwrap_or_default();
     if cfg.polish.provider == PolishProvider::Apple && !bindings.polish.is_empty() {
-        out.push(apple_check(&polish::apple_status(&polish::apple_helper())));
+        out.push(apple_check(
+            &polish::apple_status(&crate::glue::ai_helper()),
+        ));
     }
 
     out

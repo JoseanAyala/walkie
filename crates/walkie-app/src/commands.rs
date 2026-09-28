@@ -1,3 +1,4 @@
+use crate::glue;
 use crate::login_item::{self, LoginItem};
 use crate::status::{self, Check, HotkeyState, ModelStatus};
 use tauri::{Emitter, Manager, State};
@@ -121,7 +122,7 @@ pub const POLISH_SAMPLE: &str = "um so this is uh a quick test of the polish com
 pub async fn test_polish(mut polish: Polish) -> Result<String, String> {
     polish.timeout_secs = polish.timeout_secs.clamp(1, 300);
     tauri::async_runtime::spawn_blocking(move || {
-        polish::polish(&polish, &polish::apple_helper(), POLISH_SAMPLE)
+        polish::polish(&polish, &glue::ai_helper(), POLISH_SAMPLE)
     })
     .await
     .map_err(estr)?
@@ -135,13 +136,21 @@ pub struct AppleAi {
     pub detail: &'static str,
 }
 
-/// Whether Apple's on-device model can polish right now.
+/// Whether Apple's on-device model can polish right now. The Polish tab
+/// asks when it shows Apple, so a ready model also starts loading: Test is
+/// then quick.
 #[tauri::command]
 pub async fn apple_ai_status() -> AppleAi {
-    let status =
-        tauri::async_runtime::spawn_blocking(|| polish::apple_status(&polish::apple_helper()))
-            .await
-            .unwrap_or_else(|_| "missing".into());
+    let status = tauri::async_runtime::spawn_blocking(|| {
+        let helper = glue::ai_helper();
+        let status = polish::apple_status(&helper);
+        if status == "available" {
+            polish::prewarm_apple(&helper);
+        }
+        status
+    })
+    .await
+    .unwrap_or_else(|_| "missing".into());
     AppleAi {
         detail: polish::describe_apple_status(&status),
         status,
@@ -272,16 +281,19 @@ mod tests {
         assert!(err.contains("no polish command"), "{err}");
     }
 
-    /// Apple's real model, on a Mac that has it (skipped elsewhere, e.g. CI):
-    /// a dictated question comes back tidied, not answered.
+    /// Apple's real model (`make test-ai`), on a Mac that has it: a
+    /// dictated question comes back tidied, not answered.
+    #[cfg(feature = "ai-tests")]
     #[test]
     fn apple_polish_tidies_a_question_without_answering_it() {
-        let helper = polish::apple_helper();
+        let helper = glue::ai_helper();
         let status = polish::apple_status(&helper);
         if status != "available" {
             eprintln!("skipped: Apple's model is {status} here");
             return;
         }
+        // an idle model takes 4–8s to load; the check below is the warm path
+        let _ = std::process::Command::new(&helper).arg("prewarm").status();
         let cfg = Polish {
             provider: config::PolishProvider::Apple,
             timeout_secs: 9, // under the 10s test budget, with a clear error

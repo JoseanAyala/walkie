@@ -6,6 +6,8 @@
 //   walkie-ai status                  one word: available, off, not-ready,
 //                                     not-eligible, unavailable, unsupported
 //   walkie-ai respond <instructions>  the text on stdin → the reply on stdout
+//   walkie-ai prewarm                 loads the model, so the next respond
+//                                     is fast (~0.4s, not 4–8s after idle)
 //
 // Built by walkie-app's build.rs. Against an SDK older than macOS 26 it
 // compiles without the model and always reports "unsupported".
@@ -37,8 +39,17 @@ struct WalkieAI {
                     }
                 }
             #endif
+        case ("prewarm", 1):
+            #if canImport(FoundationModels)
+                if #available(macOS 26.0, *), status() == "available" {
+                    // A one-token reply: unlike prewarm(), it waits until
+                    // the model is actually loaded before this process exits.
+                    let options = GenerationOptions(maximumResponseTokens: 1)
+                    _ = try? await LanguageModelSession().respond(to: "hi", options: options)
+                }
+            #endif
         default:
-            fail("usage: walkie-ai status | walkie-ai respond <instructions>", code: 2)
+            fail("usage: walkie-ai status | respond <instructions> | prewarm", code: 2)
         }
     }
 

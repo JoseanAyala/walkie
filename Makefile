@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help dev debug install build package run ui ui-deps \
-        fmt fmt-check lint test check test-stt test-e2e test-app test-all \
+        fmt fmt-check lint test check test-stt test-ai test-e2e test-app test-all \
         model icons cert hooks tauri-cli release clean
 
 APP_DIR := crates/walkie-app
@@ -71,13 +71,16 @@ check: fmt-check lint test ## What CI runs: fmt-check + lint + test
 test-stt: model ## Real Whisper on the en/es fixtures
 	cargo test -p walkie-core --features stt-tests
 
+test-ai: ui ## Apple's real on-device model (skips without Apple Intelligence)
+	cargo test -p walkie-app --features ai-tests apple
+
 test-e2e: model ## Keystrokes → engine → session → Whisper, in-process
 	cargo test -p walkie-e2e
 
 test-app: ## Drive the installed app through macOS (~30s, don't type)
 	e2e/run-app-tests.sh
 
-test-all: check test-stt test-e2e test-app ## Everything
+test-all: check test-stt test-ai test-e2e test-app ## Everything
 
 # --- Setup -------------------------------------------------------------------
 

@@ -27,6 +27,16 @@ pub fn test_audio() -> Option<std::ffi::OsString> {
     }
 }
 
+/// walkie-ai, the bridge to Apple's model. The OS e2e suite can swap in a
+/// stand-in via WALKIE_AI_BIN; like WALKIE_TEST_AUDIO, only `test-hooks`
+/// builds honour it.
+pub fn ai_helper() -> std::path::PathBuf {
+    match std::env::var_os("WALKIE_AI_BIN") {
+        Some(p) if cfg!(feature = "test-hooks") => p.into(),
+        _ => walkie_core::pipeline::polish::apple_helper(),
+    }
+}
+
 fn model_status(app: &AppHandle, s: impl Into<String>) {
     let s = s.into();
     eprintln!("walkie: model {s}");
@@ -187,7 +197,7 @@ pub fn start(app: AppHandle) -> Result<()> {
                 history,
                 cfg,
             };
-            let mut session = Session::new(deps, evt_tx);
+            let mut session = Session::new(deps, evt_tx).with_ai_helper(ai_helper());
             if let Some(d) = ducker {
                 session = session.with_ducker(d);
             }

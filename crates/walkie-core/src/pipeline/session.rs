@@ -1,6 +1,6 @@
 use crate::audio::duck::Ducker;
 use crate::audio::Capture;
-use crate::config::{self, Config};
+use crate::config::{self, Config, PolishProvider};
 use crate::history::History;
 use crate::hotkey::engine::Signal;
 use crate::hotkey::Mode;
@@ -144,6 +144,7 @@ impl Session {
         })) {
             Ok(()) => {
                 self.mode = Some(mode);
+                self.prewarm_polish(mode);
                 if let Some(d) = &self.ducker {
                     d.duck();
                 }
@@ -157,8 +158,16 @@ impl Session {
     }
 
     pub fn set_mode(&mut self, mode: Mode) {
-        if self.mode.is_some() {
+        if self.mode.is_some() && self.mode != Some(mode) {
             self.mode = Some(mode);
+            self.prewarm_polish(mode);
+        }
+    }
+
+    /// Apple's model loads while the user is still speaking.
+    fn prewarm_polish(&self, mode: Mode) {
+        if mode == Mode::Polish && self.deps.cfg.polish.provider == PolishProvider::Apple {
+            polish::prewarm_apple(&self.ai_helper);
         }
     }
 
@@ -470,6 +479,64 @@ mod tests {
         r.session.start(Mode::Polish);
         r.session.finish();
         assert_eq!(r.injected.borrow().as_slice(), ["apple: Hello"]);
+    }
+
+    /// A walkie-ai that notes each `prewarm` in `log`.
+    fn prewarm_logger(dir: &std::path::Path) -> (PathBuf, PathBuf) {
+        let log = dir.join("prewarms");
+        let helper = dir.join("walkie-ai");
+        let script = format!(
+            "#!/bin/sh\n[ \"$1\" = prewarm ] && echo x >> {}\n",
+            log.display()
+        );
+        std::fs::write(&helper, script).unwrap();
+        std::fs::set_permissions(&helper, std::os::unix::fs::PermissionsExt::from_mode(0o755))
+            .unwrap();
+        (helper, log)
+    }
+
+    /// The prewarms logged once `want` arrive (they run in the background),
+    /// or whatever is there after 3s.
+    fn prewarms(log: &std::path::Path, want: usize) -> usize {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        loop {
+            let n = std::fs::read_to_string(log)
+                .map(|s| s.lines().count())
+                .unwrap_or(0);
+            if n >= want || std::time::Instant::now() > deadline {
+                return n;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    fn apple_polish_prewarms_the_model_when_recording_starts() {
+        let dir = tempfile::tempdir().unwrap();
+        let (helper, log) = prewarm_logger(dir.path());
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.deps.cfg.polish.provider = PolishProvider::Apple;
+        r.session.ai_helper = helper;
+        r.session.start(Mode::Polish);
+        assert_eq!(prewarms(&log, 1), 1);
+        r.session.cancel();
+        r.session.start(Mode::Dictate);
+        r.session.set_mode(Mode::Polish); // shift added mid-hold
+        assert_eq!(prewarms(&log, 2), 2);
+    }
+
+    #[test]
+    fn no_prewarm_for_dictation_or_the_command_provider() {
+        let dir = tempfile::tempdir().unwrap();
+        let (helper, log) = prewarm_logger(dir.path());
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.ai_helper = helper; // provider: command
+        r.session.start(Mode::Polish);
+        r.session.cancel();
+        r.session.deps.cfg.polish.provider = PolishProvider::Apple;
+        r.session.start(Mode::Dictate);
+        std::thread::sleep(std::time::Duration::from_millis(300)); // time to (wrongly) run
+        assert_eq!(prewarms(&log, 0), 0);
     }
 
     #[test]

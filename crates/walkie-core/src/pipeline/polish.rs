@@ -55,6 +55,21 @@ pub fn apple_helper() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("walkie-ai"))
 }
 
+/// Starts loading Apple's model in the background and returns at once.
+/// After a few idle minutes macOS unloads it, and the first call then takes
+/// 4–8s; started when a polish recording begins, loading overlaps speaking.
+pub fn prewarm_apple(helper: &Path) {
+    if let Ok(mut child) = Command::new(helper)
+        .arg("prewarm")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        thread::spawn(move || child.wait());
+    }
+}
+
 /// Whether Apple's model can polish right now, as walkie-ai reports it:
 /// "available", "off", "not-ready", "not-eligible", "unavailable" or
 /// "unsupported"; "missing" when the helper itself can't run.
@@ -251,6 +266,28 @@ mod tests {
             ..Polish::default()
         };
         assert_eq!(polish(&cfg, Path::new("/nope"), "hola").unwrap(), "HOLA");
+    }
+
+    #[test]
+    fn prewarm_runs_the_helper_in_the_background() {
+        let dir = tempfile::tempdir().unwrap();
+        let marker = dir.path().join("warmed");
+        let p = dir.path().join("walkie-ai");
+        let script = format!(
+            "#!/bin/sh\nsleep 1\n[ \"$1\" = prewarm ] && touch {}\n",
+            marker.display()
+        );
+        std::fs::write(&p, script).unwrap();
+        std::fs::set_permissions(&p, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        let t0 = Instant::now();
+        prewarm_apple(&p);
+        assert!(t0.elapsed() < Duration::from_millis(500), "prewarm blocked");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !marker.exists() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(50));
+        }
+        assert!(marker.exists(), "walkie-ai prewarm never ran");
+        prewarm_apple(Path::new("/nope/walkie-ai")); // a missing helper is fine
     }
 
     #[test]
