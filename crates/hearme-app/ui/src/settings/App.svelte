@@ -101,7 +101,6 @@ onMount(() => {
         {/each}
       </div>
     {/if}
-    <span class="chip ghost">model: {modelStatus}</span>
   </div>
 
   <div class="side">
