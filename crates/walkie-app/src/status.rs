@@ -206,10 +206,9 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
         ok: errors.is_empty() && !bindings.dictate.is_empty(),
         detail: if errors.is_empty() {
             format!(
-                "Dictate: {} · Polish: {} · Hands-free: {} · Paste last: {}",
+                "Dictate: {} · Polish: {} · Paste last: {}",
                 pretty(&bindings.dictate),
                 pretty(&bindings.polish),
-                pretty(&bindings.hands_free),
                 pretty(&bindings.paste_last)
             )
         } else {
@@ -220,14 +219,9 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
 
     #[cfg(target_os = "macos")]
     {
-        let uses_fn = [
-            &bindings.dictate,
-            &bindings.polish,
-            &bindings.hands_free,
-            &bindings.paste_last,
-        ]
-        .iter()
-        .any(|b| b.contains(&Key::Fn));
+        let uses_fn = [&bindings.dictate, &bindings.polish, &bindings.paste_last]
+            .iter()
+            .any(|b| b.contains(&Key::Fn));
         if uses_fn {
             let ok = mac::globe_does_nothing();
             out.push(Check {

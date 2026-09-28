@@ -29,18 +29,19 @@ fn hold_fn_lowers_the_volume_and_release_restores_it() {
 }
 
 #[test]
-fn hands_free_stays_lowered_until_stopped() {
+fn locked_stays_lowered_until_stopped() {
     let mut r = Rig::new(Setup::default());
     r.press("Fn")
         .wait(40)
-        .press("Space")
-        .wait(60)
-        .release("Space")
+        .release("Fn")
+        .wait(100)
+        .press("Fn")
+        .wait(40)
         .release("Fn");
     r.wait(3000);
     assert!(
         near(r.volume.volume(), DUCKED),
-        "hands-free: {}",
+        "locked: {}",
         r.volume.volume()
     );
     r.press("Fn");

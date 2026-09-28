@@ -9,7 +9,6 @@ const cfg = (): Config => ({
   hotkeys: {
     dictate: ["Fn"],
     polish: ["Fn", "Shift"],
-    hands_free: ["Fn", "Space"],
     paste_last: [],
   },
   polish: {

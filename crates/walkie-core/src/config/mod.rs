@@ -23,7 +23,6 @@ pub struct Config {
 pub struct Hotkeys {
     pub dictate: Vec<String>,
     pub polish: Vec<String>,
-    pub hands_free: Vec<String>,
     /// A one-shot tap, not a hold: re-inserts the most recent transcript.
     pub paste_last: Vec<String>,
 }
@@ -35,7 +34,6 @@ pub struct Hotkeys {
 struct RawHotkeys {
     dictate: Option<OneOrMany>,
     polish: Option<Vec<String>>,
-    hands_free: Option<Vec<String>>,
     paste_last: Option<Vec<String>>,
     polish_modifier: Option<String>,
 }
@@ -69,18 +67,10 @@ impl From<RawHotkeys> for Hotkeys {
                 None if legacy => with("Shift"),
                 None => d.polish.clone(),
             });
-        let hands_free = r.hands_free.unwrap_or_else(|| {
-            if legacy {
-                with("Space")
-            } else {
-                d.hands_free.clone()
-            }
-        });
         let paste_last = r.paste_last.unwrap_or(d.paste_last);
         Hotkeys {
             dictate,
             polish,
-            hands_free,
             paste_last,
         }
     }
@@ -235,7 +225,6 @@ impl Default for Hotkeys {
         Self {
             dictate: v(&["Fn"]),
             polish: v(&["Fn", "Shift"]),
-            hands_free: v(&["Fn", "Space"]),
             paste_last: v(&["Ctrl", "Cmd", "V"]),
         }
     }
@@ -358,7 +347,6 @@ mod tests {
         assert_eq!(c.model, "large-v3-turbo-q5_0");
         assert_eq!(c.hotkeys.dictate, ["Fn"]);
         assert_eq!(c.hotkeys.polish, ["Fn", "Shift"]);
-        assert_eq!(c.hotkeys.hands_free, ["Fn", "Space"]);
         assert_eq!(c.hotkeys.paste_last, ["Ctrl", "Cmd", "V"]);
         assert_eq!(c.polish.provider, PolishProvider::Command);
         assert_eq!(c.polish.tone, Tone::Formal);
@@ -417,7 +405,6 @@ mod tests {
                 .unwrap();
         assert_eq!(c.hotkeys.dictate, ["RightCmd"]);
         assert_eq!(c.hotkeys.polish, ["RightCmd", "Shift"]);
-        assert_eq!(c.hotkeys.hands_free, ["RightCmd", "Space"]);
         assert_eq!(c.hotkeys.paste_last, Hotkeys::default().paste_last);
         let s = toml::to_string_pretty(&c).unwrap();
         assert!(

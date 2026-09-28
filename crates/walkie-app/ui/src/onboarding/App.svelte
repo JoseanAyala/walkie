@@ -111,12 +111,6 @@ onMount(() => {
       {#if h.dictate.length}
         <p>Click into any text field, hold {@render keys(h.dictate)}, speak, release.</p>
       {/if}
-      {#if h.hands_free.length}
-        <p>
-          {@render keys(h.hands_free)}
-          goes hands-free (press {@render keys(h.dictate)} to stop).
-        </p>
-      {/if}
       {#if h.polish.length}
         <p>{@render keys(h.polish)} dictates and polishes.</p>
       {/if}

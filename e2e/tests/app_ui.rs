@@ -212,7 +212,7 @@ fn onboarding_shows_live_checks_and_the_configured_shortcuts() {
     let app = App::new();
     let mut c = App::test_config();
     c.first_run = true;
-    c.hotkeys.hands_free = vec!["RightOpt".into()];
+    c.hotkeys.polish = vec!["RightOpt".into()];
     app.write_config(&c);
     app.launch();
     assert!(
@@ -226,7 +226,7 @@ fn onboarding_shows_live_checks_and_the_configured_shortcuts() {
     assert!(text.contains("OK"), "no live check result:\n{text}");
     assert!(
         text.contains("right ⌥"),
-        "Try it should show the configured hands-free key:\n{text}"
+        "Try it should show the configured polish key:\n{text}"
     );
 }
 

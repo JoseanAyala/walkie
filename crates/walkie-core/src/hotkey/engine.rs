@@ -5,9 +5,8 @@
 //! A binding is *satisfied* when the held keys are exactly its keys — so
 //! `Fn+A` never triggers an `Fn` binding. Gestures:
 //! - dictate / polish: hold to talk, double-tap to lock (see `machine.rs`)
-//! - hands-free: press to start, press it (or dictate) again to stop
-//! - while holding dictate, adding keys that satisfy polish or hands-free
-//!   upgrades the running recording instead of starting a new one
+//! - while holding dictate, adding keys that satisfy polish upgrades the
+//!   running recording instead of starting a new one
 //! - any other key within STRAY_CANCEL_MS of starting cancels (you were
 //!   typing a shortcut, not dictating)
 //! - paste-last: a one-shot tap that never records; it fires once every key
@@ -31,7 +30,6 @@ pub const STRAY_CANCEL_MS: u128 = 500;
 pub enum Action {
     Dictate,
     Polish,
-    HandsFree,
     PasteLast,
 }
 
@@ -39,7 +37,6 @@ pub enum Action {
 pub struct Bindings {
     pub dictate: Vec<Key>,
     pub polish: Vec<Key>,
-    pub hands_free: Vec<Key>,
     pub paste_last: Vec<Key>,
 }
 
@@ -57,7 +54,6 @@ impl Bindings {
         let mut b = Bindings {
             dictate: parse("Dictate", &h.dictate),
             polish: parse("Polish", &h.polish),
-            hands_free: parse("Hands-free", &h.hands_free),
             paste_last: parse("Paste last", &h.paste_last),
         };
         let same = |x: &[Key], y: &[Key]| {
@@ -67,14 +63,7 @@ impl Bindings {
             errors.push("Polish shortcut is the same as Dictate — Polish disabled".into());
             b.polish.clear();
         }
-        if same(&b.hands_free, &b.dictate) || same(&b.hands_free, &b.polish) {
-            errors.push("Hands-free shortcut duplicates another one — Hands-free disabled".into());
-            b.hands_free.clear();
-        }
-        if [&b.dictate, &b.polish, &b.hands_free]
-            .iter()
-            .any(|o| same(&b.paste_last, o))
-        {
+        if same(&b.paste_last, &b.dictate) || same(&b.paste_last, &b.polish) {
             errors.push("Paste-last shortcut duplicates another one — Paste last disabled".into());
             b.paste_last.clear();
         }
@@ -92,7 +81,6 @@ impl Bindings {
         match a {
             Action::Dictate => &self.dictate,
             Action::Polish => &self.polish,
-            Action::HandsFree => &self.hands_free,
             Action::PasteLast => &self.paste_last,
         }
     }
@@ -128,7 +116,6 @@ pub struct Engine {
     /// The key whose press started the current hold; releasing it ends it.
     anchor: Option<Key>,
     pressed_at: u128,
-    hands_free: bool,
     /// Set after a stray-key cancel: ignore everything until all keys are up.
     inhibit: bool,
     swallowed: HashSet<Key>,
@@ -153,7 +140,6 @@ impl Engine {
             mode: None,
             anchor: None,
             pressed_at: 0,
-            hands_free: false,
             inhibit: false,
             swallowed: HashSet::new(),
             recording: None,
@@ -238,54 +224,31 @@ impl Engine {
     /// Call every ~50ms so an unanswered first tap expires.
     pub fn poll(&mut self, now: u128) {
         self.machine.poll(now);
-        if !self.machine.is_engaged() && !self.hands_free && self.anchor.is_none() {
+        if !self.machine.is_engaged() && self.anchor.is_none() {
             self.mode = None;
         }
     }
 
     fn satisfied(&self) -> Option<Action> {
-        [
-            Action::HandsFree,
-            Action::Polish,
-            Action::Dictate,
-            Action::PasteLast,
-        ]
-        .into_iter()
-        .find(|&a| {
-            let b = self.bindings.get(a);
-            !b.is_empty()
-                && b.len() == self.held.len()
-                && b.iter().all(|bk| self.held.iter().any(|h| bk.matches(*h)))
-                && self.held.iter().all(|h| b.iter().any(|bk| bk.matches(*h)))
-        })
+        [Action::Polish, Action::Dictate, Action::PasteLast]
+            .into_iter()
+            .find(|&a| {
+                let b = self.bindings.get(a);
+                !b.is_empty()
+                    && b.len() == self.held.len()
+                    && b.iter().all(|bk| self.held.iter().any(|h| bk.matches(*h)))
+                    && self.held.iter().all(|h| b.iter().any(|bk| bk.matches(*h)))
+            })
     }
 
     fn down(&mut self, k: Key, t: u128) -> Down {
         let sat = self.satisfied();
-
-        if self.hands_free {
-            return match sat {
-                Some(Action::Dictate | Action::HandsFree) => {
-                    self.hands_free = false;
-                    self.mode = None;
-                    Down::Consumed(Some(Signal::Finish))
-                }
-                _ => Down::Ignored,
-            };
-        }
 
         if self.anchor.is_some() && self.machine.is_holding() {
             return match sat {
                 Some(Action::Polish) if self.mode == Some(Mode::Dictate) => {
                     self.mode = Some(Mode::Polish);
                     Down::Consumed(Some(Signal::SetMode(Mode::Polish)))
-                }
-                Some(Action::HandsFree) => {
-                    // The recording keeps running; it just no longer needs holding.
-                    self.machine.reset();
-                    self.anchor = None;
-                    self.hands_free = true;
-                    Down::Consumed(None)
                 }
                 _ if !k.is_modifier() && t.saturating_sub(self.pressed_at) < STRAY_CANCEL_MS => {
                     self.machine.reset();
@@ -299,12 +262,6 @@ impl Engine {
         }
 
         match sat {
-            Some(Action::HandsFree) if !self.machine.is_locked() => {
-                self.machine.reset();
-                self.mode = Some(Mode::Dictate);
-                self.hands_free = true;
-                Down::Consumed(Some(Signal::Start(Mode::Dictate)))
-            }
             Some(a @ (Action::Dictate | Action::Polish)) => {
                 let m = mode_of(a);
                 if self.machine.is_engaged() && self.mode != Some(m) {
@@ -417,7 +374,6 @@ mod tests {
     use crate::hotkey::keys::Side::*;
     use Signal::*;
 
-    const SPACE: Key = Key::Code(49);
     const A: Key = Key::Code(0);
     const D: Key = Key::Code(2);
     const V: Key = Key::Code(9);
@@ -429,7 +385,6 @@ mod tests {
         Engine::new(Bindings {
             dictate: vec![Key::Fn],
             polish: vec![Key::Fn, Key::Shift(Any)],
-            hands_free: vec![Key::Fn, SPACE],
             paste_last: vec![Key::Ctrl(Any), Key::Cmd(Any), V],
         })
     }
@@ -454,11 +409,10 @@ mod tests {
         let (b, errs) = Bindings::from_config(&Hotkeys {
             dictate: v(&["RightCmd"]),
             polish: v(&["RightCmd"]),
-            hands_free: v(&["A"]),
-            paste_last: vec![],
+            paste_last: v(&["A"]),
         });
         assert_eq!(b.dictate, vec![Key::Cmd(Right)]);
-        assert!(b.polish.is_empty() && b.hands_free.is_empty());
+        assert!(b.polish.is_empty() && b.paste_last.is_empty());
         assert_eq!(errs.len(), 2, "{errs:?}");
     }
 
@@ -519,44 +473,6 @@ mod tests {
             ],
         );
         assert_eq!(s, vec![Start(Mode::Dictate), SetMode(Mode::Polish), Finish]);
-    }
-
-    #[test]
-    fn fn_space_goes_hands_free_and_fn_stops_it() {
-        let mut e = wispr();
-        let start = e.on_key(Key::Fn, true, 0);
-        assert_eq!(start.signal, Some(Start(Mode::Dictate)));
-        let space = e.on_key(SPACE, true, 50);
-        assert!(space.swallow, "Space must not reach the focused app");
-        assert_eq!(space.signal, None, "same recording continues");
-        assert!(
-            e.on_key(SPACE, false, 120).swallow,
-            "its key-up is swallowed too"
-        );
-        assert_eq!(
-            e.on_key(Key::Fn, false, 150).signal,
-            None,
-            "releasing no longer ends it"
-        );
-        assert_eq!(e.on_key(Key::Fn, true, 9000).signal, Some(Finish));
-        assert_eq!(e.on_key(Key::Fn, false, 9050).signal, None);
-        assert_eq!(
-            e.on_key(Key::Fn, true, 12000).signal,
-            Some(Start(Mode::Dictate))
-        );
-    }
-
-    #[test]
-    fn space_then_fn_starts_hands_free_directly() {
-        let mut e = wispr();
-        assert!(!e.on_key(SPACE, true, 0).swallow); // Space alone is just typing
-        assert_eq!(
-            e.on_key(Key::Fn, true, 20).signal,
-            Some(Start(Mode::Dictate))
-        );
-        e.on_key(Key::Fn, false, 100);
-        e.on_key(SPACE, false, 120);
-        assert_eq!(e.on_key(Key::Fn, true, 3000).signal, Some(Finish));
     }
 
     #[test]
@@ -824,31 +740,6 @@ mod tests {
 
     #[test]
     fn paste_last_is_ignored_while_recording() {
-        let mut e = wispr();
-        // hands-free
-        e.on_key(Key::Fn, true, 0);
-        run(
-            &mut e,
-            &[
-                (SPACE, true, 50),
-                (SPACE, false, 100),
-                (Key::Fn, false, 150),
-            ],
-        );
-        e.on_key(LCTRL, true, 1000);
-        e.on_key(LCMD, true, 1010);
-        assert_eq!(e.on_key(V, true, 1020), Verdict::default());
-        assert_eq!(
-            run(
-                &mut e,
-                &[(V, false, 1030), (LCMD, false, 1040), (LCTRL, false, 1050)]
-            ),
-            vec![]
-        );
-        assert_eq!(e.on_key(Key::Fn, true, 2000).signal, Some(Finish));
-        e.on_key(Key::Fn, false, 2050);
-
-        // double-tap locked
         let mut e = wispr();
         run(
             &mut e,

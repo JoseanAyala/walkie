@@ -295,30 +295,6 @@ fn fn_shift_runs_the_polish_command() {
     );
 }
 
-#[test]
-fn fn_space_is_hands_free_and_the_space_never_types() {
-    let _t = begin("fn_space_is_hands_free_and_the_space_never_types");
-    let app = ready_app();
-    app.require_keyboard();
-    let doc = Target::open();
-    let mut kb = Keyboard::new();
-    kb.down("Fn").wait(60).tap("Space").wait(60).up("Fn");
-    sleep(1000);
-    assert_eq!(
-        doc.text(),
-        "",
-        "still recording: nothing typed yet (and no space)"
-    );
-    kb.down("Fn").wait(60).up("Fn");
-    let t = doc.wait_for(5, |t| t.to_lowercase().contains("hello"));
-    assert!(
-        t.to_lowercase().contains("hello"),
-        "{t:?}\n{}",
-        app.log_text()
-    );
-    assert!(!t.starts_with(' '), "the Space leaked into the app: {t:?}");
-}
-
 /// Regression: a 🌐 tap switches the input source, after which enigo's
 /// layout lookup off the main thread was a SIGTRAP mid-paste.
 #[test]

@@ -28,7 +28,6 @@ Default shortcuts; rebind any of them in Settings → General:
 | | |
 |---|---|
 | **hold fn** | speak, release → the text appears (< 1s). Double-tap fn to lock it on. |
-| **fn + space** | hands-free: keeps recording after you let go; fn stops it. Tapping space while holding fn switches a running recording to hands-free. |
 | **hold fn + shift** | dictate + polish: the transcript goes through a command of yours (`claude -p`, `codex exec`, ollama, …) before it's typed. Or, optionally, Apple's on-device model (macOS 26 with Apple Intelligence on). |
 | **ctrl + cmd + V** | paste the last transcript again, for when it landed in the wrong window (also in the tray menu). |
 

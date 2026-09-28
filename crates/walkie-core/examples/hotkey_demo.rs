@@ -4,7 +4,6 @@
 //!   quick-tap Fn                       → Start, Cancel
 //!   double-tap Fn, wait, tap           → Start (locked) … Finish
 //!   hold Fn, add Shift                 → Start(Dictate), SetMode(Polish)
-//!   hold Fn, tap Space, release, Fn    → hands-free: Start … Finish
 //! Needs Accessibility for the process running it (your terminal).
 //! cargo run -p walkie-core --example hotkey_demo
 
@@ -20,7 +19,6 @@ fn main() -> anyhow::Result<()> {
     let bindings = Bindings {
         dictate: parse(&h.dictate)?,
         polish: parse(&h.polish)?,
-        hands_free: parse(&h.hands_free)?,
         paste_last: parse(&h.paste_last)?,
     };
     let status = Arc::new(TapStatus::default());

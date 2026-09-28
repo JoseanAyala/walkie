@@ -3,7 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { type EventCallback, listen } from "@tauri-apps/api/event";
 
-export type HotkeyName = "dictate" | "polish" | "hands_free" | "paste_last";
+export type HotkeyName = "dictate" | "polish" | "paste_last";
 
 export interface Config {
   first_run: boolean;

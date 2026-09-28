@@ -38,7 +38,7 @@ Workspace crates:
 Data flow: macOS event tap (`hotkey/tap.rs`) → `hotkey::engine::Engine` (pure, no OS calls; turns key events into `Signal`s, decides what to swallow) → `Command::from_signal` → `pipeline::session::Session` worker thread (Idle → Recording → Transcribing → [Polishing] → Injecting) → emits `Event`s (state, level, done, error, notice) back to the app.
 
 Key design points:
-- The hotkey `Engine`/`HotkeyMachine` are deliberately pure so gestures (hold, double-tap lock, hands-free, stray-key cancel, paste-last) are unit-testable. Timing constants (`HOLD_MIN_MS`, `TAP_WINDOW_MS`, `STRAY_CANCEL_MS`) carry comments explaining measured macOS behavior — keep them in sync.
+- The hotkey `Engine`/`HotkeyMachine` are deliberately pure so gestures (hold, double-tap lock, stray-key cancel, paste-last) are unit-testable. Timing constants (`HOLD_MIN_MS`, `TAP_WINDOW_MS`, `STRAY_CANCEL_MS`) carry comments explaining measured macOS behavior — keep them in sync.
 - The session takes its OS edges as trait objects via `Deps` (`Capture`, `Injector`, `SttEngine`, `Ducker`/volume). Tests substitute `FileCapture` (WAV), a fake `Injector`, `MemVolume`.
 - Keystroke synthesis must run on the main thread (`inject::MainThread`); off-main enigo calls crash after an input-source change.
 - Tauri windows are declared once in `tauri.conf.json`; close requests hide instead of destroy.

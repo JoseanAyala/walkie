@@ -105,26 +105,6 @@ fn adding_shift_mid_hold_polishes_the_same_recording() {
 }
 
 #[test]
-fn fn_space_hands_free_until_fn() {
-    let mut r = Rig::new(Setup::default());
-    r.press("Fn")
-        .wait(40)
-        .press("Space")
-        .wait(60)
-        .release("Space")
-        .release("Fn");
-    assert!(r.typed().is_empty(), "still recording after release");
-    r.wait(5000).press("Fn");
-    assert!(one(&r).contains("hello"));
-    r.release("Fn");
-    assert_eq!(
-        r.swallowed,
-        vec![("Space".to_string(), true), ("Space".to_string(), false)],
-        "the Space must never reach the focused app"
-    );
-}
-
-#[test]
 fn quick_tap_types_nothing() {
     let mut r = Rig::new(Setup::default());
     r.press("Fn").wait(60).release("Fn").wait(1000);
@@ -170,7 +150,6 @@ fn custom_combo_binding_works_and_swallows_its_key() {
         hotkeys: Hotkeys {
             dictate: v(&["Ctrl", "Opt", "D"]),
             polish: vec![],
-            hands_free: vec![],
             paste_last: vec![],
         },
         ..Default::default()
