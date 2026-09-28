@@ -89,6 +89,19 @@ impl History {
         )
     }
 
+    /// Removes one transcript; false if there was no such row.
+    pub fn delete(&self, id: i64) -> Result<bool> {
+        Ok(self
+            .conn
+            .execute("DELETE FROM transcripts WHERE id = ?1", [id])?
+            > 0)
+    }
+
+    /// Removes every transcript; returns how many there were.
+    pub fn clear(&self) -> Result<usize> {
+        Ok(self.conn.execute("DELETE FROM transcripts", [])?)
+    }
+
     fn query(&self, sql: &str, params: impl rusqlite::Params) -> Result<Vec<Record>> {
         let mut stmt = self.conn.prepare(sql)?;
         let rows = stmt.query_map(params, |r| {
@@ -158,6 +171,28 @@ mod tests {
         assert_eq!(h.search("quick", 10).unwrap().len(), 1);
         assert_eq!(h.search("cordiales", 10).unwrap().len(), 1);
         assert_eq!(h.search("zzz", 10).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn delete_removes_only_that_row() {
+        let h = History::open_in_memory().unwrap();
+        let a = h.insert("a", "a", None, None, 1).unwrap();
+        h.insert("b", "b", None, None, 1).unwrap();
+        assert!(h.delete(a).unwrap());
+        assert!(!h.delete(a).unwrap());
+        let rows = h.recent(10).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].cleaned, "b");
+    }
+
+    #[test]
+    fn clear_empties_history_and_last_text() {
+        let h = History::open_in_memory().unwrap();
+        h.insert("a", "a", None, None, 1).unwrap();
+        h.insert("b", "b", None, None, 1).unwrap();
+        assert_eq!(h.clear().unwrap(), 2);
+        assert!(h.recent(10).unwrap().is_empty());
+        assert_eq!(h.last_text().unwrap(), None);
     }
 
     #[test]

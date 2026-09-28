@@ -9,6 +9,8 @@ pub struct ModelInfo {
     /// Approximate size — only a progress-display fallback when the server
     /// sends no Content-Length. Not used for verification.
     pub approx_bytes: u64,
+    /// One line for the Settings picker.
+    pub note: &'static str,
 }
 
 pub const REGISTRY: &[ModelInfo] = &[
@@ -17,6 +19,7 @@ pub const REGISTRY: &[ModelInfo] = &[
         file: "ggml-base.bin",
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
         approx_bytes: 148_000_000,
+        note: "fast, less accurate",
     },
     ModelInfo {
         key: "large-v3-turbo-q5_0",
@@ -24,6 +27,7 @@ pub const REGISTRY: &[ModelInfo] = &[
         url:
             "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         approx_bytes: 574_000_000,
+        note: "best accuracy",
     },
 ];
 

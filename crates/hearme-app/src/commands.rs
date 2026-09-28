@@ -1,9 +1,11 @@
 use crate::login_item::{self, LoginItem};
 use crate::status::{self, Check, HotkeyState, ModelStatus};
 use hearme_core::audio;
-use hearme_core::config::{self, Config};
+use hearme_core::config::{self, models, Config};
 use hearme_core::history::{History, Record};
 use hearme_core::hotkey::engine::Bindings;
+use hearme_core::pipeline::polish::run_polish;
+use std::time::Duration;
 use tauri::{Emitter, Manager, State};
 
 fn estr(e: impl std::fmt::Display) -> String {
@@ -83,6 +85,55 @@ pub fn history_search(q: String, limit: u32) -> Result<Vec<Record>, String> {
 }
 
 #[tauri::command]
+pub fn history_delete(id: i64) -> Result<bool, String> {
+    History::open(&config::db_path())
+        .and_then(|h| h.delete(id))
+        .map_err(estr)
+}
+
+#[tauri::command]
+pub fn history_clear() -> Result<usize, String> {
+    History::open(&config::db_path())
+        .and_then(|h| h.clear())
+        .map_err(estr)
+}
+
+/// What the Polish tab's Test button sends through the command.
+pub const POLISH_SAMPLE: &str = "um so this is uh a quick test of the polish command";
+
+/// Runs `command` on [`POLISH_SAMPLE`] off the main thread, so a slow CLI
+/// doesn't freeze the window while it thinks.
+#[tauri::command]
+pub async fn test_polish(command: String, timeout_secs: u64) -> Result<String, String> {
+    let timeout = Duration::from_secs(timeout_secs.clamp(1, 300));
+    tauri::async_runtime::spawn_blocking(move || run_polish(&command, POLISH_SAMPLE, timeout))
+        .await
+        .map_err(estr)?
+        .map_err(estr)
+}
+
+#[derive(serde::Serialize, Debug)]
+pub struct ModelChoice {
+    pub key: &'static str,
+    pub note: &'static str,
+    pub size_mb: u64,
+    pub downloaded: bool,
+}
+
+#[tauri::command]
+pub fn list_models() -> Vec<ModelChoice> {
+    models::REGISTRY
+        .iter()
+        .map(|m| ModelChoice {
+            key: m.key,
+            note: m.note,
+            size_mb: m.approx_bytes / 1_000_000,
+            downloaded: models::is_downloaded(m.key),
+        })
+        .collect()
+}
+
+#[tauri::command]
 pub fn copy_text(text: String) -> Result<(), String> {
     arboard::Clipboard::new()
         .and_then(|mut cb| cb.set_text(text))
@@ -150,4 +201,30 @@ pub fn finish_onboarding(app: tauri::AppHandle, launch_at_login: bool) -> Result
         let _ = app.emit("app-error", e);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_polish_runs_the_command_on_the_sample() {
+        let out = tauri::async_runtime::block_on(test_polish("tr 'a-z' 'A-Z'".into(), 5)).unwrap();
+        assert_eq!(out.trim(), POLISH_SAMPLE.to_uppercase());
+    }
+
+    #[test]
+    fn test_polish_reports_a_missing_command() {
+        let err = tauri::async_runtime::block_on(test_polish("  ".into(), 5)).unwrap_err();
+        assert!(err.contains("no polish command"), "{err}");
+    }
+
+    #[test]
+    fn list_models_covers_the_registry() {
+        let m = list_models();
+        assert_eq!(m.len(), models::REGISTRY.len());
+        let turbo = m.iter().find(|m| m.key == "large-v3-turbo-q5_0").unwrap();
+        assert_eq!(turbo.size_mb, 574);
+        assert!(!turbo.note.is_empty());
+    }
 }
