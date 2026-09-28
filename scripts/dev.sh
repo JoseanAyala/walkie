@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build, install and relaunch /Applications/walkie.app, then follow its log.
+# Build, install and relaunch /Applications/Walkie.app, then follow its log.
 #
 #   scripts/dev.sh           build + install + launch + tail log
 #   scripts/dev.sh --debug   same, with WALKIE_DEBUG_EVENTS=1 (dumps key events)
@@ -11,7 +11,7 @@
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
-app=/Applications/walkie.app
+app=/Applications/Walkie.app
 log="$HOME/Library/Logs/walkie/walkie.log"
 
 if ! security find-certificate -c "walkie local signing" >/dev/null 2>&1; then
@@ -26,7 +26,7 @@ fi
 
 pkill -x walkie 2>/dev/null && sleep 0.5 || true
 rm -rf "$app"
-cp -R "$root/target/release/bundle/macos/walkie.app" "$app"
+cp -R "$root/target/release/bundle/macos/Walkie.app" "$app"
 [ "${1:-}" = "--install-only" ] && exit 0
 
 mkdir -p "$(dirname "$log")"

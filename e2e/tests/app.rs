@@ -1,7 +1,7 @@
 //! The manual testing checklist, automated against the real installed app.
 //! Run: e2e/run-app-tests.sh  (builds + installs, then runs these one at a time)
 //!
-//! Keyboard tests need Accessibility granted to /Applications/walkie.app and
+//! Keyboard tests need Accessibility granted to /Applications/Walkie.app and
 //! to the terminal running the tests (to post key events and script the UI).
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 

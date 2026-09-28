@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build an ad-hoc-signed walkie.app and zip it for distribution. Used by CI
+# Build an ad-hoc-signed Walkie.app and zip it for distribution. Used by CI
 # and the release workflow; prints the zip's path on the last line.
 #
 #   scripts/package.sh
@@ -22,5 +22,5 @@ zip="$root/target/release/bundle/walkie-$version-macos-$arch.zip"
 
 rm -f "$zip"
 # ditto keeps the bundle's symlinks, xattrs and signature intact; zip doesn't.
-ditto -c -k --keepParent "$bundle/walkie.app" "$zip"
+ditto -c -k --keepParent "$bundle/Walkie.app" "$zip"
 echo "$zip"

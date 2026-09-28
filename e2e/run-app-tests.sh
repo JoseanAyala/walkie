@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds + installs /Applications/walkie.app, then runs the OS-level e2e
+# Builds + installs /Applications/Walkie.app, then runs the OS-level e2e
 # suite (e2e/tests/app*.rs) against it. Your running walkie is stopped for
 # the run and restarted afterwards; your config and history aren't touched.
 #
@@ -10,7 +10,7 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 was_running=$(pgrep -x walkie || true)
 restore() {
     pkill -x walkie 2>/dev/null || true
-    if [ -n "$was_running" ]; then open -a /Applications/walkie.app; fi
+    if [ -n "$was_running" ]; then open -a /Applications/Walkie.app; fi
 }
 trap restore EXIT
 

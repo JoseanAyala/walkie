@@ -48,14 +48,14 @@ impl Status {
             Status::RequiresApproval => {
                 Some("macOS needs your approval: allow walkie in System Settings → General → Login Items.")
             }
-            Status::NotFound => Some("macOS can't find walkie.app — reinstall it in /Applications."),
+            Status::NotFound => Some("macOS can't find Walkie.app — reinstall it in /Applications."),
             Status::Unbundled => Some(UNBUNDLED),
             Status::Disabled | Status::Enabled => None,
         }
     }
 }
 
-const UNBUNDLED: &str = "walkie isn't running from walkie.app (e.g. cargo tauri dev), \
+const UNBUNDLED: &str = "walkie isn't running from Walkie.app (e.g. cargo tauri dev), \
                          so it can't launch at login.";
 
 /// What the UI gets back.
@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn detects_running_from_an_app_bundle() {
         assert!(in_app_bundle(Path::new(
-            "/Applications/walkie.app/Contents/MacOS/walkie"
+            "/Applications/Walkie.app/Contents/MacOS/walkie"
         )));
         assert!(!in_app_bundle(Path::new(
             "/Users/me/dev/walkie/target/debug/walkie"

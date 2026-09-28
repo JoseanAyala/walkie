@@ -1,4 +1,4 @@
-//! Drives the installed /Applications/walkie.app from the outside, the way a
+//! Drives the installed /Applications/Walkie.app from the outside, the way a
 //! person would: real key events posted through macOS (so they pass through
 //! walkie's event tap), the tray menu and windows via UI scripting, and
 //! a bare window (src/bin/typing-target.rs) as the app being dictated into.
@@ -83,7 +83,7 @@ pub fn begin(name: &'static str) -> TestGuard {
     }
 }
 
-pub const APP: &str = "/Applications/walkie.app";
+pub const APP: &str = "/Applications/Walkie.app";
 
 pub fn sleep(ms: u64) {
     std::thread::sleep(Duration::from_millis(ms));

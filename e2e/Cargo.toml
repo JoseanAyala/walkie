@@ -10,7 +10,7 @@ walkie-core = { path = "../crates/walkie-core" }
 anyhow = "1"
 
 [features]
-# Drives the installed /Applications/walkie.app through macOS: real key
+# Drives the installed /Applications/Walkie.app through macOS: real key
 # events, the tray, the windows, TextEdit. Run via e2e/run-app-tests.sh.
 os-tests = ["dep:objc2", "dep:objc2-foundation", "dep:objc2-app-kit"]
 

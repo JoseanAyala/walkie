@@ -27,7 +27,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check
         run: make check
-      - name: Build walkie.app
+      - name: Build Walkie.app
         run: make package
       - name: Publish release
         env:
@@ -35,4 +35,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" target/release/bundle/walkie-*.zip \
             --title "Walkie $GITHUB_REF_NAME" --generate-notes \
-            --notes "Ad-hoc signed: on first launch, right-click walkie.app → Open."
+            --notes "Ad-hoc signed: on first launch, right-click Walkie.app → Open."

@@ -12,7 +12,7 @@ browser, anything. Whisper runs on your Mac; your voice never leaves it.
 
 1. Download `walkie-*.zip` from the
    [latest release](https://github.com/JoseanAyala/walkie/releases/latest),
-   unzip it and move `walkie.app` to Applications.
+   unzip it and move `Walkie.app` to Applications.
 2. The first time, right-click → **Open**. Releases are ad-hoc signed, so
    Gatekeeper doesn't know them.
 3. Onboarding walks you through Microphone, Accessibility and Input
@@ -137,4 +137,4 @@ make release VERSION=0.3.0
 Bumps the version, runs `make check`, commits, tags `v0.3.0` and, once you
 confirm, pushes. The tag builds an ad-hoc-signed zip (`scripts/package.sh`)
 and attaches it to a GitHub Release. CI runs fmt, lint and tests on every PR
-and push to `main`, and uploads a `walkie.app` build for each push to `main`.
+and push to `main`, and uploads a `Walkie.app` build for each push to `main`.

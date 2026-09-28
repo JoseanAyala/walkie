@@ -35,7 +35,7 @@ ui-deps:
 ui: ui-deps ## Build the Svelte UI into crates/walkie-app/dist
 	cd $(UI_DIR) && bun run build
 
-build: ## Bundle walkie.app, signed with the local identity
+build: ## Bundle Walkie.app, signed with the local identity
 	cd $(APP_DIR) && cargo tauri build
 
 package: ## Ad-hoc-signed release zip (what CI ships)

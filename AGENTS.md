@@ -12,7 +12,7 @@ Toolchain is pinned via `mise install` (Rust, tauri-cli, actionlint). `make help
 make check        # fmt-check + clippy (-D warnings) + unit tests — what CI runs
 make test-stt     # real Whisper on en/es fixtures (cargo test -p walkie-core --features stt-tests)
 make test-e2e     # in-process e2e with real Whisper (cargo test -p walkie-e2e)
-make test-app     # OS-level e2e against installed /Applications/walkie.app (~30s, don't type)
+make test-app     # OS-level e2e against installed /Applications/Walkie.app (~30s, don't type)
 make run          # cargo tauri dev
 make dev          # build + install + relaunch + follow log (make debug adds key-event logging)
 make model        # download base Whisper model (needed by test-stt / test-e2e)
