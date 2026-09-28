@@ -97,10 +97,7 @@ fn history_delete_removes_the_row() {
         !text.contains("delete me from history"),
         "row still shown:\n{text}"
     );
-    assert!(
-        text.contains("no dictations yet"),
-        "no empty state:\n{text}"
-    );
+    assert!(text.contains("Nothing yet."), "no empty state:\n{text}");
     assert!(
         app.history().is_empty(),
         "the row is still in the database: {:?}",
