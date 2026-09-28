@@ -40,7 +40,7 @@ Open walkie again (or pick Settings… in the tray) for a small desktop of
 windows. Every change saves itself.
 
 - **General**: the shortcuts, launch at login, microphone, language, speech
-  model (with its disk, memory and GPU use), paste vs. type, and how much to
+  model (with the RAM it takes), paste vs. type, and how much to
   lower other audio while you speak.
 - **Status**: what walkie needs to work (permissions, model, mic, keyboard
   hook), with a button to fix each, and the version.

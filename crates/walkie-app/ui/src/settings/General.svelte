@@ -105,20 +105,7 @@ onMount(() => {
       {/if}
     </select>
     {#if chosen}
-      <dl class="hint about">
-        <dt>disk</dt>
-        <dd>
-          {megabytes(chosen.size_mb)}
-          {chosen.downloaded ? "downloaded" : "to download on the next restart"}
-        </dd>
-        <dt>memory</dt>
-        <dd>about {megabytes(chosen.memory_mb)} of RAM, the whole time walkie is open</dd>
-        <dt>runs on</dt>
-        <dd>
-          your Mac's GPU. On Apple Silicon it shares the Mac's regular memory, so there's no
-          separate VRAM: that RAM figure is all it takes.
-        </dd>
-      </dl>
+      <div class="hint">about {megabytes(chosen.memory_mb)} of RAM while walkie is open</div>
     {/if}
     <div class="hint">model: {modelStatus}</div>
   </Field>
@@ -153,14 +140,3 @@ onMount(() => {
   </Field>
   <p class="hint">* applies after restarting walkie. Everything saves as you change it.</p>
 {/if}
-
-<style>
-.about {
-  display: grid;
-  grid-template-columns: 66px 1fr;
-  margin: 4px 0 0;
-}
-.about dd {
-  margin: 0;
-}
-</style>
