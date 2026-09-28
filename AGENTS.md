@@ -31,6 +31,7 @@ Plain `cargo test` only covers `walkie-core` and `walkie-app` (workspace `defaul
 Workspace crates:
 - **`crates/walkie-core`** — all dictation logic, no UI imports (enforced by convention, see `lib.rs`). Modules: `hotkey` (key → signal), `audio` (cpal capture, DSP, volume ducking), `stt` (whisper-rs, Metal), `pipeline` (session state machine, text cleanup, polish via external command), `inject` (typing/pasting into the focused app), `config` (TOML + model registry), `history` (SQLite).
 - **`crates/walkie-app`** — Tauri shell: tray, windows (a Svelte UI in `ui/`, built by Vite into `dist/`; import across folders with `@/` = `ui/src/`, since oxlint rejects `../` imports), `commands.rs` (Tauri IPC), `glue.rs` (wires core into the app: builds the `Session`, forwards its `Event`s to the tray/overlay), `login_item.rs` (also a `walkie --login-item` CLI).
+- **`crates/walkie-app/swift/walkie-ai.swift`** — a Swift CLI for Apple's on-device model (FoundationModels), built by `walkie-app/build.rs` and bundled as a Tauri `externalBin`. `pipeline::polish` runs it (`status`, `respond <prompt>` with text on stdin) for the opt-in Apple polish provider; a separate process so the timeout can kill it. `make fmt`/`lint` run swift-format on it.
 - **`e2e`** — two test layers (see below).
 
 Data flow: macOS event tap (`hotkey/tap.rs`) → `hotkey::engine::Engine` (pure, no OS calls; turns key events into `Signal`s, decides what to swallow) → `Command::from_signal` → `pipeline::session::Session` worker thread (Idle → Recording → Transcribing → [Polishing] → Injecting) → emits `Event`s (state, level, done, error, notice) back to the app.
@@ -51,6 +52,7 @@ Key design points:
 ## Build gotchas
 
 - `bundle.macOS.minimumSystemVersion` in `tauri.conf.json` must stay `10.15` (whisper.cpp's `std::filesystem` doesn't link below it).
+- walkie-ai must never fail the build: older SDKs compile it via `#if canImport(FoundationModels)` to report "unsupported", and if Swift is missing or fails, `build.rs` warns and bundles a shell stub that does the same. CI runs on `macos-26` so releases include the real model.
 - `.cargo/config.toml` sets `GGML_NATIVE=OFF` (no `-mcpu=native`; CI's clang rejects it).
 - Local builds sign with the "walkie local signing" identity (`make cert`, once per machine) so macOS permission grants survive rebuilds. `walkie.entitlements` must keep `audio-input`.
 - Release: `make release VERSION=x.y.z` bumps, checks, commits, tags `v*`; the release workflow ships an ad-hoc-signed zip (`scripts/package.sh`).

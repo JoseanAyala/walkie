@@ -29,7 +29,7 @@ Default shortcuts; rebind any of them in Settings → General:
 |---|---|
 | **hold fn** | speak, release → the text appears (< 1s). Double-tap fn to lock it on. |
 | **fn + space** | hands-free: keeps recording after you let go; fn stops it. Tapping space while holding fn switches a running recording to hands-free. |
-| **hold fn + shift** | dictate + polish: the transcript goes through a command of yours (`claude -p`, `codex exec`, ollama, …) before it's typed. |
+| **hold fn + shift** | dictate + polish: the transcript goes through a command of yours (`claude -p`, `codex exec`, ollama, …) before it's typed. Or, optionally, Apple's on-device model (macOS 26 with Apple Intelligence on). |
 | **ctrl + cmd + V** | paste the last transcript again, for when it landed in the wrong window (also in the tray menu). |
 
 The tray icon is gray when idle, red while recording and amber while it works.
@@ -45,7 +45,9 @@ windows. Every change saves itself.
 - **Status**: what walkie needs to work (permissions, model, mic, keyboard
   hook), with a button to fix each, and the version.
 - **Cleanup**: filler words to drop ("um", "o sea", …), per language.
-- **Polish**: the command for dictate + polish, with a Test button.
+- **Polish**: what dictate + polish uses: your command, or Apple's
+  on-device model with a prompt you can edit (it says whether Apple
+  Intelligence is ready). Test tries it.
 - **History**: your past dictations, searchable, stored only on this Mac.
 - **Theme**: eight palettes, System / Light / Dark, and your own palettes.
   Paste hex codes, a [coolors.co](https://coolors.co) link or a
@@ -64,6 +66,8 @@ Settings writes `~/.config/walkie/config.toml`; you can edit it too.
 
 ```toml
 [polish]
+provider = "command"         # or "apple": Apple's on-device model (optional)
+prompt = "The user dictated the text you're given. …"   # what Apple's model does with it
 command = "claude -p 'Clean up this dictated text. Output only the cleaned text.'"
 timeout_secs = 60
 
@@ -99,6 +103,11 @@ make run        # cargo tauri dev
 make dev        # build + install + relaunch + follow the log
 make help       # everything else
 ```
+
+`build.rs` compiles `walkie-ai`, the small Swift helper for the optional
+Apple model, with Xcode's Command Line Tools. It needs the macOS 26 SDK to
+include the model; without it (or without Swift) the build still succeeds
+and the app reports Apple's model as unsupported.
 
 Local builds sign with the self-signed "walkie local signing" identity, so
 macOS permission grants survive rebuilds. Ad-hoc signed, every rebuild
