@@ -423,6 +423,37 @@ impl App {
         )
     }
 
+    /// Replaces the text of a field (found by its label) in a window's web
+    /// content, as if typed: the page gets its input event.
+    pub fn set_field(&self, window: &str, label: &str, text: &str) {
+        step(format!("typing {text:?} into {label:?} in {window:?}"));
+        let mut r = Err(String::new());
+        let found = wait_until(3, || {
+            r = osa(
+                r#"on run argv
+                    tell application "System Events" to tell application process "hearme"
+                        set els to entire contents of window (item 1 of argv)
+                        repeat with e in els
+                            try
+                                if role of e is in {"AXTextField", "AXTextArea"} then
+                                    if description of e as text is (item 2 of argv) then
+                                        set focused of e to true
+                                        set value of e to (item 3 of argv)
+                                        return "ok"
+                                    end if
+                                end if
+                            end try
+                        end repeat
+                    end tell
+                    return "missing"
+                end run"#,
+                &[window, label, text],
+            );
+            r.as_deref() == Ok("ok")
+        });
+        assert!(found, "field {label:?} in window {window:?}: {r:?}");
+    }
+
     /// The selected option of every dropdown in a window's web content.
     pub fn dropdowns(&self, window: &str) -> Vec<String> {
         step(format!("reading dropdowns of {window:?}"));
