@@ -203,7 +203,6 @@ small {
   position: sticky;
   bottom: 12px;
   margin-top: auto;
-  box-shadow: 4px 4px 0 var(--line);
 }
 button.primary {
   padding: 4px 10px;

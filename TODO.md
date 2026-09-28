@@ -5,7 +5,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
 - [x] **One chrome.** Hide the native title bar (`titleBarStyle: Overlay`,
       `hiddenTitle`) so the dotted desk runs under the traffic lights; the
       `WALKIE.OS1` strip and the bare desk drag the window.
-- [ ] **Depth everywhere.** Every `.win` gets the 4px hard shadow (not just the
+- [x] **Depth everywhere.** Every `.win` gets the 4px hard shadow (not just the
       restart bar, Finish window and overlay pill).
 - [ ] **Tactile buttons.** A 2px hard shadow that collapses on `:active` as the
       button shifts 2px down-right.

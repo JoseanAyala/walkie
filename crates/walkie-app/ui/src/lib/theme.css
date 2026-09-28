@@ -99,9 +99,12 @@ textarea {
 }
 
 /* ---- windows ---- */
+/* every window sits on the desk with the same hard drop shadow, like the
+   restart bar and the overlay pill */
 .win {
   background: var(--panel);
   border: 2px solid var(--line);
+  box-shadow: 4px 4px 0 var(--line);
   display: flex;
   flex-direction: column;
   min-height: 0;
