@@ -5,7 +5,7 @@ the text is typed into whatever window has focus: Claude Code, Cursor, a
 browser, anything. Whisper runs on your Mac; your voice never leaves it.
 
 <p align="center">
-  <img src="docs/settings.png" width="640" alt="walkie's Settings window: a dotted pink desktop with small pixel-font windows">
+  <img src="docs/settings.png" width="640" alt="walkie's Settings window on the Theme page: a dotted blue desktop with small pixel-font windows">
 </p>
 
 ## Install
