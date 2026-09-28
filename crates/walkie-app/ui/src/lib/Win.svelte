@@ -9,7 +9,8 @@ let {
   class: cls = "",
   bodyClass = "",
 }: {
-  title: string;
+  /** no title, no title bar */
+  title?: string;
   extra?: Snippet;
   children: Snippet;
   class?: string;
@@ -18,6 +19,8 @@ let {
 </script>
 
 <div class="win {cls}">
-  <div class="bar"><span>{title}</span><span class="grow"></span>{@render extra?.()}</div>
+  {#if title}
+    <div class="bar"><span>{title}</span><span class="grow"></span>{@render extra?.()}</div>
+  {/if}
   <div class="body {bodyClass}">{@render children()}</div>
 </div>
