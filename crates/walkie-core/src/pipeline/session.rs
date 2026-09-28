@@ -5,7 +5,7 @@ use crate::history::History;
 use crate::hotkey::engine::Signal;
 use crate::hotkey::Mode;
 use crate::inject::{Injected, Injector};
-use crate::pipeline::{cleanup, polish};
+use crate::pipeline::polish;
 use crate::stt::{LangHint, SttEngine};
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
@@ -235,27 +235,17 @@ impl Session {
             }
         };
 
-        let cl = &self.deps.cfg.cleanup;
-        let fillers: Vec<String> = match tr.lang.as_deref() {
-            Some("en") => cl.fillers_en.clone(),
-            Some("es") => cl.fillers_es.clone(),
-            _ => [cl.fillers_en.clone(), cl.fillers_es.clone()].concat(),
-        };
-        let cleaned = if cl.enabled {
-            cleanup::clean(&tr.text, &fillers)
-        } else {
-            tr.text.clone()
-        };
-        if cleaned.is_empty() {
+        let text = tr.text.trim().to_string();
+        if text.is_empty() {
             self.emit(Event::State(SessionState::Idle));
             return;
         }
 
-        let mut final_text = cleaned.clone();
+        let mut final_text = text.clone();
         let mut polished: Option<String> = None;
         if mode == Mode::Polish {
             self.emit(Event::State(SessionState::Polishing));
-            match polish::polish(&self.deps.cfg.polish, &self.ai_helper, &cleaned) {
+            match polish::polish(&self.deps.cfg.polish, &self.ai_helper, &text) {
                 Ok(out) => {
                     final_text = out.clone();
                     polished = Some(out);
@@ -273,7 +263,7 @@ impl Session {
             if let Some(h) = &self.deps.history {
                 if let Err(e) = h.insert(
                     &tr.text,
-                    &cleaned,
+                    &text,
                     polished.as_deref(),
                     tr.lang.as_deref(),
                     duration_ms as i64,
@@ -445,11 +435,11 @@ mod tests {
     }
 
     #[test]
-    fn dictate_happy_path_injects_cleaned_text() {
-        let mut r = rig("um, hello world.", Some("en"), (false, false, false));
+    fn dictate_happy_path_injects_the_transcript() {
+        let mut r = rig(" um, hello world.", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
         r.session.finish();
-        assert_eq!(r.injected.borrow().as_slice(), ["Hello world."]);
+        assert_eq!(r.injected.borrow().as_slice(), ["um, hello world."]);
         let evs = states(&r.rx);
         assert_eq!(
             evs,
@@ -459,7 +449,7 @@ mod tests {
 
     #[test]
     fn polish_mode_pipes_through_command() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.start(Mode::Polish);
         r.session.finish();
         assert_eq!(r.injected.borrow().as_slice(), ["HELLO"]);
@@ -473,7 +463,7 @@ mod tests {
         std::fs::write(&helper, "#!/bin/sh\nprintf 'apple: '; cat\n").unwrap();
         std::fs::set_permissions(&helper, std::os::unix::fs::PermissionsExt::from_mode(0o755))
             .unwrap();
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.deps.cfg.polish.provider = crate::config::PolishProvider::Apple;
         r.session.ai_helper = helper;
         r.session.start(Mode::Polish);
@@ -490,7 +480,7 @@ mod tests {
         std::fs::write(&helper, script).unwrap();
         std::fs::set_permissions(&helper, std::os::unix::fs::PermissionsExt::from_mode(0o755))
             .unwrap();
-        let mut r = rig("hello there", Some("en"), (false, false, false));
+        let mut r = rig("Hello there", Some("en"), (false, false, false));
         r.session.deps.cfg.polish.provider = PolishProvider::Apple;
         r.session.deps.cfg.polish.tone = crate::config::Tone::VeryCasual;
         r.session.ai_helper = helper;
@@ -532,7 +522,7 @@ mod tests {
     fn apple_polish_prewarms_the_model_when_recording_starts() {
         let dir = tempfile::tempdir().unwrap();
         let (helper, log) = prewarm_logger(dir.path());
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.deps.cfg.polish.provider = PolishProvider::Apple;
         r.session.ai_helper = helper;
         r.session.start(Mode::Polish);
@@ -547,7 +537,7 @@ mod tests {
     fn no_prewarm_for_dictation_or_the_command_provider() {
         let dir = tempfile::tempdir().unwrap();
         let (helper, log) = prewarm_logger(dir.path());
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.ai_helper = helper; // provider: command
         r.session.start(Mode::Polish);
         r.session.cancel();
@@ -558,8 +548,8 @@ mod tests {
     }
 
     #[test]
-    fn polish_failure_falls_back_to_cleaned() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+    fn polish_failure_falls_back_to_the_transcript() {
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.deps.cfg.polish.command = "false".into();
         r.session.start(Mode::Polish);
         r.session.finish();
@@ -590,7 +580,7 @@ mod tests {
 
     #[test]
     fn injection_failure_reports_but_still_records_history() {
-        let mut r = rig("hello", Some("en"), (false, true, false));
+        let mut r = rig("Hello", Some("en"), (false, true, false));
         r.session.start(Mode::Dictate);
         r.session.finish();
         assert!(states(&r.rx).contains(&"Error".to_string()));
@@ -605,7 +595,7 @@ mod tests {
 
     #[test]
     fn no_text_field_is_a_notice_not_an_error_and_still_records_history() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         let copied = Rc::new(RefCell::new(Vec::new()));
         r.session.deps.injector = Box::new(NoFieldInjector(copied.clone()));
         r.session.start(Mode::Dictate);
@@ -642,7 +632,7 @@ mod tests {
 
     #[test]
     fn typed_injection_emits_no_notice() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
         r.session.finish();
         assert!(!states(&r.rx).contains(&"Notice".to_string()));
@@ -672,13 +662,11 @@ mod tests {
     }
 
     #[test]
-    fn cleaned_to_empty_is_dropped_silently() {
-        // "um" is entirely stripped by the default English filler list, so
-        // the post-cleanup transcript is empty. This should drop silently
-        // (no injection, no Done, no Error) just like a too-short utterance
-        // — and it's the same shape of outcome macOS produces when mic
-        // permission is silently denied (silence in, empty-after-cleanup out).
-        let mut r = rig("um", Some("en"), (false, false, false));
+    fn an_empty_transcript_is_dropped_silently() {
+        // No injection, no Done, no Error, just like a too-short utterance —
+        // the same outcome as mic permission silently denied (silence in,
+        // nothing out).
+        let mut r = rig("  ", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
         r.session.finish();
         assert!(r.injected.borrow().is_empty());
@@ -696,7 +684,7 @@ mod tests {
 
     #[test]
     fn set_mode_mid_recording_switches_to_polish() {
-        let mut r = rig("hello there", Some("en"), (false, false, false));
+        let mut r = rig("Hello there", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
         r.session.set_mode(Mode::Polish);
         r.session.finish();
@@ -705,7 +693,7 @@ mod tests {
 
     #[test]
     fn set_mode_while_idle_does_not_start() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.set_mode(Mode::Polish);
         r.session.finish();
         assert!(r.injected.borrow().is_empty());
@@ -720,7 +708,7 @@ mod tests {
 
     #[test]
     fn volume_is_lowered_while_recording_and_restored_after() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
         assert!(
             (r.volume.volume() - 0.2).abs() < 1e-6,
@@ -741,7 +729,7 @@ mod tests {
 
     #[test]
     fn user_volume_change_mid_recording_survives_finish() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
         r.volume.user_set(0.5);
         r.session.finish();
@@ -766,7 +754,7 @@ mod tests {
 
     #[test]
     fn reinject_injects_again_without_touching_history() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
         r.session.finish();
         states(&r.rx);
@@ -792,7 +780,7 @@ mod tests {
 
     #[test]
     fn reinject_while_recording_is_refused() {
-        let mut r = rig("hello", Some("en"), (false, false, false));
+        let mut r = rig("Hello", Some("en"), (false, false, false));
         r.session.start(Mode::Dictate);
         r.session.reinject("old");
         assert!(r.injected.borrow().is_empty());

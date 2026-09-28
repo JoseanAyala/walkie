@@ -9,7 +9,6 @@ pub struct Config {
     pub language: String, // "auto" | "en" | "es" | ISO code
     pub model: String,    // key into config::models::REGISTRY
     pub hotkeys: Hotkeys,
-    pub cleanup: Cleanup,
     pub polish: Polish,
     pub inject: Inject,
     pub history: HistoryCfg,
@@ -85,14 +84,6 @@ impl From<RawHotkeys> for Hotkeys {
             paste_last,
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
-pub struct Cleanup {
-    pub enabled: bool,
-    pub fillers_en: Vec<String>,
-    pub fillers_es: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -221,7 +212,6 @@ impl Default for Config {
             language: "auto".into(),
             model: "large-v3-turbo-q5_0".into(),
             hotkeys: Hotkeys::default(),
-            cleanup: Cleanup::default(),
             polish: Polish::default(),
             inject: Inject::default(),
             history: HistoryCfg::default(),
@@ -247,15 +237,6 @@ impl Default for Hotkeys {
             polish: v(&["Fn", "Shift"]),
             hands_free: v(&["Fn", "Space"]),
             paste_last: v(&["Ctrl", "Cmd", "V"]),
-        }
-    }
-}
-impl Default for Cleanup {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            fillers_en: vec!["um".into(), "uh".into(), "you know".into()],
-            fillers_es: vec!["este".into(), "eh".into(), "o sea".into()],
         }
     }
 }
@@ -379,9 +360,6 @@ mod tests {
         assert_eq!(c.hotkeys.polish, ["Fn", "Shift"]);
         assert_eq!(c.hotkeys.hands_free, ["Fn", "Space"]);
         assert_eq!(c.hotkeys.paste_last, ["Ctrl", "Cmd", "V"]);
-        assert!(c.cleanup.enabled);
-        assert!(c.cleanup.fillers_en.contains(&"um".to_string()));
-        assert!(c.cleanup.fillers_es.contains(&"este".to_string()));
         assert_eq!(c.polish.provider, PolishProvider::Command);
         assert_eq!(c.polish.tone, Tone::Formal);
         assert_eq!(c.polish.command, "");

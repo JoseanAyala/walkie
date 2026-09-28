@@ -44,7 +44,6 @@ windows. Every change saves itself.
   lower other audio while you speak.
 - **Status**: what walkie needs to work (permissions, model, mic, keyboard
   hook), with a button to fix each, and the version.
-- **Cleanup**: filler words to drop ("um", "o sea", …), per language.
 - **Polish**: what dictate + polish uses: your command, or Apple's
   on-device model in the tone you pick — Formal, Casual, Very casual or
   Excited (it says whether Apple Intelligence is ready). Test tries it.

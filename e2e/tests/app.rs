@@ -78,7 +78,7 @@ fn tray_opens_settings_and_closing_only_hides_it() {
         app.wait_window("Walkie", true, 3),
         "Settings didn't open from the tray"
     );
-    for tab in ["General", "Status", "Cleanup", "Polish", "History"] {
+    for tab in ["General", "Status", "Polish", "History"] {
         app.click("Walkie", tab, 1);
     }
     app.close("Walkie");

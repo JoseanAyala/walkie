@@ -5040,7 +5040,6 @@ dependencies = [
  "enigo",
  "hound",
  "libc",
- "regex",
  "rusqlite",
  "serde",
  "tempfile",

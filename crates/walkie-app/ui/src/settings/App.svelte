@@ -3,7 +3,6 @@ import { getVersion } from "@tauri-apps/api/app";
 import { onMount } from "svelte";
 import { api, type Check, on } from "@/lib/api";
 import Win from "@/lib/Win.svelte";
-import Cleanup from "./Cleanup.svelte";
 import General from "./General.svelte";
 import History from "./History.svelte";
 import Polish from "./Polish.svelte";
@@ -14,7 +13,6 @@ import Theme from "./Theme.svelte";
 const TABS = {
   general: { name: "General", sub: "how walkie listens and types" },
   status: { name: "Status", sub: "what walkie needs to work" },
-  cleanup: { name: "Cleanup", sub: "drop filler words before typing" },
   polish: { name: "Polish", sub: "rewrite with Apple's on-device model or any CLI" },
   history: { name: "History", sub: "your dictations, stored only on this Mac" },
   theme: { name: "Theme", sub: "colors, light and dark, your own palettes" },
@@ -121,8 +119,6 @@ onMount(() => {
     {:else if settings.cfg}
       {#if tab === "general"}
         <General {modelStatus} />
-      {:else if tab === "cleanup"}
-        <Cleanup />
       {:else if tab === "polish"}
         <Polish />
       {:else if tab === "history"}

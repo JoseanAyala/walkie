@@ -10,7 +10,6 @@ export interface Config {
   language: string;
   model: string;
   hotkeys: Record<HotkeyName, string[]>;
-  cleanup: { enabled: boolean; fillers_en: string[]; fillers_es: string[] };
   polish: Polish;
   inject: { strategy: string; restore_clipboard_ms: number };
   history: { enabled: boolean };

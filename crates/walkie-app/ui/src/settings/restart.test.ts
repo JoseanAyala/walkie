@@ -12,7 +12,6 @@ const cfg = (): Config => ({
     hands_free: ["Fn", "Space"],
     paste_last: [],
   },
-  cleanup: { enabled: true, fillers_en: ["um"], fillers_es: ["eh"] },
   polish: {
     provider: "command",
     tone: "formal",
@@ -48,8 +47,7 @@ describe("pendingRestart", () => {
     now.model = "large-v3-turbo-q5_0";
     now.audio.duck_percent = 50;
     now.audio.duck_while_recording = false;
-    now.cleanup.fillers_en = ["um", "uh"];
-    expect(pendingRestart(cfg(), now)).toEqual(["model", "ducking", "cleanup"]);
+    expect(pendingRestart(cfg(), now)).toEqual(["model", "ducking"]);
   });
 
   it("needs a restart for the polish provider and tone", () => {

@@ -30,7 +30,7 @@ Plain `cargo test` only covers `walkie-core` and `walkie-app` (workspace `defaul
 ## Architecture
 
 Workspace crates:
-- **`crates/walkie-core`** — all dictation logic, no UI imports (enforced by convention, see `lib.rs`). Modules: `hotkey` (key → signal), `audio` (cpal capture, DSP, volume ducking), `stt` (whisper-rs, Metal), `pipeline` (session state machine, text cleanup, polish via external command), `inject` (typing/pasting into the focused app), `config` (TOML + model registry), `history` (SQLite).
+- **`crates/walkie-core`** — all dictation logic, no UI imports (enforced by convention, see `lib.rs`). Modules: `hotkey` (key → signal), `audio` (cpal capture, DSP, volume ducking), `stt` (whisper-rs, Metal), `pipeline` (session state machine, polish via walkie-ai or an external command, polish tones), `inject` (typing/pasting into the focused app), `config` (TOML + model registry), `history` (SQLite).
 - **`crates/walkie-app`** — Tauri shell: tray, windows (a Svelte UI in `ui/`, built by Vite into `dist/`; import across folders with `@/` = `ui/src/`, since oxlint rejects `../` imports), `commands.rs` (Tauri IPC), `glue.rs` (wires core into the app: builds the `Session`, forwards its `Event`s to the tray/overlay), `login_item.rs` (also a `walkie --login-item` CLI).
 - **`crates/walkie-app/swift/walkie-ai.swift`** — a Swift CLI for Apple's on-device model (FoundationModels), built by `walkie-app/build.rs` and bundled as a Tauri `externalBin`. `pipeline::polish` runs it (`status`, `respond <prompt>` with text on stdin) for the opt-in Apple polish provider; a separate process so the timeout can kill it. `make fmt`/`lint` run swift-format on it.
 - **`e2e`** — two test layers (see below).

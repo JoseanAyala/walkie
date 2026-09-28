@@ -46,23 +46,23 @@ fn wait_text(app: &App, window: &str, needle: &str, present: bool) -> String {
 #[test]
 fn changing_a_setting_saves_it_without_a_save_button() {
     let _t = begin("changing_a_setting_saves_it_without_a_save_button");
-    let app = settings("Cleanup", None);
-    let before = app.config().cleanup.enabled;
-    app.click_checkbox("Walkie", "Enable cleanup");
+    let app = settings("General", None);
+    let before = app.config().audio.duck_while_recording;
+    app.click_checkbox("Walkie", "Lower other audio while dictating");
     step("waiting for the config file to change");
     let mut now = before;
     for _ in 0..20 {
-        now = app.config().cleanup.enabled;
+        now = app.config().audio.duck_while_recording;
         if now != before {
             break;
         }
         sleep(100);
     }
     assert_ne!(now, before, "the change wasn't saved\n{}", app.log_text());
-    let text = wait_text(&app, "Walkie", "Restart to apply: cleanup", true);
+    let text = wait_text(&app, "Walkie", "Restart to apply: ducking", true);
     assert!(
-        text.contains("Restart to apply: cleanup"),
-        "cleanup is read at launch, so a restart hint should show:\n{text}"
+        text.contains("Restart to apply: ducking"),
+        "ducking is read at launch, so a restart hint should show:\n{text}"
     );
 }
 
