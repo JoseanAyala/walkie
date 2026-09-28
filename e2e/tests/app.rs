@@ -173,17 +173,17 @@ fn the_overlay_says_typed_before_it_hides() {
     app.require_keyboard();
     let doc = Target::open();
     Keyboard::new().down("Fn").wait(600).up("Fn");
-    step("waiting for the overlay to say ✓ DONE");
+    step("waiting for the overlay to say DONE");
     let mut seen = String::new();
     for _ in 0..30 {
         seen = app.overlay_text();
-        if seen.contains("✓ DONE") {
+        if seen.contains("DONE") {
             break;
         }
         sleep(50);
     }
     assert!(
-        seen.contains("✓ DONE"),
+        seen.contains("DONE"),
         "the overlay never confirmed; it showed {seen:?}\n{}",
         app.log_text()
     );

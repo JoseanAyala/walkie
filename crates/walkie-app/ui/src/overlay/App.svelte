@@ -1,9 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { on, type SessionState } from "@/lib/api";
-import Icon from "@/lib/Icon.svelte";
-import { FRAME_MS, FRAMES, scramble } from "./decode";
-import { COLUMNS, deaf, heard, loudness, push, REACH, reach, TICK_MS } from "./meter";
+import { COLUMNS, deaf, heard, loudness, push, TICK_MS } from "./meter";
 
 type Mode = "rec" | "busy" | "done" | "notice" | "error";
 const NAMES: Partial<Record<SessionState, string>> = {
@@ -13,12 +11,10 @@ const NAMES: Partial<Record<SessionState, string>> = {
   injecting: "typing…",
 };
 const DEAF = "can't hear you — check the mic";
-const SPIN = ["▖", "▘", "▝", "▗"];
 const FLAT = () => Array<number>(COLUMNS).fill(0);
 
 let mode = $state<Mode>("rec");
 let label = $state("listening…");
-let spin = $state(0);
 // bumped each time a dictation starts, so the pill replays its entrance
 let shown = $state(0);
 let last: SessionState | "" = "";
@@ -29,40 +25,26 @@ let peak = 0;
 let startedAt = 0;
 let heardAny = false;
 
-const chip = $derived(
-  mode === "rec"
-    ? "REC"
-    : mode === "busy"
-      ? `${SPIN[spin % 4]} BUSY`
-      : mode === "done"
-        ? "✓ DONE"
-        : mode === "notice"
-          ? "NOTE"
-          : "ERR",
-);
+const CHIPS: Record<Mode, string> = {
+  rec: "REC",
+  busy: "WAIT",
+  done: "DONE",
+  notice: "NOTE",
+  error: "ERR",
+};
 // the wave's slot stays put from REC to DONE, so nothing shifts; a notice
 // or error gets the room for its text
 const metered = $derived(mode === "rec" || mode === "busy" || mode === "done");
 
-// what the label shows: a new status decodes in from glyph noise. Plain
-// "listening…" arrives with the pill's own tear; errors and notices split
-// instead (CSS), and stay readable from the first frame. Runs under Reduce
-// Motion too, like the rest of the glitch (theme.css).
-let shownLabel = $state("listening…");
-$effect(() => {
-  const text = label;
-  if (mode === "error" || mode === "notice" || text === NAMES.recording) {
-    shownLabel = text;
-    return;
-  }
-  let frame = 0;
-  shownLabel = scramble(text, frame);
-  const decoding = setInterval(() => {
-    shownLabel = scramble(text, ++frame);
-    if (frame >= FRAMES) clearInterval(decoding);
-  }, FRAME_MS);
-  return () => clearInterval(decoding);
-});
+// the wave, mirrored about its middle: the newest level in the centre,
+// older ones spreading out to both sides
+const newest = COLUMNS / 2 - 1;
+const bars = $derived(
+  Array.from(
+    { length: 2 * newest + 1 },
+    (_, i) => wave[wave.length - 1 - Math.abs(i - newest)] ?? 0,
+  ),
+);
 
 function tick() {
   if (mode !== "rec") return;
@@ -72,9 +54,6 @@ function tick() {
 }
 
 onMount(() => {
-  const spinner = setInterval(() => {
-    if (mode === "busy") spin++;
-  }, 150);
   const ticker = setInterval(tick, TICK_MS);
   const offs = [
     on("state", (s) => {
@@ -120,7 +99,6 @@ onMount(() => {
     }),
   ];
   return () => {
-    clearInterval(spinner);
     clearInterval(ticker);
     for (const off of offs) off.then((f) => f());
   };
@@ -128,33 +106,19 @@ onMount(() => {
 </script>
 
 {#key shown}
-<div id="pill" class="glitch {mode}" class:metered>
-  <span class="chip" data-text={chip}
-    >{#if mode === "rec"}<span class="live"><Icon name="mic" /></span>{/if}{chip}</span
-  ><span class="label" class:warn={label === DEAF} data-text={label}>{shownLabel}</span>
-  {#if metered}
-    <!-- one icon pixel is 2 CSS pixels; columns 1 wide with a 1 gap, the
-         newest (rightmost) in the accent color -->
-    <svg
-      class="wave"
-      width={COLUMNS * 4}
-      height={(2 * REACH + 1) * 2}
-      viewBox="0 0 {COLUMNS * 2} {2 * REACH + 1}"
-      shape-rendering="crispEdges"
-      aria-hidden="true"
-    >
-      {#each wave as v, i (i)}
-        {@const r = reach(v)}
-        <rect
-          x={i * 2}
-          y={REACH - r}
-          width="1"
-          height={2 * r + 1}
-          class:now={i === wave.length - 1 && mode === "rec"}
-        />
-      {/each}
-    </svg>
-  {/if}
+<div id="pill" class="moves {mode}">
+  <div class="trim"></div>
+  <div class="row">
+    <span class="state">{#if mode === "rec"}<span class="dot"></span>{/if}{CHIPS[mode]}</span>
+    <span class="label" class:warn={label === DEAF}>{label}</span>
+    {#if metered}
+      <span class="wave" aria-hidden="true">
+        {#each bars as v, i (i)}
+          <i class:mid={i === newest && mode === "rec"} style="height:{2 + v * 26}px"></i>
+        {/each}
+      </span>
+    {/if}
+  </div>
 </div>
 {/key}
 
@@ -168,158 +132,58 @@ onMount(() => {
   }
   #pill {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 40px;
-    margin: 9px 13px 15px 9px;
-    padding: 0 8px;
-    background: var(--panel);
-    border: 2px solid var(--line);
-    box-shadow: 4px 4px 0 var(--line);
-    /* tears in: horizontal slices jump sideways on the pixel grid, then settle */
-    animation: tear 160ms steps(1) both;
+    flex-direction: column;
+    width: 400px;
+    margin: 8px 10px 14px;
+    background: var(--sheet);
+    border: 1px solid var(--ink);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.18);
+    animation: enter 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
-  @keyframes tear {
-    0% {
-      clip-path: inset(0 0 55% 0);
-      transform: translateX(-4px);
-    }
-    25% {
-      clip-path: inset(45% 0 0 0);
-      transform: translateX(4px);
-    }
-    50% {
-      clip-path: inset(20% 0 35% 0);
-      transform: translateX(-2px);
-    }
-    75% {
-      clip-path: none;
-      transform: translateX(2px);
-    }
-    100% {
-      clip-path: none;
-      transform: none;
-    }
-  }
-  /* an error jolts the pill and splits the chip and label into two sliced
-     copies (pink and ink) that snap back; once, as it arrives */
-  #pill.error {
-    animation: jolt 180ms steps(1) both;
-  }
-  @keyframes jolt {
-    0% {
-      transform: translateX(2px);
-    }
-    33% {
-      transform: translateX(-2px);
-    }
-    66% {
-      transform: translateX(2px);
-    }
-    100% {
-      transform: none;
-    }
-  }
-  .error .chip,
-  .error .label {
-    position: relative;
-  }
-  .error .chip::before,
-  .error .chip::after,
-  .error .label::before,
-  .error .label::after {
-    content: attr(data-text);
-    position: absolute;
-    inset: 0;
-    background: inherit;
-    pointer-events: none;
-  }
-  .error .chip::before,
-  .error .label::before {
-    animation: chan-a 220ms steps(1) both;
-  }
-  .error .chip::after,
-  .error .label::after {
-    animation: chan-b 220ms steps(1) both;
-  }
-  .error .label::before {
-    color: var(--accent);
-  }
-  .error .label::after {
-    color: var(--fg);
-  }
-  .error .chip::after {
-    background: var(--line);
-  }
-  @keyframes chan-a {
-    0% {
-      clip-path: inset(0 0 60% 0);
-      transform: translateX(-2px);
-    }
-    33% {
-      clip-path: inset(50% 0 10% 0);
-      transform: translateX(4px);
-    }
-    66% {
-      clip-path: inset(20% 0 50% 0);
-      transform: translateX(-4px);
-    }
-    100% {
-      clip-path: inset(0 0 100% 0);
-      transform: none;
-    }
-  }
-  @keyframes chan-b {
-    0% {
-      clip-path: inset(60% 0 0 0);
-      transform: translateX(2px);
-    }
-    33% {
-      clip-path: inset(10% 0 70% 0);
-      transform: translateX(-2px);
-    }
-    66% {
-      clip-path: inset(70% 0 0 0);
-      transform: translateX(2px);
-    }
-    100% {
-      clip-path: inset(100% 0 0 0);
-      transform: none;
-    }
+  .row {
+    display: flex;
+    height: 44px;
   }
   /* one width for every state, so the label never moves */
-  .chip {
+  .state {
     flex: none;
-    width: 56px;
-    text-align: center;
-    white-space: nowrap;
-    background: var(--accent);
-    color: var(--accent-fg);
+    width: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font: 600 11px var(--sans);
+    letter-spacing: 0.14em;
+    background: var(--red);
+    color: var(--on-red);
+    border-right: 1px solid var(--ink);
   }
-  .live {
-    margin-right: 4px;
-    animation: blink 1s steps(1) infinite;
+  .busy .state {
+    background: var(--lav);
+    color: var(--ink);
   }
-  .busy .chip {
-    background: var(--chip);
-    color: var(--chip-fg);
+  .done .state,
+  .notice .state {
+    background: var(--ink);
+    color: var(--bg);
   }
-  .done .chip {
-    background: var(--chip);
-    color: var(--chip-fg);
+  .error .state {
+    background: var(--ink);
+    color: var(--red);
   }
-  .notice .chip {
-    background: var(--tag);
-    color: var(--fg);
-  }
-  .error .chip {
-    background: var(--warn);
-    color: var(--accent-fg);
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 1.2s ease-in-out infinite;
   }
   .label {
     flex: 1;
     min-width: 0;
-    line-height: var(--lh-tight);
+    align-self: center;
+    padding: 0 14px;
+    font: italic 19px / 20px var(--serif);
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -328,17 +192,42 @@ onMount(() => {
     overflow-wrap: anywhere;
   }
   .label.warn {
-    color: var(--warn);
+    color: var(--red);
   }
-  /* the wave, frozen and dimmed once it stops listening */
   .wave {
     flex: none;
-    fill: var(--fg);
+    width: 112px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-left: 1px solid var(--rule);
   }
-  .wave rect.now {
-    fill: var(--accent);
+  .wave i {
+    display: block;
+    width: 2px;
+    background: var(--ink);
   }
-  :not(.rec) > .wave {
-    opacity: 0.35;
+  .wave i.mid {
+    background: var(--red);
+  }
+  /* frozen and dimmed once it stops listening */
+  :not(.rec) > .row > .wave {
+    opacity: 0.3;
+  }
+  /* an error gives a small shake as it arrives */
+  #pill.error {
+    animation: nudge 260ms ease both;
+  }
+  @keyframes nudge {
+    25% {
+      transform: translateX(-3px);
+    }
+    50% {
+      transform: translateX(3px);
+    }
+    75% {
+      transform: translateX(-1px);
+    }
   }
 </style>

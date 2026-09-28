@@ -2,8 +2,6 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { onMount } from "svelte";
 import { api, type Check, on } from "@/lib/api";
-import Icon from "@/lib/Icon.svelte";
-import Win from "@/lib/Win.svelte";
 import General from "./General.svelte";
 import History from "./History.svelte";
 import Polish from "./Polish.svelte";
@@ -11,19 +9,15 @@ import Status from "./Status.svelte";
 import { settings } from "./state.svelte";
 import Theme from "./Theme.svelte";
 
-// `file` names the main window, like a document open on the desk; the
-// page itself carries the tab's name
+// in menu order; each page is titled with its number
 const TABS = {
-  general: { name: "General", file: "general.cfg", sub: "how walkie listens and types" },
-  status: { name: "Status", file: "status.log", sub: "what walkie needs to work" },
-  polish: {
-    name: "Polish",
-    file: "polish.cfg",
-    sub: "rewrite with Apple's on-device model or any CLI",
-  },
-  history: { name: "History", file: "history.db", sub: "your dictations, stored only on this Mac" },
-  theme: { name: "Theme", file: "theme.cfg", sub: "light, dark, or as macOS is" },
+  general: { name: "General", sub: "How walkie listens and types." },
+  status: { name: "Status", sub: "What walkie needs to work." },
+  polish: { name: "Polish", sub: "Rewrite with Apple's on-device model or any CLI." },
+  history: { name: "History", sub: "Your dictations, stored only on this Mac." },
+  theme: { name: "Theme", sub: "Light, dark, or as macOS is." },
 } as const;
+const num = (t: Tab) => String(Object.keys(TABS).indexOf(t) + 1).padStart(2, "0");
 type Tab = keyof typeof TABS;
 
 let tab = $state<Tab>("general");
@@ -81,181 +75,182 @@ onMount(() => {
 });
 </script>
 
-<!-- the title bar is hidden: the traffic lights sit on the top strip, and
-     it and the bare desk around the windows drag the window -->
-<div class="desktop" data-tauri-drag-region>
-  <div class="top" data-tauri-drag-region>
-    <span class="os" data-tauri-drag-region>WALKIE.OS1</span>
-  </div>
+<!-- the title bar is hidden: the traffic lights sit on the header, and it
+     and the menu's empty space drag the window -->
+<div class="app">
+  <header data-tauri-drag-region>
+    <span class="logo" data-tauri-drag-region>walkie<em>.</em></span>
+    <span class="caps" data-tauri-drag-region>on-device dictation</span>
+    <span class="grow" data-tauri-drag-region></span>
+    <!-- every change saves itself; this just confirms it happened -->
+    {#if settings.saved}{#key settings.saves}<span class="saved">Saved</span>{/key}{/if}
+  </header>
 
-  <div class="side" data-tauri-drag-region>
-    <Win title="Menu">
-      <nav>
-        {#each Object.entries(TABS) as [t, { name }] (t)}
-          <button class:on={tab === t} aria-label={name} onclick={() => show(t as Tab)}>
-            <Icon name={t as Tab} />{name}
-            {#if t === "status" && problems > 0}
-              <span class="badge" aria-hidden="true">{problems}</span>
-            {/if}
-          </button>
-        {/each}
-      </nav>
-    </Win>
-    <Win class="about" bodyClass="muted">
-      Runs locally. Your voice never leaves this Mac.
-    </Win>
-  </div>
+  <!-- the menu: a lavender block over a red one -->
+  <aside>
+    <nav data-tauri-drag-region>
+      {#each Object.keys(TABS) as t (t)}
+        <button class:on={tab === t} aria-label={TABS[t as Tab].name} onclick={() => show(t as Tab)}>
+          <span class="n">{num(t as Tab)}</span>{TABS[t as Tab].name}
+          {#if t === "status" && problems > 0}
+            <span class="badge" aria-hidden="true">{problems}</span>
+          {/if}
+        </button>
+      {/each}
+    </nav>
+    <p class="note">Runs locally. Your voice never leaves this Mac.</p>
+  </aside>
 
-  <!-- one column, so the main window ends level with the side ones unless
-       the restart bar takes its place at the bottom -->
-  <div class="right" data-tauri-drag-region>
-  {#key tab}
-  <Win title={TABS[tab].file} class="main glitch" bodyClass="scroll">
-    {#snippet extra()}
-      <!-- every change saves itself; this just confirms it happened -->
-      {#if settings.saved}{#key settings.saves}<span class="saved">saved ✓</span>{/key}{/if}
-    {/snippet}
-    {#if settings.error}
-      <div class="error">
-        <span class="chip warn">ERR</span><span class="text">{settings.error}</span>
-        <button onclick={() => (settings.error = "")}>✕</button>
+  <main>
+    <div class="trim"></div>
+    {#key tab}
+      <div class="page">
+        {#if settings.error}
+          <div class="error">
+            <span class="chip warn">ERR</span><span class="text">{settings.error}</span>
+            <button class="link" onclick={() => (settings.error = "")}>dismiss</button>
+          </div>
+        {/if}
+        <div class="head">
+          <h1 class="title"><em>{num(tab)}</em> {TABS[tab].name}</h1>
+          <div class="muted">{TABS[tab].sub}</div>
+        </div>
+        {#if tab === "status"}
+          <Status {checks} {version} />
+        {:else if settings.cfg}
+          {#if tab === "general"}
+            <General {modelStatus} />
+          {:else if tab === "polish"}
+            <Polish />
+          {:else if tab === "history"}
+            <History />
+          {:else if tab === "theme"}
+            <Theme />
+          {/if}
+        {/if}
+      </div>
+    {/key}
+    {#if settings.pending.length}
+      <div class="restart">
+        <span>Restart to apply: {settings.pending.join(", ")}</span>
+        <button class="primary" onclick={() => api.restartApp()}>Restart walkie</button>
       </div>
     {/if}
-    <div class="head">
-      <span class="chip big">{TABS[tab].name}</span><span class="muted">{TABS[tab].sub}</span>
-    </div>
-    {#if tab === "status"}
-      <Status {checks} {version} />
-    {:else if settings.cfg}
-      {#if tab === "general"}
-        <General {modelStatus} />
-      {:else if tab === "polish"}
-        <Polish />
-      {:else if tab === "history"}
-        <History />
-      {:else if tab === "theme"}
-        <Theme />
-      {/if}
-    {/if}
-  </Win>
-  {/key}
-  {#if settings.pending.length}
-    <div class="restart">
-      <span>Restart to apply: {settings.pending.join(", ")}</span>
-      <button class="primary" onclick={() => api.restartApp()}>Restart walkie</button>
-    </div>
-  {/if}
-  </div>
+  </main>
 </div>
 
 <style>
-.desktop {
+.app {
   height: 100vh;
   display: grid;
-  grid-template-columns: 158px 1fr;
+  grid-template-columns: 200px 1fr;
   grid-template-rows: auto 1fr;
-  gap: 10px 12px;
-  padding: 10px 12px 12px;
 }
-.top {
+header {
   grid-column: 1 / -1;
-  /* clear of the traffic lights (tauri.conf.json's trafficLightPosition) */
-  padding-left: 70px;
   display: flex;
-  gap: 8px;
-  align-items: center;
+  gap: 14px;
+  align-items: baseline;
+  /* clear of the traffic lights (tauri.conf.json's trafficLightPosition) */
+  padding: 12px 24px 12px 86px;
+  border-bottom: 1px solid var(--ink);
 }
-.side,
-.right {
+.grow {
+  flex: 1;
+}
+.saved {
+  font-size: 12px;
+  color: var(--muted);
+  animation: flash-out 1200ms ease both;
+}
+aside {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-height: 0;
+  border-right: 1px solid var(--ink);
 }
 nav {
-  margin: -4px -6px;
+  flex: 1;
+  padding: 14px 0;
+  background: var(--lav);
 }
 nav button {
   display: flex;
-  gap: 8px;
   align-items: center;
   width: 100%;
   border: 0;
   background: none;
-  box-shadow: none;
-  transform: none;
+  padding: 7px 20px;
+  font: 500 13px / 20px var(--sans);
   text-align: left;
-  padding: 2px 6px;
-  line-height: var(--lh);
 }
 nav button:hover:not(.on) {
-  background: var(--tag);
+  background: rgb(255 255 255 / 0.3);
 }
 nav button.on {
-  background: var(--chip);
-  color: var(--chip-fg);
+  background: var(--ink);
+  color: var(--bg);
+}
+.n {
+  width: 22px;
+  font-size: 10px;
+  opacity: 0.55;
 }
 .badge {
   margin-left: auto;
-  background: var(--warn);
-  color: var(--accent-fg);
-  padding: 0 5px;
+  font: 600 10px / 16px var(--sans);
+  background: var(--red);
+  color: var(--on-red);
+  padding: 0 6px;
 }
-.side :global(.about) {
-  margin-top: auto;
+.note {
+  margin: 0;
+  padding: 14px 20px 16px;
+  background: var(--red);
+  color: var(--on-red);
+  border-top: 1px solid var(--ink);
+  font: italic 17px / 20px var(--serif);
 }
-.side :global(.about .body) {
-  line-height: var(--lh-tight);
-}
-:global(.main) {
-  flex: 1;
+main {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
-  /* each tab opens its window: the hard shadow jumps about, the title bar
-     flickers a frame */
-  animation: jump 180ms steps(1) both;
+  background: var(--sheet);
 }
-:global(.main > .bar) {
-  animation: bar-flick 120ms steps(1) both;
-}
-:global(.main > .body.scroll) {
+.page {
   flex: 1;
   overflow: auto;
-  padding: 12px 14px 16px;
+  padding: 26px 34px 30px;
+  animation: fade 150ms ease both;
 }
-.saved {
-  animation: flash-out 1200ms steps(3) both;
+.head {
+  margin-bottom: 18px;
+}
+.head .muted {
+  margin-top: 2px;
 }
 .error {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  margin-bottom: 10px;
-  border: 2px solid var(--line);
-  background: var(--paper);
-  padding: 2px 4px;
+  margin-bottom: 16px;
+  padding: 6px 10px;
+  border: 1px solid var(--red);
 }
 .error .text {
   flex: 1;
-  line-height: var(--lh-tight);
+  line-height: 17px;
   -webkit-user-select: text;
   user-select: text;
 }
-.error button {
-  border: 0;
-  background: none;
-  box-shadow: none;
-  transform: none;
-  padding: 0 4px;
-}
 .restart {
-  animation: rise 150ms steps(3) both;
   display: flex;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
-  padding: 4px 8px;
-  border: 2px solid var(--line);
-  background: var(--paper);
-  box-shadow: 4px 4px 0 var(--line);
+  padding: 10px 34px;
+  border-top: 1px solid var(--ink);
+  background: var(--lime);
+  animation: enter 150ms ease both;
 }
 .restart span {
   flex: 1;

@@ -2,7 +2,6 @@
 import { onMount } from "svelte";
 import { api, type HistoryRecord } from "@/lib/api";
 import { byDay, clock } from "@/lib/format";
-import Icon from "@/lib/Icon.svelte";
 import { settings } from "./state.svelte";
 
 const cfg = $derived(settings.cfg);
@@ -87,9 +86,9 @@ onMount(load);
   </button>
 </div>
 {#if rows && !rows.length}
-  <div class="empty dots">
-    <span class="art"><Icon name="bubble" scale={4} /></span>
-    <span class="chip">{q.trim() ? "no matches" : "no dictations yet"}</span>
+  <div class="empty">
+    <span class="big">{q.trim() ? "No matches." : "Nothing yet."}</span>
+    <span class="caps">{q.trim() ? "try other words" : "your dictations will show up here"}</span>
   </div>
 {:else if rows}
   {#each byDay(rows) as g (g.day)}
@@ -97,7 +96,7 @@ onMount(load);
     {#each g.rows as r (r.id)}
     <div class="entry">
       <div class="meta">
-        <span class="chip">{clock(r.created_at) || r.created_at}</span>
+        <span class="time">{clock(r.created_at) || r.created_at}</span>
         {#if r.lang}
           <span class="tag">{r.lang}</span>
         {/if}
@@ -126,7 +125,7 @@ onMount(load);
   display: flex;
   gap: 8px;
   align-items: center;
-  margin: 8px 0;
+  margin: 12px 0 4px;
 }
 .tools input {
   max-width: 260px;
@@ -134,22 +133,20 @@ onMount(load);
 .grow {
   flex: 1;
 }
-/* a day heading: a hairline with the date riding on it */
+/* a day heading: the date in serif, over an ink rule */
 .day {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: 12px;
-  color: var(--muted);
-}
-.day::after {
-  content: "";
-  flex: 1;
-  border-top: 1px dashed var(--muted);
+  margin-top: 22px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ink);
+  font: 22px / 26px var(--serif);
 }
 .entry {
-  border-bottom: 1px solid var(--line);
-  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 0;
+}
+.time {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .entry:last-child {
   border-bottom: 0;
@@ -168,15 +165,16 @@ onMount(load);
 }
 .meta {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
+  font-size: 12px;
 }
 .meta .tag {
   margin: 0;
 }
 p {
   margin: 4px 0 0;
-  line-height: var(--lh-tight);
+  line-height: 19px;
   -webkit-user-select: text;
   user-select: text;
   overflow-wrap: anywhere;
@@ -186,12 +184,11 @@ p {
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: 8px;
-  border: 1px solid var(--line);
-  margin-top: 8px;
+  gap: 4px;
+  border: 1px dashed var(--rule);
+  margin-top: 12px;
 }
-.art {
-  display: flex;
-  color: var(--fg);
+.big {
+  font: italic 26px / 30px var(--serif);
 }
 </style>

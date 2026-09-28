@@ -102,31 +102,35 @@ onMount(() => {
 <style>
 .sc {
   display: grid;
-  grid-template-columns: 1fr 130px auto auto;
-  gap: 6px;
+  grid-template-columns: 1fr 110px auto auto;
+  gap: 2px 8px;
   align-items: center;
-  padding: 4px 0;
+  padding: 4px 0 8px;
+  line-height: 20px;
+}
+/* the name shares the keys' line; its help runs underneath, full width */
+.what {
+  display: contents;
 }
 .what small {
-  display: block;
+  grid-row: 2;
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--muted);
-  line-height: var(--lh-tight);
 }
 kbd {
-  background: var(--paper);
-  border: 2px solid var(--line);
   text-align: center;
-  padding: 0 4px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 kbd.rec {
-  background: var(--accent);
-  color: var(--accent-fg);
-  animation: blink 1s steps(1) infinite;
+  background: var(--red);
+  color: var(--on-red);
+  border-color: var(--red);
+  animation: pulse 1s ease-in-out infinite;
 }
 .err {
-  color: var(--warn);
+  color: var(--red);
 }
 </style>

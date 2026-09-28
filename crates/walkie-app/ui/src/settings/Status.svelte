@@ -23,18 +23,25 @@ const fix = (c: Check) =>
 <style>
 .chk {
   display: grid;
-  grid-template-columns: 42px 1fr auto;
-  gap: 10px;
+  grid-template-columns: 38px 1fr auto;
+  gap: 14px;
   align-items: start;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+  font-weight: 500;
 }
 .chip {
   text-align: center;
+  margin-top: 1px;
 }
 small {
   display: block;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 17px;
   color: var(--muted);
-  line-height: var(--lh-tight);
+}
+.hint {
+  margin-top: 14px;
 }
 </style>

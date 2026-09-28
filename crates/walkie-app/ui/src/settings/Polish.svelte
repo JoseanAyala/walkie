@@ -149,23 +149,27 @@ async function test() {
 {/if}
 
 <style>
+/* sample text, set like a quotation */
 .example {
-  margin-top: 6px;
-  border: 1px dashed var(--line);
-  padding: 4px 6px;
-  line-height: var(--lh-tight);
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--lav);
+  font: italic 17px / 22px var(--serif);
   white-space: pre-wrap;
-  opacity: 0.8;
 }
 .out {
   margin-top: 8px;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  padding: 4px 6px;
-  background-color: var(--paper);
-  line-height: var(--lh-tight);
+  min-height: 48px;
+  border: 1px solid var(--ink);
+  padding: 6px 10px;
+  background: var(--bg);
+  line-height: 18px;
   white-space: pre-wrap;
   -webkit-user-select: text;
   user-select: text;
+}
+.out.dots {
+  border-style: dashed;
+  border-color: var(--rule);
 }
 </style>

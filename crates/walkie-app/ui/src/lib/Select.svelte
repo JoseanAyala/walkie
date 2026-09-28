@@ -150,41 +150,41 @@ $effect(() => {
         onmousemove={() => (active = i)}
         onclick={() => choose(i)}
       >
-        <span class="mark" aria-hidden="true">{i === chosen ? "■" : ""}</span>{o.text}
+        <span class="mark" aria-hidden="true">{i === chosen ? "✓" : ""}</span>{o.text}
       </li>
     {/each}
   </ul>
 {/if}
 
 <style>
-/* looks like a text field (theme.css's select), not a button */
+/* looks like a text field with a caret, not a button */
 .select {
   display: block;
   width: 100%;
-  height: 26px;
-  padding: 0 22px 0 6px;
-  background-color: var(--paper);
-  box-shadow: none;
-  transform: none;
+  max-width: 340px;
+  height: 28px;
+  padding: 0 28px 0 10px;
+  background-color: var(--sheet);
+  font-weight: 400;
+  font-size: 13px;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 22px;
+  line-height: 26px;
   background-image:
-    linear-gradient(45deg, transparent 50%, var(--fg) 50%),
-    linear-gradient(-45deg, transparent 50%, var(--fg) 50%);
+    linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+    linear-gradient(-45deg, transparent 50%, var(--ink) 50%);
   background-position:
-    calc(100% - 12px) 10px,
-    calc(100% - 8px) 10px;
-  background-size: 4px 4px;
+    calc(100% - 15px) 12px,
+    calc(100% - 10px) 12px;
+  background-size: 5px 5px;
   background-repeat: no-repeat;
 }
-.select:hover,
-.select:active,
+.select:hover:not(:disabled),
+.select:active:not(:disabled),
 .select[aria-expanded="true"] {
-  background-color: var(--paper);
-  color: var(--fg);
-  transform: none;
+  background-color: var(--sheet);
+  color: var(--ink);
 }
 .select:focus-visible {
   outline-offset: -2px;
@@ -198,21 +198,22 @@ $effect(() => {
   max-height: 220px;
   overflow: auto;
   max-width: calc(100vw - 24px);
-  background: var(--paper);
-  border: 2px solid var(--line);
-  box-shadow: 4px 4px 0 var(--line);
-  animation: open 100ms steps(2) both;
+  background: var(--sheet);
+  border: 1px solid var(--ink);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.14);
+  animation: fade 100ms ease both;
   outline: none;
 }
 li {
   display: flex;
-  padding: 0 8px 0 4px;
+  padding: 3px 10px 3px 6px;
+  line-height: 20px;
   white-space: nowrap;
   cursor: pointer;
 }
 li.active {
-  background: var(--chip);
-  color: var(--chip-fg);
+  background: var(--ink);
+  color: var(--bg);
 }
 .mark {
   width: 14px;

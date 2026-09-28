@@ -1,70 +1,61 @@
-/* walkie's look: a dotted desktop with small monochrome windows.
-   Light mode is a pink desktop; dark mode is near-black with pink highlights.
-   Departure Mono is a pixel font drawn on an 11px grid, so sizes stay at
-   multiples of 11 to keep it crisp. Text sits on two line heights: --lh for
-   rows and labels, --lh-tight for wrapped hints and prose. */
-@font-face {
-  font-family: "Departure Mono";
-  src: url("fonts/DepartureMono-Regular.woff2") format("woff2");
-  font-display: block;
-}
+/* walkie's look: paper and ink, colour in flat blocks. Taken from a
+   psychedelic print (lavender over red, a checker border), used the way a
+   print studio would: the checker only as a trim, lavender and red as
+   blocks, everything else ruled in thin ink lines. Instrument Serif for
+   titles and the overlay's words, Inter for the rest. */
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/instrument-serif/latin-400.css";
+@import "@fontsource/instrument-serif/latin-400-italic.css";
 
 :root {
-  --lh: 22px;
-  --lh-tight: 16px;
-  --desk: #e8899a;
-  --desk-dot: #1c1a1b;
-  --panel: #dcdcdc;
-  --paper: #f3f3f3;
-  --fg: #1c1a1b;
-  --muted: #5b5557;
-  --line: #1c1a1b;
-  --bar: #1c1a1b;
-  --bar-fg: #f3f3f3;
-  --chip: #1c1a1b;
-  --chip-fg: #f3f3f3;
-  --tag: #c4c4c4;
-  --accent: #d4586f;
-  --accent-fg: #f3f3f3;
-  --warn: #d4586f;
+  --serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --sans: Inter, system-ui, sans-serif;
+  /* the window behind everything, and the sheet content sits on */
+  --bg: #f5f1e6;
+  --sheet: #fbf9f3;
+  /* text, and every line */
+  --ink: #1c1b22;
+  --muted: #6b6760;
+  /* hairlines between rows */
+  --rule: #d9d2bf;
+  /* a quiet fill: tags, hover */
+  --tag: #ebe5d4;
+  /* the blocks: recording, warnings and the note in red; the menu in
+     lavender; the restart bar in lime */
+  --red: #e0402f;
+  --on-red: #f5f1e6;
+  --lav: #cfb3dc;
+  --lime: #e6e9b4;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --desk: #141213;
-    --desk-dot: #e8899a;
-    --panel: #221f21;
-    --paper: #1a1819;
-    --fg: #ebe6e8;
-    --muted: #a0979b;
-    --line: #ebe6e8;
-    --bar: #e8899a;
-    --bar-fg: #141213;
-    --chip: #e8899a;
-    --chip-fg: #141213;
-    --tag: #3a3538;
-    --accent: #e8899a;
-    --accent-fg: #141213;
-    --warn: #e8899a;
+    --bg: #17161b;
+    --sheet: #1f1e24;
+    --ink: #ece6d8;
+    --muted: #9d978c;
+    --rule: #3a3843;
+    --tag: #2c2a31;
+    --red: #ef5a47;
+    --on-red: #17161b;
+    --lav: #4a3d57;
+    --lime: #3b3f26;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --desk: #141213;
-  --desk-dot: #e8899a;
-  --panel: #221f21;
-  --paper: #1a1819;
-  --fg: #ebe6e8;
-  --muted: #a0979b;
-  --line: #ebe6e8;
-  --bar: #e8899a;
-  --bar-fg: #141213;
-  --chip: #e8899a;
-  --chip-fg: #141213;
-  --tag: #3a3538;
-  --accent: #e8899a;
-  --accent-fg: #141213;
-  --warn: #e8899a;
+  --bg: #17161b;
+  --sheet: #1f1e24;
+  --ink: #ece6d8;
+  --muted: #9d978c;
+  --rule: #3a3843;
+  --tag: #2c2a31;
+  --red: #ef5a47;
+  --on-red: #17161b;
+  --lav: #4a3d57;
+  --lime: #3b3f26;
   color-scheme: dark;
 }
 
@@ -77,14 +68,10 @@ body {
   height: 100%;
 }
 body {
-  font:
-    11px / var(--lh) "Departure Mono",
-    ui-monospace,
-    monospace;
-  color: var(--fg);
-  /* the desktop: an even grid of dots */
-  background: var(--desk) radial-gradient(var(--desk-dot) 0.9px, transparent 1.1px) 0 0 / 6px 6px;
-  -webkit-font-smoothing: none;
+  font: 13px / 20px var(--sans);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
   -webkit-user-select: none;
   user-select: none;
   cursor: default;
@@ -97,148 +84,135 @@ textarea {
   color: inherit;
 }
 ::selection {
-  background: var(--chip);
-  color: var(--chip-fg);
+  background: var(--lav);
+  color: var(--ink);
 }
 
-/* ---- windows ---- */
-/* every window sits on the desk with the same hard drop shadow, like the
-   restart bar and the overlay pill */
-.win {
-  background: var(--panel);
-  border: 2px solid var(--line);
-  box-shadow: 4px 4px 0 var(--line);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.win > .bar {
-  background: var(--bar);
-  color: var(--bar-fg);
-  padding: 0 6px;
+/* ---- motifs ---- */
+/* the checker trim: small, even, ink and sheet */
+.trim {
   flex: none;
-  display: flex;
-  gap: 8px;
-  white-space: nowrap;
-  overflow: hidden;
+  height: 10px;
+  background: repeating-conic-gradient(var(--ink) 0 25%, var(--sheet) 0 50%) 0 0 / 10px 10px;
+  border-bottom: 1px solid var(--ink);
 }
-.win > .bar .grow {
-  flex: 1;
+/* the wordmark */
+.logo {
+  font: 26px / 28px var(--serif);
+  letter-spacing: -0.01em;
 }
-.win > .body {
-  padding: 8px 10px;
-  min-height: 0;
+.logo em {
+  font-style: normal;
+  color: var(--red);
 }
-.win.paper > .body {
-  background: var(--paper);
-  margin: 3px;
-  border: 1px solid var(--line);
+/* a small uppercase label, like a print's caption */
+.caps {
+  font: 500 10px / 16px var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
-
-/* the OS tag in the corner */
-.os {
-  display: inline-block;
-  background: var(--chip);
-  color: var(--chip-fg);
-  padding: 0 6px;
+/* a page title: a red italic numeral, then the name */
+.title {
+  margin: 0;
+  font: 400 38px / 40px var(--serif);
+  letter-spacing: -0.01em;
+}
+.title em {
+  color: var(--red);
+  font-size: 26px;
+  vertical-align: 8px;
+  margin-right: 4px;
 }
 
 /* ---- type ---- */
+/* a status word in a block: OK, ERR, !! */
 .chip {
   display: inline-block;
-  background: var(--chip);
-  color: var(--chip-fg);
-  padding: 0 5px;
+  font: 600 10px / 18px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 0 6px;
   white-space: nowrap;
 }
-.chip.big {
-  font-size: 22px;
-  line-height: 33px;
-  padding: 0 6px;
-}
 .chip.warn {
-  background: var(--warn);
-  color: var(--accent-fg);
+  background: var(--red);
+  color: var(--on-red);
 }
 .chip.ghost {
   background: var(--tag);
-  color: var(--fg);
+  color: var(--muted);
 }
 .tag {
   display: inline-block;
+  font: 500 11px / 18px var(--sans);
   background: var(--tag);
-  padding: 0 5px;
-  margin: 0 4px 4px 0;
-}
-.tag::before {
-  content: "✣ ";
+  padding: 0 6px;
 }
 /* marks a setting that applies after a restart */
 .req {
-  color: var(--accent);
+  color: var(--red);
 }
 .muted,
 .hint {
   color: var(--muted);
 }
 kbd {
-  font: inherit;
-}
-.dots {
-  background-image: radial-gradient(var(--muted) 0.6px, transparent 0.8px);
-  background-size: 4px 4px;
+  font: 500 12px / 18px var(--sans);
+  border: 1px solid var(--ink);
+  border-bottom-width: 2px;
+  padding: 0 7px;
+  background: var(--sheet);
+  white-space: nowrap;
 }
 
 /* ---- controls ---- */
-/* buttons stand on a hard shadow and press into it: on click, and while a
-   toggle (aria-pressed) is on. A disabled one lies flat. */
 button {
-  background: var(--panel);
-  border: 2px solid var(--line);
-  box-shadow: 2px 2px 0 var(--line);
-  padding: 0 8px;
+  font: 500 12px / 18px var(--sans);
+  background: var(--sheet);
+  border: 1px solid var(--ink);
+  padding: 3px 12px;
   cursor: pointer;
-  line-height: 18px;
   white-space: nowrap;
+}
+button:hover:not(:disabled) {
+  background: var(--lime);
 }
 button:active:not(:disabled),
 button[aria-pressed="true"] {
-  transform: translate(2px, 2px);
-  box-shadow: none;
+  background: var(--ink);
+  color: var(--bg);
 }
-button:hover:not(:disabled) {
-  background: var(--tag);
-}
-button:active:not(:disabled),
 button.primary {
-  background: var(--chip);
-  color: var(--chip-fg);
+  background: var(--ink);
+  color: var(--bg);
 }
 button.primary:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--accent-fg);
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--on-red);
 }
 button:disabled {
   opacity: 0.4;
   cursor: default;
-  box-shadow: none;
 }
 button.link {
   border: 0;
   background: none;
-  box-shadow: none;
-  transform: none;
   padding: 0;
   text-decoration: underline;
   color: var(--muted);
 }
 
 input[type="text"],
-input[type="search"] {
-  background: var(--paper);
-  border: 2px solid var(--line);
-  padding: 0 6px;
-  height: 26px;
+input[type="search"],
+textarea {
+  background: var(--sheet);
+  border: 1px solid var(--ink);
+  padding: 0 10px;
+  height: 28px;
   outline: none;
   border-radius: 0;
   width: 100%;
@@ -246,20 +220,20 @@ input[type="search"] {
 input[type="checkbox"] {
   -webkit-appearance: none;
   appearance: none;
-  width: 13px;
-  height: 13px;
-  margin: 0 6px 0 0;
-  border: 2px solid var(--line);
-  background: var(--paper);
+  width: 14px;
+  height: 14px;
+  margin: 0 8px 0 0;
+  border: 1px solid var(--ink);
+  background: var(--sheet);
   vertical-align: -2px;
   cursor: pointer;
 }
 input[type="checkbox"]:checked {
-  background: var(--chip);
-  box-shadow: inset 0 0 0 2px var(--paper);
+  background: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--sheet);
 }
 
-/* a hairline with a square handle, like the reference's value rows */
+/* a hairline with a square red handle */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -271,15 +245,15 @@ input[type="range"] {
 }
 input[type="range"]::-webkit-slider-runnable-track {
   height: 1px;
-  background: var(--line);
+  background: var(--ink);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 10px;
-  height: 10px;
-  margin-top: -5px;
-  background: var(--chip);
-  border: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  background: var(--red);
+  border: 1px solid var(--ink);
   border-radius: 0;
 }
 input[type="range"]:disabled {
@@ -288,10 +262,11 @@ input[type="range"]:disabled {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--red);
   outline-offset: 1px;
 }
-input:focus-visible {
+input:focus-visible,
+textarea:focus-visible {
   outline-offset: -2px;
 }
 
@@ -303,83 +278,48 @@ label.cb {
 }
 .inline {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 .range {
   display: grid;
   grid-template-columns: 1fr 44px;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  max-width: 360px;
+  max-width: 320px;
+  margin-top: 6px;
 }
 .range output {
   text-align: right;
 }
 .hint {
-  line-height: var(--lh-tight);
-  margin-top: 4px;
-}
-.head {
-  margin-bottom: 10px;
-}
-.head .muted {
-  display: block;
+  font-size: 12px;
+  line-height: 17px;
+  margin-top: 5px;
 }
 
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
-}
-/* motion moves in a few hard frames, like the pixels do (steps(3)) */
-@keyframes open {
+@keyframes enter {
   from {
-    transform: scale(0.96);
     opacity: 0;
+    transform: translateY(6px);
   }
 }
-@keyframes rise {
+@keyframes fade {
   from {
-    transform: translateY(8px);
     opacity: 0;
   }
 }
-/* glitch: a window's hard shadow jumps (in pink, then ink) before it lands,
-   on the 2px pixel grid, one hard frame at a time (steps(1)) */
-@keyframes jump {
-  0% {
-    box-shadow: 8px 2px 0 var(--accent);
-    transform: translate(-2px, 0);
-  }
-  33% {
-    box-shadow: 2px 8px 0 var(--line);
-    transform: translate(2px, -2px);
-  }
-  66% {
-    box-shadow: 6px 6px 0 var(--accent);
-    transform: none;
-  }
-  100% {
-    box-shadow: 4px 4px 0 var(--line);
-  }
-}
-@keyframes bar-flick {
-  0% {
-    background: var(--accent);
-  }
+@keyframes pulse {
   50% {
-    background: var(--fg);
+    opacity: 0.25;
   }
 }
-/* in with a blink, out with a fade */
+/* in, then out */
 @keyframes flash-out {
-  0%,
-  20% {
+  0% {
     opacity: 0;
   }
-  10%,
-  30%,
+  15%,
   70% {
     opacity: 1;
   }
@@ -387,11 +327,10 @@ label.cb {
     opacity: 0;
   }
 }
-/* Reduce Motion stills everything but the glitch, which is walkie's look:
-   .glitch elements (the pill, the Settings tab window and its bar) keep it.
-   Their ::before/::after copies aren't matched by * either. */
+/* Reduce Motion stills everything but the overlay (.moves), whose
+   entrance and shake say what walkie is doing. */
 @media (prefers-reduced-motion: reduce) {
-  *:not(.glitch, .glitch > .bar) {
+  *:not(.moves, .moves *) {
     /* biome-ignore lint/complexity/noImportantStyles: must beat every component's animation */
     animation: none !important;
   }
