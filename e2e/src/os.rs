@@ -514,9 +514,9 @@ impl App {
 
     /// Closes a window if it's showing (e.g. Settings opened by a failing check).
     pub fn close_if_open(&self) -> bool {
-        if self.windows().iter().any(|w| w == "walkie") {
-            self.close("walkie");
-            return self.wait_window("walkie", false, 3);
+        if self.windows().iter().any(|w| w == "Walkie") {
+            self.close("Walkie");
+            return self.wait_window("Walkie", false, 3);
         }
         false
     }

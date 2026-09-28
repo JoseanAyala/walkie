@@ -22,17 +22,17 @@ fn open_general(app: &App) {
     let _ = app.close_if_open();
     app.tray("Settings…");
     assert!(
-        app.wait_window("walkie", true, 3),
+        app.wait_window("Walkie", true, 3),
         "Settings didn't open from the tray"
     );
-    app.click("walkie", "General", 1);
+    app.click("Walkie", "General", 1);
 }
 
 /// The Microphone dropdown's selected option, once the page has filled it.
 fn mic_choice(app: &App) -> String {
     let mut seen = Vec::new();
     for _ in 0..20 {
-        seen = app.dropdowns("walkie");
+        seen = app.dropdowns("Walkie");
         if let Some(m) = seen
             .iter()
             .find(|v| v.starts_with("System default") || v.contains(UNPLUGGED))
@@ -63,7 +63,7 @@ fn unplugged_microphone_stays_selected_and_marked_not_connected() {
     open_general(&app);
     let m = mic_choice(&app);
     assert_eq!(m, format!("{UNPLUGGED} (not connected)"));
-    app.click("walkie", "↻", 1); // a refresh mustn't reset it either
+    app.click("Walkie", "↻", 1); // a refresh mustn't reset it either
     sleep(300);
     assert_eq!(mic_choice(&app), format!("{UNPLUGGED} (not connected)"));
     assert_eq!(
@@ -90,10 +90,10 @@ fn status_warns_when_the_chosen_microphone_is_missing() {
         app.log_text()
     );
     open_general(&app);
-    app.click("walkie", "Status", 1);
+    app.click("Walkie", "Status", 1);
     let mut text = String::new();
     for _ in 0..20 {
-        text = app.text("walkie");
+        text = app.text("Walkie");
         if text.contains("not connected") {
             break;
         }

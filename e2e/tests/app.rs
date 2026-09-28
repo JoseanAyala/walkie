@@ -25,17 +25,17 @@ fn onboarding_shows_on_first_run_and_never_again() {
     let app = App::new(); // no config file → first run
     app.launch();
     assert!(
-        app.wait_window("Welcome to walkie", true, 3),
+        app.wait_window("Welcome to Walkie", true, 3),
         "onboarding didn't show: {:?}",
         app.windows()
     );
-    app.click("Welcome to walkie", "I've granted everything — finish", 1);
+    app.click("Welcome to Walkie", "I've granted everything — finish", 1);
     assert!(
-        app.wait_window("Welcome to walkie", false, 3),
+        app.wait_window("Welcome to Walkie", false, 3),
         "onboarding didn't close"
     );
     assert!(
-        app.wait_window("walkie", true, 3),
+        app.wait_window("Walkie", true, 3),
         "finishing onboarding should open Settings"
     );
     assert!(
@@ -46,7 +46,7 @@ fn onboarding_shows_on_first_run_and_never_again() {
     app.launch(); // same dirs → second run
     sleep(1000); // onboarding shows during startup, before the hook line
     assert!(
-        !app.windows().iter().any(|w| w == "Welcome to walkie"),
+        !app.windows().iter().any(|w| w == "Welcome to Walkie"),
         "onboarding reappeared"
     );
 }
@@ -56,14 +56,14 @@ fn opening_the_app_shows_settings() {
     let _t = begin("opening_the_app_shows_settings");
     let app = ready_app();
     assert!(
-        app.wait_window("walkie", true, 3),
+        app.wait_window("Walkie", true, 3),
         "launching walkie by hand should show Settings"
     );
-    app.close("walkie");
-    assert!(app.wait_window("walkie", false, 3));
+    app.close("Walkie");
+    assert!(app.wait_window("Walkie", false, 3));
     app.reopen();
     assert!(
-        app.wait_window("walkie", true, 3),
+        app.wait_window("Walkie", true, 3),
         "opening walkie again (Dock/Finder) should show Settings"
     );
 }
@@ -75,17 +75,17 @@ fn tray_opens_settings_and_closing_only_hides_it() {
     let _ = app.close_if_open();
     app.tray("Settings…");
     assert!(
-        app.wait_window("walkie", true, 3),
+        app.wait_window("Walkie", true, 3),
         "Settings didn't open from the tray"
     );
     for tab in ["General", "Status", "Cleanup", "Polish", "History"] {
-        app.click("walkie", tab, 1);
+        app.click("Walkie", tab, 1);
     }
-    app.close("walkie");
-    assert!(app.wait_window("walkie", false, 3));
+    app.close("Walkie");
+    assert!(app.wait_window("Walkie", false, 3));
     app.tray("Settings…");
     assert!(
-        app.wait_window("walkie", true, 3),
+        app.wait_window("Walkie", true, 3),
         "Settings couldn't be reopened after closing"
     );
 }
@@ -95,11 +95,11 @@ fn status_tab_lists_every_check() {
     let _t = begin("status_tab_lists_every_check");
     let app = ready_app();
     app.tray("Settings…");
-    assert!(app.wait_window("walkie", true, 3));
-    app.click("walkie", "Status", 1);
+    assert!(app.wait_window("Walkie", true, 3));
+    app.click("Walkie", "Status", 1);
     let mut text = String::new();
     for _ in 0..20 {
-        text = app.text("walkie");
+        text = app.text("Walkie");
         if text.contains("Speech model") {
             break;
         }
@@ -262,9 +262,9 @@ fn recorded_shortcut_works_immediately_and_its_key_is_swallowed() {
     // without this the recording keystrokes would go to whatever app was.
     let first = Target::open();
     app.tray("Settings…");
-    assert!(app.wait_window("walkie", true, 3));
-    app.click("walkie", "General", 1);
-    app.click("walkie", "Record", 1); // Dictate row
+    assert!(app.wait_window("Walkie", true, 3));
+    app.click("Walkie", "General", 1);
+    app.click("Walkie", "Record", 1); // Dictate row
     let mut kb = Keyboard::into(&["walkie", walkie_e2e::os::TARGET]);
     kb.wait(300)
         .down("Ctrl")
@@ -285,7 +285,7 @@ fn recorded_shortcut_works_immediately_and_its_key_is_swallowed() {
         app.log_text()
     );
 
-    app.close("walkie"); // back to the app you were typing in
+    app.close("Walkie"); // back to the app you were typing in
     drop(first);
     let doc = Target::open();
     let mut kb = Keyboard::new();

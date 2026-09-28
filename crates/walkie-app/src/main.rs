@@ -67,7 +67,7 @@ fn main() {
                 None::<&str>,
             )?;
             let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "Quit walkie", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit Walkie", true, None::<&str>)?;
             let menu = MenuBuilder::new(app)
                 .item(&paste)
                 .separator()

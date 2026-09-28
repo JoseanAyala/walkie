@@ -1,4 +1,4 @@
-# walkie 📻
+# Walkie 📻
 
 Local-only dictation for macOS. Hold a key, speak (English or Spanish), and
 the text is typed into whatever window has focus: Claude Code, Cursor, a

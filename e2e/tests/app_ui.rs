@@ -15,8 +15,8 @@ fn settings(tab: &str, seed: Option<&str>) -> App {
     }
     app.launch();
     app.tray("Settings…");
-    assert!(app.wait_window("walkie", true, 3), "Settings didn't open");
-    app.click("walkie", tab, 1);
+    assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
+    app.click("Walkie", tab, 1);
     app
 }
 
@@ -42,7 +42,7 @@ fn changing_a_setting_saves_it_without_a_save_button() {
     let _t = begin("changing_a_setting_saves_it_without_a_save_button");
     let app = settings("Cleanup", None);
     let before = app.config().cleanup.enabled;
-    app.click_checkbox("walkie", "Enable cleanup");
+    app.click_checkbox("Walkie", "Enable cleanup");
     step("waiting for the config file to change");
     let mut now = before;
     for _ in 0..20 {
@@ -53,7 +53,7 @@ fn changing_a_setting_saves_it_without_a_save_button() {
         sleep(100);
     }
     assert_ne!(now, before, "the change wasn't saved\n{}", app.log_text());
-    let text = wait_text(&app, "walkie", "Restart to apply: cleanup", true);
+    let text = wait_text(&app, "Walkie", "Restart to apply: cleanup", true);
     assert!(
         text.contains("Restart to apply: cleanup"),
         "cleanup is read at launch, so a restart hint should show:\n{text}"
@@ -64,7 +64,7 @@ fn changing_a_setting_saves_it_without_a_save_button() {
 fn model_picker_explains_disk_and_memory() {
     let _t = begin("model_picker_explains_disk_and_memory");
     let app = settings("General", None); // test config picks "base"
-    let text = wait_text(&app, "walkie", "about 390 MB of RAM", true);
+    let text = wait_text(&app, "Walkie", "about 390 MB of RAM", true);
     assert!(
         text.contains("about 390 MB of RAM") && text.contains("148 MB"),
         "the model's disk and memory use should be spelled out:\n{text}"
@@ -75,13 +75,13 @@ fn model_picker_explains_disk_and_memory() {
 fn history_delete_removes_the_row() {
     let _t = begin("history_delete_removes_the_row");
     let app = settings("History", Some("delete me from history"));
-    let text = wait_text(&app, "walkie", "delete me from history", true);
+    let text = wait_text(&app, "Walkie", "delete me from history", true);
     assert!(
         text.contains("delete me from history"),
         "row not shown:\n{text}"
     );
-    app.click("walkie", "Delete", 1);
-    let text = wait_text(&app, "walkie", "delete me from history", false);
+    app.click("Walkie", "Delete", 1);
+    let text = wait_text(&app, "Walkie", "delete me from history", false);
     assert!(
         !text.contains("delete me from history"),
         "row still shown:\n{text}"
@@ -101,9 +101,9 @@ fn history_delete_removes_the_row() {
 fn polish_test_button_shows_the_commands_output() {
     let _t = begin("polish_test_button_shows_the_commands_output");
     let app = settings("Polish", None); // test config: tr 'a-z' 'A-Z'
-    app.click("walkie", "Test", 1);
+    app.click("Walkie", "Test", 1);
     let want = "QUICK TEST OF THE POLISH COMMAND";
-    let text = wait_text(&app, "walkie", want, true);
+    let text = wait_text(&app, "Walkie", want, true);
     assert!(text.contains(want), "no polish output:\n{text}");
 }
 
@@ -117,12 +117,12 @@ fn onboarding_shows_live_checks_and_the_configured_shortcuts() {
     app.write_config(&c);
     app.launch();
     assert!(
-        app.wait_window("Welcome to walkie", true, 3),
+        app.wait_window("Welcome to Walkie", true, 3),
         "onboarding didn't show: {:?}",
         app.windows()
     );
     // accessibility is granted to the app for this suite, so its row is OK
-    let text = wait_text(&app, "Welcome to walkie", "OK", true);
+    let text = wait_text(&app, "Welcome to Walkie", "OK", true);
     assert!(text.contains("Accessibility"), "{text}");
     assert!(text.contains("OK"), "no live check result:\n{text}");
     assert!(

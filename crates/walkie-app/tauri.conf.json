@@ -15,7 +15,7 @@
     "windows": [
       {
         "label": "settings",
-        "title": "walkie",
+        "title": "Walkie",
         "url": "index.html",
         "visible": false,
         "width": 760,
@@ -37,7 +37,7 @@
       },
       {
         "label": "onboarding",
-        "title": "Welcome to walkie",
+        "title": "Welcome to Walkie",
         "url": "onboarding.html",
         "visible": false,
         "width": 560,

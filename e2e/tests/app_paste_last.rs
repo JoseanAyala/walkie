@@ -73,9 +73,9 @@ fn history_copy_button_puts_the_text_on_the_clipboard() {
     let saved = clipboard();
     let app = ready_app(Some("copy me from history"));
     app.tray("Settings…");
-    assert!(app.wait_window("walkie", true, 3), "Settings didn't open");
-    app.click("walkie", "History", 1);
-    app.click("walkie", "Copy", 1);
+    assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
+    app.click("Walkie", "History", 1);
+    app.click("Walkie", "Copy", 1);
     let ok = (0..20).any(|_| {
         sleep(100);
         clipboard() == "copy me from history"

@@ -34,5 +34,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" target/release/bundle/walkie-*.zip \
-            --title "walkie $GITHUB_REF_NAME" --generate-notes \
+            --title "Walkie $GITHUB_REF_NAME" --generate-notes \
             --notes "Ad-hoc signed: on first launch, right-click walkie.app → Open."

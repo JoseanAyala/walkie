@@ -116,7 +116,7 @@ onMount(() => {
         {/each}
       </nav>
     </Win>
-    <Win title="walkie {version}" class="about" bodyClass="muted">
+    <Win title="Walkie {version}" class="about" bodyClass="muted">
       Runs locally.<br>Your voice never<br>leaves this Mac.
     </Win>
   </div>

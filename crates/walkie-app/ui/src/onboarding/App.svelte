@@ -63,7 +63,7 @@ onMount(() => {
   </div>
 
   <Win title="Welcome" bodyClass="intro">
-    <span class="chip big">walkie</span>
+    <span class="chip big">Walkie</span>
     <span
       >Hold a key, talk, and your words are typed wherever you're writing. Everything runs locally —
       your voice never leaves this Mac.</span

@@ -48,18 +48,18 @@ fn settings_checkbox_toggles_the_real_login_item() {
     app.write_config(&App::test_config());
     app.launch();
     app.tray("Settings…");
-    assert!(app.wait_window("walkie", true, 3), "Settings didn't open");
-    app.click("walkie", "General", 1);
+    assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
+    app.click("Walkie", "General", 1);
 
     let before = login_item_on(&login_item("status"));
     assert_eq!(
-        wait_checkbox(&app, "walkie", before),
+        wait_checkbox(&app, "Walkie", before),
         Some(before),
         "checkbox doesn't show macOS's state"
     );
 
     for want in [!before, before] {
-        app.click_checkbox("walkie", LABEL);
+        app.click_checkbox("Walkie", LABEL);
         let s = wait_login_item(want);
         assert_eq!(
             login_item_on(&s),
@@ -67,10 +67,10 @@ fn settings_checkbox_toggles_the_real_login_item() {
             "toggling the checkbox left the login item {s:?}"
         );
         // the UI re-reads the state after applying it
-        assert_eq!(wait_checkbox(&app, "walkie", want), Some(want));
+        assert_eq!(wait_checkbox(&app, "Walkie", want), Some(want));
         if s == "requires_approval" {
             assert!(
-                app.text("walkie").contains("approval"),
+                app.text("Walkie").contains("approval"),
                 "no approval hint shown"
             );
         }
@@ -84,11 +84,11 @@ fn onboarding_turns_launch_at_login_on_by_default() {
     login_item("off");
     app.launch();
     assert!(
-        app.wait_window("Welcome to walkie", true, 3),
+        app.wait_window("Welcome to Walkie", true, 3),
         "onboarding didn't show"
     );
     assert_eq!(
-        wait_checkbox(&app, "Welcome to walkie", true),
+        wait_checkbox(&app, "Welcome to Walkie", true),
         Some(true),
         "should be checked by default"
     );
@@ -96,7 +96,7 @@ fn onboarding_turns_launch_at_login_on_by_default() {
         !login_item_on(&login_item("status")),
         "applied before onboarding finished"
     );
-    app.click("Welcome to walkie", "I've granted everything — finish", 1);
+    app.click("Welcome to Walkie", "I've granted everything — finish", 1);
     let s = wait_login_item(true);
     assert!(
         login_item_on(&s),
@@ -111,14 +111,14 @@ fn onboarding_unchecked_leaves_launch_at_login_off() {
     login_item("off");
     app.launch();
     assert!(
-        app.wait_window("Welcome to walkie", true, 3),
+        app.wait_window("Welcome to Walkie", true, 3),
         "onboarding didn't show"
     );
-    app.click_checkbox("Welcome to walkie", LABEL);
-    assert_eq!(wait_checkbox(&app, "Welcome to walkie", false), Some(false));
-    app.click("Welcome to walkie", "I've granted everything — finish", 1);
+    app.click_checkbox("Welcome to Walkie", LABEL);
+    assert_eq!(wait_checkbox(&app, "Welcome to Walkie", false), Some(false));
+    app.click("Welcome to Walkie", "I've granted everything — finish", 1);
     assert!(
-        app.wait_window("Welcome to walkie", false, 3),
+        app.wait_window("Welcome to Walkie", false, 3),
         "onboarding didn't close"
     );
     assert!(!app.config().first_run);
