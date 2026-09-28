@@ -490,7 +490,17 @@ impl App {
                     set els to entire contents of window (item 1 of argv)
                     repeat with e in els
                         try
-                            if role of e is "AXPopUpButton" then set out to out & (value of e as text) & linefeed
+                            if role of e is "AXPopUpButton" then
+                                -- a native <select> has the choice as its
+                                -- value; walkie's own (Select.svelte) as
+                                -- its title
+                                set v to ""
+                                try
+                                    set v to value of e as text
+                                end try
+                                if v is "" then set v to title of e as text
+                                set out to out & v & linefeed
+                            end if
                         end try
                     end repeat
                 end tell

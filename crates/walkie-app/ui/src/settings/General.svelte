@@ -2,6 +2,7 @@
 import { onMount } from "svelte";
 import { api, type LoginItem, type ModelChoice } from "@/lib/api";
 import { megabytes } from "@/lib/format";
+import Select from "@/lib/Select.svelte";
 import Field from "./Field.svelte";
 import Shortcuts from "./Shortcuts.svelte";
 import { settings } from "./state.svelte";
@@ -47,6 +48,23 @@ async function loadMics() {
 let models = $state<ModelChoice[]>([]);
 const modelText = (m: ModelChoice) => `${m.key} · ${m.note}`;
 const chosen = $derived(models.find((m) => m.key === cfg?.model));
+// a model the list doesn't know (set by hand in the config) stays shown
+const modelOptions = $derived([
+  ...models.map((m) => ({ value: m.key, text: modelText(m) })),
+  ...(cfg && !models.some((m) => m.key === cfg.model)
+    ? [{ value: cfg.model, text: cfg.model }]
+    : []),
+]);
+const LANGUAGES = [
+  { value: "auto", text: "Auto-detect (en/es)" },
+  { value: "en", text: "English" },
+  { value: "es", text: "Español" },
+];
+const STRATEGIES = [
+  { value: "paste", text: "Paste (recommended)" },
+  { value: "type", text: "Type keystrokes" },
+];
+const save = () => settings.save();
 
 onMount(() => {
   loadLogin();
@@ -80,40 +98,27 @@ onMount(() => {
   <Field label="Shortcuts"><Shortcuts /></Field>
   <Field label="Microphone">
     <div class="inline">
-      <select bind:value={cfg.audio.input_device} onchange={() => settings.save()}>
-        {#each mics as m (m.value)}
-          <option value={m.value}>{m.text}</option>
-        {/each}
-      </select>
+      <Select
+        label="Microphone"
+        bind:value={cfg.audio.input_device}
+        options={mics.map((m) => ({ value: m.value, text: m.text }))}
+        onchange={save}
+      />
       <button title="Refresh the device list" onclick={loadMics}>↻</button>
     </div>
   </Field>
   <Field label="Language" restart>
-    <select bind:value={cfg.language} onchange={() => settings.save()}>
-      <option value="auto">Auto-detect (en/es)</option>
-      <option value="en">English</option>
-      <option value="es">Español</option>
-    </select>
+    <Select label="Language" bind:value={cfg.language} options={LANGUAGES} onchange={save} />
   </Field>
   <Field label="Model" restart>
-    <select bind:value={cfg.model} onchange={() => settings.save()}>
-      {#each models as m (m.key)}
-        <option value={m.key}>{modelText(m)}</option>
-      {/each}
-      {#if !models.some((m) => m.key === cfg.model)}
-        <option value={cfg.model}>{cfg.model}</option>
-      {/if}
-    </select>
+    <Select label="Model" bind:value={cfg.model} options={modelOptions} onchange={save} />
     {#if chosen}
       <div class="hint">about {megabytes(chosen.memory_mb)} of RAM while walkie is open</div>
     {/if}
     <div class="hint">model: {modelStatus}</div>
   </Field>
   <Field label="Injection" restart>
-    <select bind:value={cfg.inject.strategy} onchange={() => settings.save()}>
-      <option value="paste">Paste (recommended)</option>
-      <option value="type">Type keystrokes</option>
-    </select>
+    <Select label="Injection" bind:value={cfg.inject.strategy} options={STRATEGIES} onchange={save} />
   </Field>
   <Field label="Ducking" restart>
     <label class="cb"

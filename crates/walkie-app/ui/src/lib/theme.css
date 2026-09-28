@@ -234,8 +234,7 @@ button.link {
 }
 
 input[type="text"],
-input[type="search"],
-select {
+input[type="search"] {
   background: var(--paper);
   border: 2px solid var(--line);
   padding: 0 6px;
@@ -243,19 +242,6 @@ select {
   outline: none;
   border-radius: 0;
   width: 100%;
-}
-select {
-  -webkit-appearance: none;
-  appearance: none;
-  padding-right: 22px;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--fg) 50%),
-    linear-gradient(-45deg, transparent 50%, var(--fg) 50%);
-  background-position:
-    calc(100% - 12px) 10px,
-    calc(100% - 8px) 10px;
-  background-size: 4px 4px;
-  background-repeat: no-repeat;
 }
 input[type="checkbox"] {
   -webkit-appearance: none;
@@ -305,8 +291,7 @@ input[type="range"]:disabled {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
-input:focus-visible,
-select:focus-visible {
+input:focus-visible {
   outline-offset: -2px;
 }
 

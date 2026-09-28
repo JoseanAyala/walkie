@@ -19,7 +19,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       rows grouped by day; About text wraps instead of hand-placed `<br>`s.
 - [x] **Pixel icons.** 11×11 icons for the Menu, permission rows, overlay chip;
       an illustration for the empty History.
-- [ ] **Own the dropdowns.** A custom listbox instead of native `<select>`
+- [x] **Own the dropdowns.** A custom listbox instead of native `<select>`
       popups (microphone, language, model, injection).
 - [ ] **Window limits.** `minWidth`/`minHeight` on settings so resizing can't
       break the grid.

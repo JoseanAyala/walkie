@@ -1,5 +1,6 @@
 <script lang="ts">
 import { type AppleAi, api, message, type Tone } from "@/lib/api";
+import Select from "@/lib/Select.svelte";
 import Field from "./Field.svelte";
 import { settings } from "./state.svelte";
 
@@ -40,6 +41,16 @@ $effect(() => {
 let running = $state(false);
 let out = $state<{ ok: boolean; text: string } | null>(null);
 
+const PROVIDERS = [
+  { value: "command", text: "Your command" },
+  { value: "apple", text: "Apple, on this Mac (macOS 26)" },
+];
+// a different model or tone: the last test's output no longer applies
+function changed() {
+  out = null;
+  settings.save();
+}
+
 async function test() {
   if (!cfg) return;
   running = true;
@@ -56,17 +67,12 @@ async function test() {
 
 {#if cfg}
   <Field label="Model" restart>
-    <select
-      aria-label="Polish model"
+    <Select
+      label="Polish model"
       bind:value={cfg.polish.provider}
-      onchange={() => {
-        out = null;
-        settings.save();
-      }}
-    >
-      <option value="command">Your command</option>
-      <option value="apple">Apple, on this Mac (macOS 26)</option>
-    </select>
+      options={PROVIDERS}
+      onchange={changed}
+    />
     {#if apple}
       <div class="hint" data-testid="apple-ai">
         {#if !ai}
@@ -85,18 +91,12 @@ async function test() {
   </Field>
   {#if apple}
     <Field label="Tone" restart>
-      <select
-        aria-label="Polish tone"
+      <Select
+        label="Polish tone"
         bind:value={cfg.polish.tone}
-        onchange={() => {
-          out = null;
-          settings.save();
-        }}
-      >
-        {#each TONES as t (t.value)}
-          <option value={t.value}>{t.name}</option>
-        {/each}
-      </select>
+        options={TONES.map((t) => ({ value: t.value, text: t.name }))}
+        onchange={changed}
+      />
       <div class="example" data-testid="tone-example">{example}</div>
     </Field>
   {:else}
