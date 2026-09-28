@@ -2,6 +2,7 @@
 import { onMount } from "svelte";
 import { api, type Check, type Config, type Pane } from "@/lib/api";
 import { glyph } from "@/lib/format";
+import Icon from "@/lib/Icon.svelte";
 import Win from "@/lib/Win.svelte";
 import { PERMS, turnedOk, verdict } from "./checks";
 
@@ -95,7 +96,7 @@ onMount(() => {
             class:flash={flash.includes(p)}
             >{v === "ok" ? "OK" : v === "pending" ? ".." : "!!"}</span
           >
-          <span><b>{ROWS[p].name}</b><small>{ROWS[p].why}</small></span>
+          <span><b><Icon name={p} /> {ROWS[p].name}</b><small>{ROWS[p].why}</small></span>
           <button class:hidden={v === "ok"} onclick={() => api.openSettingsPane(ROWS[p].pane)}>
             Open Settings
           </button>

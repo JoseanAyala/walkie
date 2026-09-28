@@ -2,6 +2,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { onMount } from "svelte";
 import { api, type Check, on } from "@/lib/api";
+import Icon from "@/lib/Icon.svelte";
 import Win from "@/lib/Win.svelte";
 import General from "./General.svelte";
 import History from "./History.svelte";
@@ -92,7 +93,7 @@ onMount(() => {
       <nav>
         {#each Object.entries(TABS) as [t, { name }] (t)}
           <button class:on={tab === t} aria-label={name} onclick={() => show(t as Tab)}>
-            {name}
+            <Icon name={t as Tab} />{name}
             {#if t === "status" && problems > 0}
               <span class="badge" aria-hidden="true">{problems}</span>
             {/if}
@@ -176,6 +177,8 @@ nav {
 }
 nav button {
   display: flex;
+  gap: 8px;
+  align-items: center;
   width: 100%;
   border: 0;
   background: none;

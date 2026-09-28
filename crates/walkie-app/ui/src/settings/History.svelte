@@ -2,6 +2,7 @@
 import { onMount } from "svelte";
 import { api, type HistoryRecord } from "@/lib/api";
 import { byDay, clock } from "@/lib/format";
+import Icon from "@/lib/Icon.svelte";
 import { settings } from "./state.svelte";
 
 const cfg = $derived(settings.cfg);
@@ -87,6 +88,7 @@ onMount(load);
 </div>
 {#if rows && !rows.length}
   <div class="empty dots">
+    <span class="art"><Icon name="bubble" scale={4} /></span>
     <span class="chip">{q.trim() ? "no matches" : "no dictations yet"}</span>
   </div>
 {:else if rows}
@@ -180,10 +182,16 @@ p {
   overflow-wrap: anywhere;
 }
 .empty {
-  height: 120px;
+  height: 160px;
   display: grid;
-  place-items: center;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
   border: 1px solid var(--line);
   margin-top: 8px;
+}
+.art {
+  display: flex;
+  color: var(--fg);
 }
 </style>

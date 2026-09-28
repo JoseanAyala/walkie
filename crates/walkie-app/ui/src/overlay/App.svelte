@@ -1,6 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { on, type SessionState } from "@/lib/api";
+import Icon from "@/lib/Icon.svelte";
 import { litBlocks } from "./meter";
 
 type Mode = "rec" | "busy" | "done" | "notice" | "error";
@@ -75,7 +76,9 @@ onMount(() => {
 
 {#key shown}
 <div id="pill" class={mode}>
-  <span class="chip">{chip}</span><span class="label">{label}</span>
+  <span class="chip"
+    >{#if mode === "rec"}<span class="live"><Icon name="mic" /></span>{/if}{chip}</span
+  ><span class="label">{label}</span>
   {#if mode === "rec"}
     <span class="bars">
       {#each { length: N }, i (i)}<i class:on={i < lit} class:hot={i >= N - 2}></i>{/each}
@@ -111,8 +114,8 @@ onMount(() => {
     background: var(--accent);
     color: var(--accent-fg);
   }
-  .rec .chip::before {
-    content: "■ ";
+  .live {
+    margin-right: 4px;
     animation: blink 1s steps(1) infinite;
   }
   .busy .chip {

@@ -17,7 +17,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       `.hint`, `.about`, onboarding, History, overlay label).
 - [x] **Less noise.** Drop the duplicated tab title; History actions on hover,
       rows grouped by day; About text wraps instead of hand-placed `<br>`s.
-- [ ] **Pixel icons.** 11×11 icons for the Menu, permission rows, overlay chip;
+- [x] **Pixel icons.** 11×11 icons for the Menu, permission rows, overlay chip;
       an illustration for the empty History.
 - [ ] **Own the dropdowns.** A custom listbox instead of native `<select>`
       popups (microphone, language, model, injection).
