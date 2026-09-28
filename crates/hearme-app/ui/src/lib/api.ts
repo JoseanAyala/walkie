@@ -15,6 +15,23 @@ export interface Config {
   inject: { strategy: string; restore_clipboard_ms: number };
   history: { enabled: boolean };
   audio: { input_device: string; duck_while_recording: boolean; duck_percent: number };
+  theme: ThemeCfg;
+}
+
+export type Appearance = "system" | "light" | "dark";
+
+export interface CustomTheme {
+  name: string;
+  base: string;
+  main: string;
+  accent: string;
+}
+
+export interface ThemeCfg {
+  /** a preset key or a custom theme's name */
+  name: string;
+  appearance: Appearance;
+  custom: CustomTheme[];
 }
 
 export interface Check {
@@ -94,6 +111,8 @@ export interface Events {
   "shortcut-error": string;
   "shortcut-cancelled": null;
   "show-tab": string;
+  /** the saved theme changed (sent to every window) */
+  theme: ThemeCfg;
 }
 
 export function on<K extends keyof Events>(name: K, f: (payload: Events[K]) => void) {

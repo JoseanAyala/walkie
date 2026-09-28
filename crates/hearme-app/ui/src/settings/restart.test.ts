@@ -17,11 +17,18 @@ const cfg = (): Config => ({
   inject: { strategy: "paste", restore_clipboard_ms: 300 },
   history: { enabled: true },
   audio: { input_device: "", duck_while_recording: true, duck_percent: 30 },
+  theme: { name: "classic", appearance: "system", custom: [] },
 });
 
 describe("pendingRestart", () => {
   it("is empty when nothing changed", () => {
     expect(pendingRestart(cfg(), cfg())).toEqual([]);
+  });
+
+  it("applies a theme change live", () => {
+    const now = cfg();
+    now.theme = { name: "klein", appearance: "dark", custom: [] };
+    expect(pendingRestart(cfg(), now)).toEqual([]);
   });
 
   it("ignores settings that apply live", () => {
