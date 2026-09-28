@@ -62,7 +62,7 @@ onMount(() => {
     ><span class="chip ghost">setup</span>
   </div>
 
-  <Win title="Welcome 1.1" bodyClass="intro">
+  <Win title="Welcome" bodyClass="intro">
     <span class="chip big">hearme</span>
     <span
       >Hold a key, talk, and your words are typed wherever you're writing. Everything runs locally —

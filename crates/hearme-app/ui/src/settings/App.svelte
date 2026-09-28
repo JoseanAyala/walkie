@@ -121,7 +121,7 @@ onMount(() => {
     </Win>
   </div>
 
-  <Win title="{TABS[tab].name} 1.1" class="main" bodyClass="scroll">
+  <Win title={TABS[tab].name} class="main" bodyClass="scroll">
     {#snippet extra()}
       <!-- every change saves itself; this just confirms it happened -->
       {#if settings.saved}<span class="saved">saved ✓</span>{/if}
