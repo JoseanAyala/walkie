@@ -109,7 +109,27 @@ onMount(() => {
 <div id="pill" class="moves {mode}">
   <div class="trim"></div>
   <div class="row">
-    <span class="state">{#if mode === "rec"}<span class="dot"></span>{/if}{CHIPS[mode]}</span>
+    <span class="state">
+      {#if mode === "rec"}
+        <span class="dot"></span>
+      {:else if mode === "busy"}
+        <!-- sand runs down, then the glass turns over; it's symmetric, so the
+             turn ends where the loop starts -->
+        <svg class="glass" viewBox="0 0 10 14" aria-hidden="true">
+          <g class="turn">
+            <path class="frame" d="M1.5 1h7M1.5 13h7M2.5 1c0 3.5 2.5 4.5 2.5 6s-2.5 2.5-2.5 6M7.5 1c0 3.5-2.5 4.5-2.5 6s2.5 2.5 2.5 6" />
+            <path class="sand top" d="M3.2 3h3.6L5 6.2z" />
+            <path class="sand bottom" d="M3 12.5h4L5 9.8z" />
+            <path class="stream" d="M5 7v5" />
+          </g>
+        </svg>
+      {:else if mode === "done"}
+        <svg class="check" viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M1.5 5.5 4 8l4.5-6" />
+        </svg>
+      {/if}
+      {CHIPS[mode]}
+    </span>
     <span class="label" class:warn={label === DEAF}>{label}</span>
     {#if metered}
       <span class="wave" aria-hidden="true">
@@ -177,6 +197,101 @@ onMount(() => {
     border-radius: 50%;
     background: currentColor;
     animation: pulse 1.2s ease-in-out infinite;
+  }
+  .glass {
+    width: 9px;
+    height: 13px;
+    overflow: visible;
+  }
+  .glass .frame,
+  .glass .stream,
+  .check path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .glass .sand {
+    fill: currentColor;
+    transform-box: fill-box;
+  }
+  .glass .turn {
+    transform-origin: 5px 7px;
+    animation: turn 1.8s cubic-bezier(0.6, 0, 0.3, 1) infinite;
+  }
+  /* the top empties toward its neck, the bottom heaps up from the floor */
+  .glass .top {
+    transform-origin: 50% 100%;
+    animation: drain 1.8s linear infinite;
+  }
+  .glass .bottom {
+    transform-origin: 50% 100%;
+    animation: heap 1.8s linear infinite;
+  }
+  .glass .stream {
+    stroke-width: 0.8;
+    stroke-dasharray: 1 1;
+    animation: fall 1.8s linear infinite;
+  }
+  .check {
+    width: 10px;
+    height: 10px;
+  }
+  .check path {
+    stroke-width: 1.6;
+    stroke-dasharray: 12;
+    animation: draw 320ms 60ms ease-out both;
+  }
+  @keyframes turn {
+    0%,
+    75% {
+      transform: rotate(0);
+    }
+    100% {
+      transform: rotate(180deg);
+    }
+  }
+  @keyframes drain {
+    0% {
+      transform: scale(1);
+    }
+    72%,
+    100% {
+      transform: scale(0);
+    }
+  }
+  @keyframes heap {
+    0% {
+      transform: scale(0);
+    }
+    72%,
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes fall {
+    0% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+    70% {
+      stroke-dashoffset: -6;
+      opacity: 1;
+    }
+    72%,
+    100% {
+      stroke-dashoffset: -6;
+      opacity: 0;
+    }
+  }
+  @keyframes draw {
+    from {
+      stroke-dashoffset: 12;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
   }
   .label {
     flex: 1;
