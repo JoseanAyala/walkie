@@ -260,6 +260,30 @@ pub fn db_path() -> PathBuf {
     xdg("XDG_DATA_HOME", ".local/share").join("walkie/history.sqlite3")
 }
 
+/// walkie used to be called hearme. Moves each of its folders (config,
+/// history, models) to the new name, once: only when the old folder exists
+/// and the new one doesn't. Returns a line per folder moved or not movable.
+pub fn migrate_from_hearme() -> Vec<String> {
+    [
+        xdg("XDG_CONFIG_HOME", ".config"),
+        xdg("XDG_DATA_HOME", ".local/share"),
+        xdg("XDG_CACHE_HOME", ".cache"),
+    ]
+    .iter()
+    .filter_map(|root| rename_once(&root.join("hearme"), &root.join("walkie")))
+    .collect()
+}
+
+fn rename_once(old: &Path, new: &Path) -> Option<String> {
+    if !old.is_dir() || new.exists() {
+        return None;
+    }
+    Some(match std::fs::rename(old, new) {
+        Ok(()) => format!("moved {} → {}", old.display(), new.display()),
+        Err(e) => format!("couldn't move {} → {}: {e}", old.display(), new.display()),
+    })
+}
+
 impl Config {
     pub fn load() -> Result<Config> {
         Self::load_from(&config_path())

@@ -85,6 +85,9 @@ pub fn paste_last(app: &AppHandle, delay: Duration) {
 }
 
 pub fn start(app: AppHandle) -> Result<()> {
+    for line in walkie_core::config::migrate_from_hearme() {
+        eprintln!("walkie: {line}");
+    }
     // A hand-edited config.toml (the README encourages this, e.g. for the
     // polish command) can have a syntax error. Falling back to defaults
     // instead of aborting keeps the app launchable — a broken config would
