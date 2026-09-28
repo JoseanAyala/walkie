@@ -177,7 +177,7 @@ nav button {
   transform: none;
   text-align: left;
   padding: 2px 6px;
-  line-height: 22px;
+  line-height: var(--lh);
 }
 nav button:hover:not(.on) {
   background: var(--tag);
@@ -196,7 +196,7 @@ nav button.on {
   margin-top: auto;
 }
 .side :global(.about .body) {
-  line-height: 16px;
+  line-height: var(--lh-tight);
 }
 :global(.main) {
   flex: 1;
@@ -223,7 +223,7 @@ nav button.on {
 }
 .error .text {
   flex: 1;
-  line-height: 16px;
+  line-height: var(--lh-tight);
   -webkit-user-select: text;
   user-select: text;
 }

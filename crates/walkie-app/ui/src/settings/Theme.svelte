@@ -200,7 +200,7 @@ function add() {
   background: var(--desk) radial-gradient(var(--desk-dot) 0.9px, transparent 1.1px) 0 0 / 6px 6px;
   color: var(--fg);
   text-align: left;
-  line-height: 16px;
+  line-height: var(--lh-tight);
 }
 .card:hover:not(:disabled),
 .card:active:not(:disabled) {
@@ -257,7 +257,7 @@ textarea {
   padding: 2px 6px;
   outline: none;
   resize: vertical;
-  line-height: 16px;
+  line-height: var(--lh-tight);
   -webkit-user-select: text;
   user-select: text;
 }

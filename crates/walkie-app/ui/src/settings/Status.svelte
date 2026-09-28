@@ -35,6 +35,6 @@ const fix = (c: Check) =>
 small {
   display: block;
   color: var(--muted);
-  line-height: 16px;
+  line-height: var(--lh-tight);
 }
 </style>

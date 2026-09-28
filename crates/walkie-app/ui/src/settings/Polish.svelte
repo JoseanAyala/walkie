@@ -153,7 +153,7 @@ async function test() {
   margin-top: 6px;
   border: 1px dashed var(--line);
   padding: 4px 6px;
-  line-height: 16px;
+  line-height: var(--lh-tight);
   white-space: pre-wrap;
   opacity: 0.8;
 }
@@ -163,7 +163,7 @@ async function test() {
   border: 1px solid var(--line);
   padding: 4px 6px;
   background-color: var(--paper);
-  line-height: 16px;
+  line-height: var(--lh-tight);
   white-space: pre-wrap;
   -webkit-user-select: text;
   user-select: text;

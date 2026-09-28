@@ -171,7 +171,7 @@ onMount(() => {
   flex: 1;
 }
 .desktop :global(.body) {
-  line-height: 16px;
+  line-height: var(--lh-tight);
 }
 .desktop :global(.intro) {
   display: flex;

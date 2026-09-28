@@ -134,7 +134,7 @@ onMount(() => {
   .label {
     flex: 1;
     min-width: 0;
-    line-height: 14px;
+    line-height: var(--lh-tight);
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;

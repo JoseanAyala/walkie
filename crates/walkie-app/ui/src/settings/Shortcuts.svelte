@@ -118,7 +118,7 @@ onMount(() => {
 .what small {
   display: block;
   color: var(--muted);
-  line-height: 14px;
+  line-height: var(--lh-tight);
 }
 kbd {
   background: var(--paper);
@@ -133,10 +133,6 @@ kbd.rec {
   background: var(--accent);
   color: var(--accent-fg);
   animation: blink 1s steps(1) infinite;
-}
-.hint {
-  line-height: 16px;
-  margin-top: 4px;
 }
 .err {
   color: var(--warn);

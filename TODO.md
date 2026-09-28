@@ -13,7 +13,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       switch, `saved ✓` blinks in and fades, the restart bar slides up, the
       overlay pill enters and shows `✓ typed` before hiding, onboarding
       permissions flash when they turn OK. Respect reduced motion.
-- [ ] **One type grid.** Line heights on the 11px grid (no 14px/16px strays in
+- [x] **One type grid.** Line heights on the 11px grid (no 14px/16px strays in
       `.hint`, `.about`, onboarding, History, overlay label).
 - [ ] **Less noise.** Drop the duplicated tab title; History actions on hover,
       rows grouped by day; About text wraps instead of hand-placed `<br>`s.

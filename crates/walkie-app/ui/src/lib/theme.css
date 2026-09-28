@@ -1,7 +1,8 @@
 /* walkie's look: a dotted desktop with small monochrome windows.
    Light mode is a pink desktop; dark mode is near-black with pink highlights.
    Departure Mono is a pixel font drawn on an 11px grid, so sizes stay at
-   multiples of 11 to keep it crisp. */
+   multiples of 11 to keep it crisp. Text sits on two line heights: --lh for
+   rows and labels, --lh-tight for wrapped hints and prose. */
 @font-face {
   font-family: "Departure Mono";
   src: url("fonts/DepartureMono-Regular.woff2") format("woff2");
@@ -9,6 +10,8 @@
 }
 
 :root {
+  --lh: 22px;
+  --lh-tight: 16px;
   --desk: #e8899a;
   --desk-dot: #1c1a1b;
   --panel: #dcdcdc;
@@ -75,7 +78,7 @@ body {
 }
 body {
   font:
-    11px / 22px "Departure Mono",
+    11px / var(--lh) "Departure Mono",
     ui-monospace,
     monospace;
   color: var(--fg);
@@ -329,7 +332,7 @@ label.cb {
   text-align: right;
 }
 .hint {
-  line-height: 16px;
+  line-height: var(--lh-tight);
   margin-top: 4px;
 }
 .head {

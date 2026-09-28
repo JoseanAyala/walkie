@@ -141,7 +141,7 @@ onMount(load);
 }
 p {
   margin: 4px 0 0;
-  line-height: 16px;
+  line-height: var(--lh-tight);
   -webkit-user-select: text;
   user-select: text;
   overflow-wrap: anywhere;
