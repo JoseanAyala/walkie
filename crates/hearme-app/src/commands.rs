@@ -1,7 +1,7 @@
 use crate::login_item::{self, LoginItem};
 use crate::status::{self, Check, HotkeyState, ModelStatus};
 use hearme_core::audio;
-use hearme_core::config::{self, models, Config};
+use hearme_core::config::{self, models, Config, ThemeCfg};
 use hearme_core::history::{History, Record};
 use hearme_core::hotkey::engine::Bindings;
 use hearme_core::pipeline::polish::run_polish;
@@ -17,12 +17,22 @@ pub fn get_config() -> Result<Config, String> {
     Config::load().map_err(estr)
 }
 
-/// Saves, then applies the shortcuts and microphone immediately. Problems
-/// with a shortcut come back as the error (the rest of the config is still
-/// saved).
+/// Saves, then applies the shortcuts, microphone and theme immediately.
+/// Problems with a shortcut come back as the error (the rest of the config
+/// is still saved).
 #[tauri::command]
-pub fn save_config(cfg: Config, hk: State<HotkeyState>) -> Result<(), String> {
+pub fn save_config(
+    app: tauri::AppHandle,
+    cfg: Config,
+    hk: State<HotkeyState>,
+) -> Result<(), String> {
+    let before = Config::load().ok().map(|c| c.theme);
     cfg.save().map_err(estr)?;
+    if let Some(line) = theme_change(before.as_ref(), &cfg.theme) {
+        eprintln!("hearme: {line}");
+        // every window (overlay, onboarding) repaints in the new colors
+        let _ = app.emit("theme", &cfg.theme);
+    }
     audio::set_preferred_input(&cfg.audio.input_device);
     let (bindings, errors) = Bindings::from_config(&cfg.hotkeys);
     hk.engine.lock().unwrap().set_bindings(bindings);
@@ -32,6 +42,11 @@ pub fn save_config(cfg: Config, hk: State<HotkeyState>) -> Result<(), String> {
     } else {
         Err(errors.join("; "))
     }
+}
+
+/// The log line for a theme change, or None if the theme didn't change.
+fn theme_change(before: Option<&ThemeCfg>, now: &ThemeCfg) -> Option<String> {
+    (before != Some(now)).then(|| format!("theme {} ({:?})", now.name, now.appearance))
 }
 
 #[derive(serde::Serialize)]
@@ -219,6 +234,22 @@ mod tests {
     fn test_polish_reports_a_missing_command() {
         let err = tauri::async_runtime::block_on(test_polish("  ".into(), 5)).unwrap_err();
         assert!(err.contains("no polish command"), "{err}");
+    }
+
+    #[test]
+    fn theme_change_is_reported_only_when_the_theme_differs() {
+        let a = ThemeCfg::default();
+        assert_eq!(theme_change(Some(&a), &a), None);
+        let b = ThemeCfg {
+            name: "klein".into(),
+            appearance: config::Appearance::Dark,
+            ..a.clone()
+        };
+        assert_eq!(
+            theme_change(Some(&a), &b).as_deref(),
+            Some("theme klein (Dark)")
+        );
+        assert!(theme_change(None, &a).is_some(), "no saved config yet");
     }
 
     #[test]

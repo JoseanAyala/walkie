@@ -14,6 +14,7 @@ pub struct Config {
     pub inject: Inject,
     pub history: HistoryCfg,
     pub audio: AudioCfg,
+    pub theme: ThemeCfg,
 }
 
 /// Each binding is the key names held together (see `hotkey::keys`); an
@@ -126,6 +127,39 @@ pub struct AudioCfg {
     pub input_device: String,
 }
 
+/// The UI's colors. Presets live in the UI (`ui/src/lib/palette.ts`); only
+/// the choice and imported palettes are stored here.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct ThemeCfg {
+    /// A preset key or the name of one of `custom`; unknown = the default.
+    pub name: String,
+    pub appearance: Appearance,
+    pub custom: Vec<CustomTheme>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Appearance {
+    /// Follow macOS light/dark.
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+/// An imported palette: three `#rrggbb` colors, each shade derived from them.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CustomTheme {
+    pub name: String,
+    /// The dark color: text and lines in light mode, the desk in dark.
+    pub base: String,
+    /// The desk in light mode, title bars and labels in dark.
+    pub main: String,
+    /// Hover, focus and warnings.
+    pub accent: String,
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -138,6 +172,16 @@ impl Default for Config {
             inject: Inject::default(),
             history: HistoryCfg::default(),
             audio: AudioCfg::default(),
+            theme: ThemeCfg::default(),
+        }
+    }
+}
+impl Default for ThemeCfg {
+    fn default() -> Self {
+        Self {
+            name: "classic".into(),
+            appearance: Appearance::System,
+            custom: vec![],
         }
     }
 }
@@ -266,6 +310,9 @@ mod tests {
         assert_eq!(c.audio.input_device, "");
         assert!(c.audio.duck_while_recording);
         assert_eq!(c.audio.duck_percent, 30);
+        assert_eq!(c.theme.name, "classic");
+        assert_eq!(c.theme.appearance, Appearance::System);
+        assert!(c.theme.custom.is_empty());
     }
 
     #[test]
@@ -352,6 +399,28 @@ mod tests {
         assert_eq!(c.audio.input_device, "Shure MV7");
         let back: Config = toml::from_str(&toml::to_string_pretty(&c).unwrap()).unwrap();
         assert_eq!(back.audio.input_device, "Shure MV7");
+    }
+
+    #[test]
+    fn theme_with_imported_palettes_roundtrips() {
+        let c: Config = toml::from_str(
+            "[theme]\nname = \"mine\"\nappearance = \"dark\"\n\
+             [[theme.custom]]\nname = \"mine\"\nbase = \"#2b2a30\"\n\
+             main = \"#7479d8\"\naccent = \"#e94b3c\"",
+        )
+        .unwrap();
+        assert_eq!(c.theme.name, "mine");
+        assert_eq!(c.theme.appearance, Appearance::Dark);
+        assert_eq!(c.theme.custom[0].main, "#7479d8");
+        let back: Config = toml::from_str(&toml::to_string_pretty(&c).unwrap()).unwrap();
+        assert_eq!(back.theme, c.theme);
+    }
+
+    #[test]
+    fn configs_without_a_theme_get_the_default() {
+        let c: Config = toml::from_str("[theme]\nappearance = \"light\"").unwrap();
+        assert_eq!(c.theme.name, "classic");
+        assert_eq!(c.theme.appearance, Appearance::Light);
     }
 
     #[test]
