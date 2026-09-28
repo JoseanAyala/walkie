@@ -52,6 +52,23 @@ fn onboarding_shows_on_first_run_and_never_again() {
 }
 
 #[test]
+fn opening_the_app_shows_settings() {
+    let _t = begin("opening_the_app_shows_settings");
+    let app = ready_app();
+    assert!(
+        app.wait_window("hearme", true, 3),
+        "launching hearme by hand should show Settings"
+    );
+    app.close("hearme");
+    assert!(app.wait_window("hearme", false, 3));
+    app.reopen();
+    assert!(
+        app.wait_window("hearme", true, 3),
+        "opening hearme again (Dock/Finder) should show Settings"
+    );
+}
+
+#[test]
 fn tray_opens_settings_and_closing_only_hides_it() {
     let _t = begin("tray_opens_settings_and_closing_only_hides_it");
     let app = ready_app();

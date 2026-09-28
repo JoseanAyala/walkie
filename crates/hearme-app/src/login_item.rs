@@ -98,6 +98,12 @@ pub fn status() -> Status {
 
 /// Registers or unregisters, then returns the state macOS reports afterwards
 /// (which may be RequiresApproval rather than Enabled).
+/// Whether macOS started hearme at login (vs. someone opening it). Only
+/// answerable during launch; None when it can't tell.
+pub fn launched_at_login() -> Option<bool> {
+    mac::launched_at_login()
+}
+
 pub fn set(enabled: bool) -> Result<Status, String> {
     if !bundled() {
         return Err(UNBUNDLED.into());
@@ -156,6 +162,36 @@ mod mac {
         (!svc.is_null()).then_some(svc)
     }
 
+    /// Reads the "open application" Apple event macOS launched us with;
+    /// it carries `keyAELaunchedAsLogInItem` when we're a login item. Only
+    /// current while the app is finishing launching (i.e. during setup).
+    /// None if there's no such event to read.
+    pub fn launched_at_login() -> Option<bool> {
+        const OPEN_APP: u32 = u32::from_be_bytes(*b"oapp"); // kAEOpenApplication
+        const PROP_DATA: u32 = u32::from_be_bytes(*b"prdt"); // keyAEPropData
+        const LOGIN_ITEM: u32 = u32::from_be_bytes(*b"lgit"); // keyAELaunchedAsLogInItem
+        autoreleasepool(|_| unsafe {
+            let mgr: *mut AnyObject = msg_send![
+                AnyClass::get(c"NSAppleEventManager")?,
+                sharedAppleEventManager
+            ];
+            let ev: *mut AnyObject = msg_send![mgr.as_ref()?, currentAppleEvent];
+            let ev = ev.as_ref()?;
+            let id: u32 = msg_send![ev, eventID];
+            if id != OPEN_APP {
+                return None;
+            }
+            let prop: *mut AnyObject = msg_send![ev, paramDescriptorForKeyword: PROP_DATA];
+            Some(match prop.as_ref() {
+                Some(p) => {
+                    let code: u32 = msg_send![p, enumCodeValue];
+                    code == LOGIN_ITEM
+                }
+                None => false,
+            })
+        })
+    }
+
     pub fn status() -> Status {
         autoreleasepool(|_| match main_app() {
             Some(svc) => Status::from_raw(unsafe { msg_send![svc, status] }),
@@ -196,6 +232,9 @@ mod mac {
     pub fn status() -> Status {
         Status::NotFound
     }
+    pub fn launched_at_login() -> Option<bool> {
+        None
+    }
     pub fn set(_: bool) -> Result<(), String> {
         Err("launch at login is only supported on macOS".into())
     }
@@ -205,6 +244,13 @@ mod mac {
 mod tests {
     use super::*;
     use std::path::Path;
+
+    #[test]
+    fn a_test_run_is_not_a_login_launch() {
+        // No launch Apple event here: must never read as "at login", or a
+        // hand launch would stay silent.
+        assert_ne!(launched_at_login(), Some(true));
+    }
 
     #[test]
     fn raw_status_maps_to_smappservice_values() {

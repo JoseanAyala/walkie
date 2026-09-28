@@ -210,6 +210,14 @@ impl App {
         );
     }
 
+    /// Opens hearme again while it runs, like clicking its Dock or Finder
+    /// icon (macOS sends the running instance a reopen event).
+    pub fn reopen(&self) {
+        step("opening hearme again");
+        let ok = Command::new("open").args(["-a", APP]).status().unwrap();
+        assert!(ok.success(), "couldn't open {APP}");
+    }
+
     pub fn log_text(&self) -> String {
         std::fs::read_to_string(&self.log).unwrap_or_default()
     }

@@ -96,22 +96,41 @@ fn main() {
                 .build(app)?;
             app.manage(TrayHandle(Mutex::new(tray)));
             glue::start(app.handle().clone())?;
-            if hearme_core::config::Config::load()
-                .map(|c| c.first_run)
-                .unwrap_or(true)
-            {
-                if let Some(w) = app.get_webview_window("onboarding") {
-                    let _ = w.show();
-                    let _ = w.set_focus();
-                }
+            // Opened by hand (Dock, Finder, Spotlight): show a window, since a
+            // menu-bar app otherwise gives no sign it started. Not at login.
+            let at_login = login_item::launched_at_login();
+            eprintln!("hearme: launched at login: {at_login:?}");
+            if at_login != Some(true) || first_run() {
+                show_front(app.handle());
             }
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while running hearme")
-        .run(|app, ev| {
-            if let tauri::RunEvent::Exit = ev {
-                glue::unduck(app);
-            }
+        .run(|app, ev| match ev {
+            // Opening hearme again while it runs (e.g. its Dock/Finder icon).
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen { .. } => show_front(app),
+            tauri::RunEvent::Exit => glue::unduck(app),
+            _ => {}
         });
+}
+
+fn first_run() -> bool {
+    hearme_core::config::Config::load()
+        .map(|c| c.first_run)
+        .unwrap_or(true)
+}
+
+/// Onboarding until it's done, Settings after.
+fn show_front(app: &tauri::AppHandle) {
+    let label = if first_run() {
+        "onboarding"
+    } else {
+        "settings"
+    };
+    if let Some(w) = app.get_webview_window(label) {
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
 }
