@@ -345,6 +345,33 @@ label.cb {
     opacity: 0;
   }
 }
+/* glitch: a window's hard shadow jumps (in pink, then ink) before it lands,
+   on the 2px pixel grid, one hard frame at a time (steps(1)) */
+@keyframes jump {
+  0% {
+    box-shadow: 8px 2px 0 var(--accent);
+    transform: translate(-2px, 0);
+  }
+  33% {
+    box-shadow: 2px 8px 0 var(--line);
+    transform: translate(2px, -2px);
+  }
+  66% {
+    box-shadow: 6px 6px 0 var(--accent);
+    transform: none;
+  }
+  100% {
+    box-shadow: 4px 4px 0 var(--line);
+  }
+}
+@keyframes bar-flick {
+  0% {
+    background: var(--accent);
+  }
+  50% {
+    background: var(--fg);
+  }
+}
 /* in with a blink, out with a fade */
 @keyframes flash-out {
   0%,
@@ -360,8 +387,11 @@ label.cb {
     opacity: 0;
   }
 }
+/* Reduce Motion stills everything but the glitch, which is walkie's look:
+   .glitch elements (the pill, the Settings tab window and its bar) keep it.
+   Their ::before/::after copies aren't matched by * either. */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *:not(.glitch, .glitch > .bar) {
     /* biome-ignore lint/complexity/noImportantStyles: must beat every component's animation */
     animation: none !important;
   }

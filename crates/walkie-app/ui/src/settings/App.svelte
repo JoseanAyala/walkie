@@ -110,7 +110,7 @@ onMount(() => {
        the restart bar takes its place at the bottom -->
   <div class="right" data-tauri-drag-region>
   {#key tab}
-  <Win title={TABS[tab].file} class="main" bodyClass="scroll">
+  <Win title={TABS[tab].file} class="main glitch" bodyClass="scroll">
     {#snippet extra()}
       <!-- every change saves itself; this just confirms it happened -->
       {#if settings.saved}{#key settings.saves}<span class="saved">saved ✓</span>{/key}{/if}
@@ -210,8 +210,12 @@ nav button.on {
 :global(.main) {
   flex: 1;
   min-height: 0;
-  /* each tab opens its window */
-  animation: open 150ms steps(3) both;
+  /* each tab opens its window: the hard shadow jumps about, the title bar
+     flickers a frame */
+  animation: jump 180ms steps(1) both;
+}
+:global(.main > .bar) {
+  animation: bar-flick 120ms steps(1) both;
 }
 :global(.main > .body.scroll) {
   flex: 1;

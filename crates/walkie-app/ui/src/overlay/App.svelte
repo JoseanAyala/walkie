@@ -2,6 +2,7 @@
 import { onMount } from "svelte";
 import { on, type SessionState } from "@/lib/api";
 import Icon from "@/lib/Icon.svelte";
+import { FRAME_MS, FRAMES, scramble } from "./decode";
 import { COLUMNS, deaf, heard, loudness, push, REACH, reach, TICK_MS } from "./meter";
 
 type Mode = "rec" | "busy" | "done" | "notice" | "error";
@@ -42,6 +43,26 @@ const chip = $derived(
 // the wave's slot stays put from REC to DONE, so nothing shifts; a notice
 // or error gets the room for its text
 const metered = $derived(mode === "rec" || mode === "busy" || mode === "done");
+
+// what the label shows: a new status decodes in from glyph noise. Plain
+// "listening…" arrives with the pill's own tear; errors and notices split
+// instead (CSS), and stay readable from the first frame. Runs under Reduce
+// Motion too, like the rest of the glitch (theme.css).
+let shownLabel = $state("listening…");
+$effect(() => {
+  const text = label;
+  if (mode === "error" || mode === "notice" || text === NAMES.recording) {
+    shownLabel = text;
+    return;
+  }
+  let frame = 0;
+  shownLabel = scramble(text, frame);
+  const decoding = setInterval(() => {
+    shownLabel = scramble(text, ++frame);
+    if (frame >= FRAMES) clearInterval(decoding);
+  }, FRAME_MS);
+  return () => clearInterval(decoding);
+});
 
 function tick() {
   if (mode !== "rec") return;
@@ -107,10 +128,10 @@ onMount(() => {
 </script>
 
 {#key shown}
-<div id="pill" class={mode} class:metered>
-  <span class="chip"
+<div id="pill" class="glitch {mode}" class:metered>
+  <span class="chip" data-text={chip}
     >{#if mode === "rec"}<span class="live"><Icon name="mic" /></span>{/if}{chip}</span
-  ><span class="label" class:warn={label === DEAF}>{label}</span>
+  ><span class="label" class:warn={label === DEAF} data-text={label}>{shownLabel}</span>
   {#if metered}
     <!-- one icon pixel is 2 CSS pixels; columns 1 wide with a 1 gap, the
          newest (rightmost) in the accent color -->
@@ -155,7 +176,116 @@ onMount(() => {
     background: var(--panel);
     border: 2px solid var(--line);
     box-shadow: 4px 4px 0 var(--line);
-    animation: open 150ms steps(3) both;
+    /* tears in: horizontal slices jump sideways on the pixel grid, then settle */
+    animation: tear 160ms steps(1) both;
+  }
+  @keyframes tear {
+    0% {
+      clip-path: inset(0 0 55% 0);
+      transform: translateX(-4px);
+    }
+    25% {
+      clip-path: inset(45% 0 0 0);
+      transform: translateX(4px);
+    }
+    50% {
+      clip-path: inset(20% 0 35% 0);
+      transform: translateX(-2px);
+    }
+    75% {
+      clip-path: none;
+      transform: translateX(2px);
+    }
+    100% {
+      clip-path: none;
+      transform: none;
+    }
+  }
+  /* an error jolts the pill and splits the chip and label into two sliced
+     copies (pink and ink) that snap back; once, as it arrives */
+  #pill.error {
+    animation: jolt 180ms steps(1) both;
+  }
+  @keyframes jolt {
+    0% {
+      transform: translateX(2px);
+    }
+    33% {
+      transform: translateX(-2px);
+    }
+    66% {
+      transform: translateX(2px);
+    }
+    100% {
+      transform: none;
+    }
+  }
+  .error .chip,
+  .error .label {
+    position: relative;
+  }
+  .error .chip::before,
+  .error .chip::after,
+  .error .label::before,
+  .error .label::after {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    background: inherit;
+    pointer-events: none;
+  }
+  .error .chip::before,
+  .error .label::before {
+    animation: chan-a 220ms steps(1) both;
+  }
+  .error .chip::after,
+  .error .label::after {
+    animation: chan-b 220ms steps(1) both;
+  }
+  .error .label::before {
+    color: var(--accent);
+  }
+  .error .label::after {
+    color: var(--fg);
+  }
+  .error .chip::after {
+    background: var(--line);
+  }
+  @keyframes chan-a {
+    0% {
+      clip-path: inset(0 0 60% 0);
+      transform: translateX(-2px);
+    }
+    33% {
+      clip-path: inset(50% 0 10% 0);
+      transform: translateX(4px);
+    }
+    66% {
+      clip-path: inset(20% 0 50% 0);
+      transform: translateX(-4px);
+    }
+    100% {
+      clip-path: inset(0 0 100% 0);
+      transform: none;
+    }
+  }
+  @keyframes chan-b {
+    0% {
+      clip-path: inset(60% 0 0 0);
+      transform: translateX(2px);
+    }
+    33% {
+      clip-path: inset(10% 0 70% 0);
+      transform: translateX(-2px);
+    }
+    66% {
+      clip-path: inset(70% 0 0 0);
+      transform: translateX(2px);
+    }
+    100% {
+      clip-path: inset(100% 0 0 0);
+      transform: none;
+    }
   }
   /* one width for every state, so the label never moves */
   .chip {
