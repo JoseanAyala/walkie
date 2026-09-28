@@ -545,6 +545,24 @@ impl App {
         )
         .unwrap_or_else(|e| panic!("close {window:?}: {e}"));
     }
+
+    /// A window's top-left corner on screen, in points.
+    pub fn position(&self, window: &str) -> (f64, f64) {
+        let r = osa(
+            r#"on run argv
+                tell application "System Events" to tell application process "walkie"
+                    set {x, y} to position of window (item 1 of argv)
+                    return (x as text) & "," & (y as text)
+                end tell
+            end run"#,
+            &[window],
+        )
+        .unwrap_or_else(|e| panic!("position of {window:?}: {e}"));
+        let (x, y) = r
+            .split_once(',')
+            .unwrap_or_else(|| panic!("position {r:?}"));
+        (x.parse().unwrap(), y.parse().unwrap())
+    }
 }
 
 impl Drop for App {
@@ -754,6 +772,32 @@ impl Keyboard {
         sleep(ms);
         self
     }
+}
+
+// ---------------------------------------------------------------- mouse
+
+/// Presses the left button at `from`, moves by `by` in small steps (as a
+/// hand would, so the drag registers), and lets go. Screen points.
+pub fn drag(from: (f64, f64), by: (f64, f64)) {
+    use core_graphics::event::CGMouseButton;
+    use core_graphics::geometry::CGPoint;
+    step(format!("dragging from {from:?} by {by:?}"));
+    let src = CGEventSource::new(CGEventSourceStateID::HIDSystemState).unwrap();
+    let post = |kind, x, y| {
+        CGEvent::new_mouse_event(src.clone(), kind, CGPoint::new(x, y), CGMouseButton::Left)
+            .unwrap()
+            .post(CGEventTapLocation::HID);
+        sleep(20);
+    };
+    let (x, y) = from;
+    post(CGEventType::MouseMoved, x, y);
+    post(CGEventType::LeftMouseDown, x, y);
+    const STEPS: u32 = 10;
+    for i in 1..=STEPS {
+        let t = f64::from(i) / f64::from(STEPS);
+        post(CGEventType::LeftMouseDragged, x + by.0 * t, y + by.1 * t);
+    }
+    post(CGEventType::LeftMouseUp, x + by.0, y + by.1);
 }
 
 // ---------------------------------------------------------------- target

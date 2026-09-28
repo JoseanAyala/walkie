@@ -74,12 +74,14 @@ onMount(() => {
 });
 </script>
 
-<div class="desktop">
-  <div class="top">
-    <span class="os">WALKIE.OS1</span>
+<!-- the title bar is hidden: the traffic lights sit on the top strip, and
+     it and the bare desk around the windows drag the window -->
+<div class="desktop" data-tauri-drag-region>
+  <div class="top" data-tauri-drag-region>
+    <span class="os" data-tauri-drag-region>WALKIE.OS1</span>
   </div>
 
-  <div class="side">
+  <div class="side" data-tauri-drag-region>
     <Win title="Menu">
       <nav>
         {#each Object.entries(TABS) as [t, { name }] (t)}
@@ -99,7 +101,7 @@ onMount(() => {
 
   <!-- one column, so the main window ends level with the side ones unless
        the restart bar takes its place at the bottom -->
-  <div class="right">
+  <div class="right" data-tauri-drag-region>
   <Win title={TABS[tab].name} class="main" bodyClass="scroll">
     {#snippet extra()}
       <!-- every change saves itself; this just confirms it happened -->
@@ -148,6 +150,8 @@ onMount(() => {
 }
 .top {
   grid-column: 1 / -1;
+  /* clear of the traffic lights (tauri.conf.json's trafficLightPosition) */
+  padding-left: 70px;
   display: flex;
   gap: 8px;
   align-items: center;

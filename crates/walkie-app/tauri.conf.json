@@ -17,6 +17,9 @@
         "label": "settings",
         "title": "Walkie",
         "url": "index.html",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 12, "y": 22 },
         "visible": false,
         "width": 760,
         "height": 560
@@ -39,6 +42,9 @@
         "label": "onboarding",
         "title": "Welcome to Walkie",
         "url": "onboarding.html",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 12, "y": 22 },
         "visible": false,
         "width": 560,
         "height": 660

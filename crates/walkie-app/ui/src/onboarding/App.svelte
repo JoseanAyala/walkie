@@ -56,10 +56,12 @@ onMount(() => {
   {/each}
 {/snippet}
 
-<div class="desktop">
-  <div class="top">
-    <span class="os">WALKIE.OS1</span><span class="grow"></span
-    ><span class="chip ghost">setup</span>
+<!-- the title bar is hidden: the traffic lights sit on the top strip, and
+     it and the bare desk around the windows drag the window -->
+<div class="desktop" data-tauri-drag-region>
+  <div class="top" data-tauri-drag-region>
+    <span class="os" data-tauri-drag-region>WALKIE.OS1</span><span class="grow" data-tauri-drag-region></span
+    ><span class="chip ghost" data-tauri-drag-region>setup</span>
   </div>
 
   <Win title="Welcome" bodyClass="intro">
@@ -148,6 +150,10 @@ onMount(() => {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+/* clear of the traffic lights (tauri.conf.json's trafficLightPosition) */
+.top {
+  padding-left: 70px;
 }
 .grow {
   flex: 1;

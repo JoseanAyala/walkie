@@ -7,7 +7,7 @@
 
 use walkie_core::config::{PolishProvider, Tone};
 use walkie_core::pipeline::polish::{apple_status, describe_apple_status};
-use walkie_e2e::os::{begin, sleep, step, App, APP};
+use walkie_e2e::os::{begin, drag, sleep, step, App, APP};
 
 fn settings(tab: &str, seed: Option<&str>) -> App {
     settings_with(tab, seed, App::test_config())
@@ -223,4 +223,35 @@ fn onboarding_shows_live_checks_and_the_configured_shortcuts() {
         text.contains("right ⌥"),
         "Try it should show the configured hands-free key:\n{text}"
     );
+}
+
+/// The title bar is hidden (the desk runs under the traffic lights), so the
+/// page itself has to move the window: the top strip and the bare desk.
+#[test]
+fn settings_window_drags_by_its_top_strip_and_desk() {
+    let _t = begin("settings_window_drags_by_its_top_strip_and_desk");
+    let app = settings("General", None);
+    for (what, at) in [
+        // right of the WALKIE.OS1 chip, level with the traffic lights
+        ("top strip", (300.0, 20.0)),
+        // the desk between the Menu and About windows
+        ("desk", (80.0, 300.0)),
+    ] {
+        let (x, y) = app.position("Walkie");
+        drag((x + at.0, y + at.1), (40.0, 30.0));
+        step(format!("waiting for the window to follow the {what}"));
+        let mut now = (x, y);
+        for _ in 0..20 {
+            now = app.position("Walkie");
+            if now != (x, y) {
+                break;
+            }
+            sleep(100);
+        }
+        assert_eq!(
+            now,
+            (x + 40.0, y + 30.0),
+            "dragging the {what} should move the window with the mouse"
+        );
+    }
 }
