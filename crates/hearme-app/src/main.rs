@@ -80,7 +80,7 @@ fn main() {
                 .icon(tauri::image::Image::from_bytes(include_bytes!(
                     "../icons/tray-idle.png"
                 ))?)
-                .icon_as_template(false)
+                .icon_as_template(true)
                 .menu(&menu)
                 .on_menu_event(|app, ev| match ev.id.as_ref() {
                     "paste_last" => glue::paste_last(app, TRAY_PASTE_DELAY),

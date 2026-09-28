@@ -459,16 +459,21 @@ fn defer_idle(app: AppHandle, delay: Duration, epoch: Arc<AtomicU64>) {
 }
 
 fn set_tray(app: &AppHandle, state: &SessionState) {
-    let bytes: &[u8] = match state {
-        SessionState::Recording => include_bytes!("../icons/tray-rec.png"),
-        SessionState::Idle => include_bytes!("../icons/tray-idle.png"),
+    // Idle is a template (macOS tints it to match the menu bar); the active
+    // states keep their accent color.
+    let (bytes, template): (&[u8], bool) = match state {
+        SessionState::Recording => (include_bytes!("../icons/tray-rec.png"), false),
+        SessionState::Idle => (include_bytes!("../icons/tray-idle.png"), true),
         SessionState::Transcribing | SessionState::Polishing | SessionState::Injecting => {
-            include_bytes!("../icons/tray-busy.png")
+            (include_bytes!("../icons/tray-busy.png"), false)
         }
     };
     if let Some(h) = app.try_state::<crate::TrayHandle>() {
         if let Ok(img) = tauri::image::Image::from_bytes(bytes) {
-            let _ = h.0.lock().unwrap().set_icon(Some(img));
+            let _ =
+                h.0.lock()
+                    .unwrap()
+                    .set_icon_with_as_template(Some(img), template);
         }
     }
 }

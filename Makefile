@@ -82,6 +82,7 @@ model: ## Download the base Whisper model (skipped if present)
 
 icons: ## Regenerate app icons
 	cargo run -p hearme-app --example gen_icons
+	cd crates/hearme-app && cargo tauri icon icons/icon.png
 
 cert: ## Create the local signing identity (once per machine)
 	scripts/create-signing-cert.sh
