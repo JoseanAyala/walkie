@@ -5,6 +5,8 @@ import { api, type Check, on } from "@/lib/api";
 import General from "./General.svelte";
 import History from "./History.svelte";
 import Polish from "./Polish.svelte";
+import Problems from "./Problems.svelte";
+import { problems } from "./problems";
 import Status from "./Status.svelte";
 import { settings } from "./state.svelte";
 import Theme from "./Theme.svelte";
@@ -25,9 +27,7 @@ let checks = $state<Check[]>([]);
 let modelStatus = $state("…");
 let version = $state("");
 
-// The speech model loading or downloading isn't something to fix, so it
-// doesn't count towards the badge.
-const problems = $derived(checks.filter((c) => !c.ok && c.id !== "model").length);
+const needs = $derived(problems(checks).length);
 
 async function loadStatus() {
   try {
@@ -51,11 +51,12 @@ onMount(() => {
     (v) => (version = v),
     () => {},
   );
-  // the open Status tab every 2s; otherwise just the badge, every 10s
+  // every 2s while something's missing (so a grant shows at once) or the
+  // Status tab is open; otherwise every 10s
   let ticks = 0;
   const timer = setInterval(() => {
     if (document.visibilityState !== "visible") return;
-    if (tab === "status" || ++ticks % 5 === 0) loadStatus();
+    if (needs || tab === "status" || ++ticks % 5 === 0) loadStatus();
   }, 2000);
   const offs = [
     on("show-tab", (t) => {
@@ -92,9 +93,6 @@ onMount(() => {
       {#each Object.keys(TABS) as t (t)}
         <button class:on={tab === t} aria-label={TABS[t as Tab].name} onclick={() => show(t as Tab)}>
           <span class="n">{num(t as Tab)}</span>{TABS[t as Tab].name}
-          {#if t === "status" && problems > 0}
-            <span class="badge" aria-hidden="true">{problems}</span>
-          {/if}
         </button>
       {/each}
     </nav>
@@ -111,6 +109,7 @@ onMount(() => {
             <button class="link" onclick={() => (settings.error = "")}>dismiss</button>
           </div>
         {/if}
+        <Problems {checks} />
         <div class="head">
           <h1 class="title"><em>{num(tab)}</em> {TABS[tab].name}</h1>
           <div class="muted">{TABS[tab].sub}</div>
@@ -189,13 +188,6 @@ nav button.on {
   width: 22px;
   font-size: 10px;
   opacity: 0.55;
-}
-.badge {
-  margin-left: auto;
-  font: 600 10px / 16px var(--sans);
-  background: var(--red);
-  color: var(--on-red);
-  padding: 0 6px;
 }
 .note {
   margin: 0;

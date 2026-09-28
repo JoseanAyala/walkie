@@ -1,6 +1,6 @@
 //! Launch at login against the real installed app: the Settings checkbox and
-//! the onboarding one change macOS's actual login item (SMAppService), which
-//! is checked from outside with `walkie --login-item status`.
+//! the first run change macOS's actual login item (SMAppService), which is
+//! checked from outside with `walkie --login-item status`.
 //! Run: e2e/run-app-tests.sh. The original login-item state is put back
 //! after every test (os::restore_login_item).
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
@@ -78,49 +78,21 @@ fn settings_checkbox_toggles_the_real_login_item() {
 }
 
 #[test]
-fn onboarding_turns_launch_at_login_on_by_default() {
-    let _t = begin("onboarding_turns_launch_at_login_on_by_default");
+fn first_run_turns_launch_at_login_on() {
+    let _t = begin("first_run_turns_launch_at_login_on");
     let app = App::new(); // no config file → first run
     login_item("off");
     app.launch();
-    assert!(
-        app.wait_window("Welcome to Walkie", true, 3),
-        "onboarding didn't show"
-    );
-    assert_eq!(
-        wait_checkbox(&app, "Welcome to Walkie", true),
-        Some(true),
-        "should be checked by default"
-    );
-    assert!(
-        !login_item_on(&login_item("status")),
-        "applied before onboarding finished"
-    );
-    app.click("Welcome to Walkie", "I've granted everything — finish", 1);
     let s = wait_login_item(true);
     assert!(
         login_item_on(&s),
-        "finishing onboarding left the login item {s:?}"
+        "the first run left the login item {s:?}\n{}",
+        app.log_text()
     );
-}
-
-#[test]
-fn onboarding_unchecked_leaves_launch_at_login_off() {
-    let _t = begin("onboarding_unchecked_leaves_launch_at_login_off");
-    let app = App::new();
-    login_item("off");
-    app.launch();
-    assert!(
-        app.wait_window("Welcome to Walkie", true, 3),
-        "onboarding didn't show"
+    assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
+    assert_eq!(
+        wait_checkbox(&app, "Walkie", true),
+        Some(true),
+        "Settings should show it on"
     );
-    app.click_checkbox("Welcome to Walkie", LABEL);
-    assert_eq!(wait_checkbox(&app, "Welcome to Walkie", false), Some(false));
-    app.click("Welcome to Walkie", "I've granted everything — finish", 1);
-    assert!(
-        app.wait_window("Welcome to Walkie", false, 3),
-        "onboarding didn't close"
-    );
-    assert!(!app.config().first_run);
-    assert_eq!(login_item("status"), "disabled");
 }

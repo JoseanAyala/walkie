@@ -15,8 +15,9 @@ browser, anything. Whisper runs on your Mac; your voice never leaves it.
    unzip it and move `Walkie.app` to Applications.
 2. The first time, right-click → **Open**. Releases are ad-hoc signed, so
    Gatekeeper doesn't know them.
-3. Onboarding walks you through Microphone, Accessibility and Input
-   Monitoring, with a link to each setting. The speech model (~570 MB)
+3. Settings opens listing what walkie still needs (Accessibility, the
+   Microphone), each with a button to the right System Settings pane; it
+   picks each one up as soon as you grant it. The speech model (~570 MB)
    downloads on first launch to `~/.cache/walkie/models`.
 
 After an update, macOS asks for those permissions again.
@@ -117,8 +118,8 @@ make test-app   # the installed app, driven from outside (~30s)
 ```
 
 `make test-app` (`e2e/run-app-tests.sh`) builds and installs the app, then
-drives it like a person: real key events through macOS, the tray menu, the
-Settings and onboarding windows, dictating into a bare test window. It plays
+drives it like a person: real key events through macOS, the tray menu,
+the Settings window, dictating into a bare test window. It plays
 a WAV instead of the mic and uses a temp config and history, so your setup
 isn't touched; `make install` puts a normal build back afterwards. It needs
 Accessibility for walkie and your terminal, and "Press 🌐 key to" set to Do

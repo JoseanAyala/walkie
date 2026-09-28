@@ -38,7 +38,6 @@ fn main() {
             commands::list_models,
             commands::copy_text,
             commands::open_settings_pane,
-            commands::finish_onboarding,
             commands::get_launch_at_login,
             commands::set_launch_at_login,
             commands::get_status,
@@ -46,7 +45,7 @@ fn main() {
             commands::list_input_devices,
         ])
         .on_window_event(|window, event| {
-            // The settings/overlay/onboarding windows are declared once in
+            // The settings and overlay windows are declared once in
             // tauri.conf.json and never re-created. Tauri's default behavior
             // for a close request is to destroy the window, which would make
             // it permanently unavailable (e.g. tray → "Settings…" silently
@@ -99,12 +98,13 @@ fn main() {
             if let Some(w) = app.get_webview_window("overlay") {
                 overlay::setup(&w);
             }
-            glue::start(app.handle().clone())?;
+            glue::start(app.handle().clone())?; // first: it migrates old configs
+            let first = first_run();
             // Opened by hand (Dock, Finder, Spotlight): show a window, since a
             // menu-bar app otherwise gives no sign it started. Not at login.
             let at_login = login_item::launched_at_login();
             eprintln!("walkie: launched at login: {at_login:?}");
-            if at_login != Some(true) || first_run() {
+            if at_login != Some(true) || first {
                 show_front(app.handle());
             }
             Ok(())
@@ -120,20 +120,28 @@ fn main() {
         });
 }
 
+/// The very first launch: walkie starts at login from now on (Settings has
+/// the checkbox), and Settings opens on the permissions it still needs.
 fn first_run() -> bool {
-    walkie_core::config::Config::load()
-        .map(|c| c.first_run)
-        .unwrap_or(true)
+    let Ok(mut cfg) = walkie_core::config::Config::load() else {
+        return false;
+    };
+    if !cfg.first_run {
+        return false;
+    }
+    cfg.first_run = false;
+    if let Err(e) = cfg.save() {
+        eprintln!("walkie: couldn't save the config: {e}");
+    }
+    match login_item::set(true) {
+        Ok(_) => eprintln!("walkie: first run: launch at login turned on"),
+        Err(e) => eprintln!("walkie: first run: {e}"),
+    }
+    true
 }
 
-/// Onboarding until it's done, Settings after.
 fn show_front(app: &tauri::AppHandle) {
-    let label = if first_run() {
-        "onboarding"
-    } else {
-        "settings"
-    };
-    if let Some(w) = app.get_webview_window(label) {
+    if let Some(w) = app.get_webview_window("settings") {
         let _ = w.show();
         let _ = w.set_focus();
     }

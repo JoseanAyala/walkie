@@ -100,8 +100,6 @@ export const api = {
   openSettingsPane: (pane: Pane | string) => invoke<void>("open_settings_pane", { pane }),
   getLaunchAtLogin: () => invoke<LoginItem>("get_launch_at_login"),
   setLaunchAtLogin: (enabled: boolean) => invoke<LoginItem>("set_launch_at_login", { enabled }),
-  finishOnboarding: (launchAtLogin: boolean) =>
-    invoke<void>("finish_onboarding", { launchAtLogin }),
 };
 
 export type SessionState = "idle" | "recording" | "transcribing" | "polishing" | "injecting";

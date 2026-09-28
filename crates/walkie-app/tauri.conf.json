@@ -39,19 +39,6 @@
         "shadow": false,
         "resizable": false,
         "focus": false
-      },
-      {
-        "label": "onboarding",
-        "title": "Welcome to Walkie",
-        "url": "onboarding.html",
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "trafficLightPosition": { "x": 12, "y": 22 },
-        "visible": false,
-        "width": 560,
-        "height": 660,
-        "minWidth": 520,
-        "minHeight": 420
       }
     ]
   },

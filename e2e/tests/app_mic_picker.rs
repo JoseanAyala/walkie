@@ -89,8 +89,7 @@ fn status_warns_when_the_chosen_microphone_is_missing() {
         "{}",
         app.log_text()
     );
-    open_general(&app);
-    app.click("Walkie", "Status", 1);
+    open_general(&app); // listed up top, whichever page is open
     let mut text = String::new();
     for _ in 0..20 {
         text = app.text("Walkie");
@@ -101,7 +100,7 @@ fn status_warns_when_the_chosen_microphone_is_missing() {
     }
     assert!(
         text.contains(&format!("{UNPLUGGED} is not connected")),
-        "Status tab:\n{text}"
+        "Settings should say so up top:\n{text}"
     );
 }
 

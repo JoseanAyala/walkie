@@ -1,5 +1,5 @@
-//! The Settings and onboarding windows' own behavior (autosave, History
-//! Delete, the polish Test button, live onboarding checks), against the real
+//! The Settings window's own behavior (autosave, History Delete, the polish
+//! Test button), against the real
 //! installed app. Run: e2e/run-app-tests.sh  (same requirements as tests/app.rs)
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
@@ -200,30 +200,6 @@ fn status_lists_apple_intelligence_when_polish_uses_it() {
         Some(status == "available"),
         "{}",
         app.log_text()
-    );
-}
-
-#[test]
-fn onboarding_shows_live_checks_and_the_configured_shortcuts() {
-    let _t = begin("onboarding_shows_live_checks_and_the_configured_shortcuts");
-    let app = App::new();
-    let mut c = App::test_config();
-    c.first_run = true;
-    c.hotkeys.polish = vec!["RightOpt".into()];
-    app.write_config(&c);
-    app.launch();
-    assert!(
-        app.wait_window("Welcome to Walkie", true, 3),
-        "onboarding didn't show: {:?}",
-        app.windows()
-    );
-    // accessibility is granted to the app for this suite, so its row is OK
-    let text = wait_text(&app, "Welcome to Walkie", "OK", true);
-    assert!(text.contains("Accessibility"), "{text}");
-    assert!(text.contains("OK"), "no live check result:\n{text}");
-    assert!(
-        text.contains("right ⌥"),
-        "Try it should show the configured polish key:\n{text}"
     );
 }
 

@@ -212,7 +212,7 @@ pub fn start(app: AppHandle) -> Result<()> {
             }
         });
     }
-    startup_check(app.clone(), cfg.first_run);
+    startup_check(app.clone());
 
     // Event pump: session events → UI events + tray icon + overlay visibility.
     // `linger_until` and `epoch` are local to this loop (pump is only ever
@@ -488,11 +488,10 @@ fn handle_signal(app: &AppHandle, tx: &mpsc::Sender<Command>, ready: &AtomicBool
     let _ = tx.send(cmd);
 }
 
-/// Logs every status check once, and opens Settings on the Status tab if
-/// something is wrong — so a broken setup is visible at launch instead of
-/// discovered by "the shortcut does nothing". Skipped on first run, where
-/// onboarding walks through the same permissions.
-fn startup_check(app: AppHandle, first_run: bool) {
+/// Logs every status check once, and opens Settings (which lists what's
+/// missing up top) if something is wrong — so a broken setup is visible at
+/// launch instead of discovered by "the shortcut does nothing".
+fn startup_check(app: AppHandle) {
     std::thread::spawn(move || {
         // Give the hook a moment to come up before judging it.
         std::thread::sleep(Duration::from_millis(1500));
@@ -508,9 +507,8 @@ fn startup_check(app: AppHandle, first_run: bool) {
         let blocking = checks
             .iter()
             .any(|c| !c.ok && !["model", "device-missing", "apple-ai"].contains(&c.id));
-        if blocking && !first_run {
+        if blocking {
             if let Some(w) = app.get_webview_window("settings") {
-                let _ = app.emit("show-tab", "status");
                 let _ = w.show();
                 let _ = w.set_focus();
             }

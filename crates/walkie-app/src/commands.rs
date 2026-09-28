@@ -1,7 +1,7 @@
 use crate::glue;
 use crate::login_item::{self, LoginItem};
 use crate::status::{self, Check, HotkeyState, ModelStatus};
-use tauri::{Emitter, Manager, State};
+use tauri::{Emitter, State};
 use walkie_core::audio;
 use walkie_core::config::{self, models, Config, Polish, ThemeCfg};
 use walkie_core::history::{History, Record};
@@ -30,7 +30,7 @@ pub fn save_config(
     cfg.save().map_err(estr)?;
     if let Some(line) = theme_change(before.as_ref(), &cfg.theme) {
         eprintln!("walkie: {line}");
-        // every window (overlay, onboarding) repaints in the new colors
+        // every window (the overlay too) repaints in the new colors
         let _ = app.emit("theme", &cfg.theme);
     }
     audio::set_preferred_input(&cfg.audio.input_device);
@@ -224,31 +224,6 @@ pub fn get_launch_at_login() -> LoginItem {
 #[tauri::command]
 pub fn set_launch_at_login(enabled: bool) -> Result<LoginItem, String> {
     login_item::set(enabled).map(Into::into)
-}
-
-#[tauri::command]
-pub fn finish_onboarding(app: tauri::AppHandle, launch_at_login: bool) -> Result<(), String> {
-    let mut cfg = Config::load().map_err(estr)?;
-    cfg.first_run = false;
-    cfg.save().map_err(estr)?;
-    // Onboarding still finishes if this fails; Settings shows why.
-    let login = if launch_at_login {
-        login_item::set(true).err()
-    } else {
-        None
-    };
-    if let Some(w) = app.get_webview_window("onboarding") {
-        let _ = w.hide();
-    }
-    if let Some(w) = app.get_webview_window("settings") {
-        let _ = w.show();
-        let _ = w.set_focus();
-    }
-    if let Some(e) = login {
-        eprintln!("walkie: {e}");
-        let _ = app.emit("app-error", e);
-    }
-    Ok(())
 }
 
 #[cfg(test)]

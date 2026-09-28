@@ -18,7 +18,6 @@ export default defineConfig({
       input: {
         index: resolve(import.meta.dirname, "index.html"),
         overlay: resolve(import.meta.dirname, "overlay.html"),
-        onboarding: resolve(import.meta.dirname, "onboarding.html"),
       },
     },
   },

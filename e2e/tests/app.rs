@@ -19,37 +19,21 @@ fn ready_app() -> App {
     app
 }
 
-// ---- windows, tray, onboarding (no keyboard needed)
+// ---- windows, tray, first run (no keyboard needed)
 
 #[test]
-fn onboarding_shows_on_first_run_and_never_again() {
-    let _t = begin("onboarding_shows_on_first_run_and_never_again");
+fn first_run_opens_settings_and_is_saved_as_done() {
+    let _t = begin("first_run_opens_settings_and_is_saved_as_done");
     let app = App::new(); // no config file → first run
     app.launch();
     assert!(
-        app.wait_window("Welcome to Walkie", true, 3),
-        "onboarding didn't show: {:?}",
-        app.windows()
-    );
-    app.click("Welcome to Walkie", "I've granted everything — finish", 1);
-    assert!(
-        app.wait_window("Welcome to Walkie", false, 3),
-        "onboarding didn't close"
-    );
-    assert!(
         app.wait_window("Walkie", true, 3),
-        "finishing onboarding should open Settings"
+        "the first run should open Settings: {:?}",
+        app.windows()
     );
     assert!(
         !app.config().first_run,
         "first_run should be saved as false"
-    );
-
-    app.launch(); // same dirs → second run
-    sleep(1000); // onboarding shows during startup, before the hook line
-    assert!(
-        !app.windows().iter().any(|w| w == "Welcome to Walkie"),
-        "onboarding reappeared"
     );
 }
 

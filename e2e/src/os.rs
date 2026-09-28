@@ -145,7 +145,7 @@ impl App {
         App { root, log }
     }
 
-    /// A config for tests: onboarding done, small model, deterministic polish.
+    /// A config for tests: first run done, small model, deterministic polish.
     pub fn test_config() -> Config {
         let mut c = Config {
             first_run: false,
@@ -745,7 +745,7 @@ pub fn require_globe_does_nothing() {
 // ---------------------------------------------------------------- login item
 
 /// The real login-item state when the run started; every App puts it back
-/// on drop, since onboarding and the Settings checkbox change it for real.
+/// on drop, since the first run and the Settings checkbox change it for real.
 static LOGIN_ITEM_BEFORE: OnceLock<String> = OnceLock::new();
 
 /// `walkie --login-item status|on|off` against the installed app: asks

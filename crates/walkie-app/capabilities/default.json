@@ -1,7 +1,7 @@
 {
   "identifier": "default",
   "description": "walkie windows talk to the app core",
-  "windows": ["settings", "overlay", "onboarding"],
+  "windows": ["settings", "overlay"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
