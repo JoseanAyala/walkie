@@ -18,7 +18,8 @@ if ! security find-certificate -c "hearme local signing" >/dev/null 2>&1; then
     "$root/scripts/create-signing-cert.sh"
 fi
 
-(cd "$root/crates/hearme-app" && cargo tauri build)
+# HEARME_FEATURES=test-hooks is set by e2e/run-app-tests.sh only.
+(cd "$root/crates/hearme-app" && cargo tauri build ${HEARME_FEATURES:+--features "$HEARME_FEATURES"})
 
 pkill -x hearme 2>/dev/null && sleep 0.5 || true
 rm -rf "$app"

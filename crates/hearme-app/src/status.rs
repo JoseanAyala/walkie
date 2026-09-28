@@ -106,7 +106,7 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
     #[cfg(target_os = "macos")]
     {
         let mic = mac::microphone();
-        if let Some(p) = std::env::var_os("HEARME_TEST_AUDIO") {
+        if let Some(p) = crate::glue::test_audio() {
             out.push(Check {
                 id: "mic",
                 label: "Microphone",

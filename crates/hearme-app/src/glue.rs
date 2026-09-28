@@ -17,6 +17,16 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::status::{self, HotkeyState, ModelStatus};
 
 /// Emits a model status and remembers it for the Status tab.
+/// The OS e2e suite plays a fixture instead of the mic via HEARME_TEST_AUDIO.
+/// Only `test-hooks` builds honour it; a shipped app always uses the mic.
+pub fn test_audio() -> Option<std::ffi::OsString> {
+    if cfg!(feature = "test-hooks") {
+        std::env::var_os("HEARME_TEST_AUDIO")
+    } else {
+        None
+    }
+}
+
 fn model_status(app: &AppHandle, s: impl Into<String>) {
     let s = s.into();
     eprintln!("hearme: model {s}");
@@ -154,8 +164,7 @@ pub fn start(app: AppHandle) -> Result<()> {
             let history = History::open(&config::db_path())
                 .map_err(|e| eprintln!("hearme: history disabled: {e}"))
                 .ok();
-            let capture: Box<dyn Capture> = match std::env::var_os("HEARME_TEST_AUDIO") {
-                // Test mode: the e2e suite plays a fixture instead of the mic.
+            let capture: Box<dyn Capture> = match test_audio() {
                 Some(p) => match FileCapture::open(std::path::Path::new(&p)) {
                     Ok(c) => {
                         eprintln!("hearme: TEST MODE — microphone replaced by {p:?}");
@@ -475,4 +484,14 @@ fn position_overlay(w: &tauri::WebviewWindow) -> tauri::Result<()> {
         ))?;
     }
     Ok(())
+}
+
+#[cfg(all(test, not(feature = "test-hooks")))]
+mod test_hooks_tests {
+    #[test]
+    fn release_builds_ignore_test_audio() {
+        std::env::set_var("HEARME_TEST_AUDIO", "/tmp/fixture.wav");
+        assert_eq!(super::test_audio(), None);
+        std::env::remove_var("HEARME_TEST_AUDIO");
+    }
 }

@@ -14,7 +14,8 @@ restore() {
 }
 trap restore EXIT
 
-"$root/scripts/dev.sh" --install-only
+# The installed app is a test-hooks build until the next `make install`.
+HEARME_FEATURES=test-hooks "$root/scripts/dev.sh" --install-only
 cd "$root"
 # Every e2e/tests/app*.rs file is an OS-level suite.
 tests=$(for f in e2e/tests/app*.rs; do printf -- '--test %s ' "$(basename "$f" .rs)"; done)
