@@ -15,7 +15,7 @@ const TABS = {
   general: { name: "General", sub: "how walkie listens and types" },
   status: { name: "Status", sub: "what walkie needs to work" },
   cleanup: { name: "Cleanup", sub: "drop filler words before typing" },
-  polish: { name: "Polish", sub: "rewrite with any CLI: transcript on stdin, result on stdout" },
+  polish: { name: "Polish", sub: "rewrite with Apple's on-device model or any CLI" },
   history: { name: "History", sub: "your dictations, stored only on this Mac" },
   theme: { name: "Theme", sub: "colors, light and dark, your own palettes" },
 } as const;

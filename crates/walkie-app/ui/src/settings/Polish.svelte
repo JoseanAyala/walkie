@@ -1,10 +1,16 @@
 <script lang="ts">
-import { api, message } from "@/lib/api";
+import { type AppleAi, api, message } from "@/lib/api";
 import Field from "./Field.svelte";
 import { settings } from "./state.svelte";
 
 const cfg = $derived(settings.cfg);
-const noCommand = $derived(!!cfg?.hotkeys.polish.length && !cfg.polish.command.trim());
+const apple = $derived(cfg?.polish.provider === "apple");
+const noCommand = $derived(!!cfg?.hotkeys.polish.length && !apple && !cfg.polish.command.trim());
+
+let ai = $state<AppleAi | null>(null);
+$effect(() => {
+  if (apple && !ai) api.appleAiStatus().then((s) => (ai = s));
+});
 
 let running = $state(false);
 let out = $state<{ ok: boolean; text: string } | null>(null);
@@ -14,7 +20,7 @@ async function test() {
   running = true;
   out = null;
   try {
-    const r = await api.testPolish(cfg.polish.command, cfg.polish.timeout_secs);
+    const r = await api.testPolish(cfg.polish);
     out = { ok: true, text: `→ ${r.trim()}` };
   } catch (e) {
     out = { ok: false, text: message(e) };
@@ -24,22 +30,64 @@ async function test() {
 </script>
 
 {#if cfg}
-  <Field label="Command" restart>
-    <input
-      type="text"
-      aria-label="Polish command"
-      placeholder={'claude -p "Clean up this dictated text. Output only the cleaned text."'}
-      bind:value={cfg.polish.command}
-      oninput={() => settings.saveSoon()}
+  <Field label="Model" restart>
+    <select
+      aria-label="Polish model"
+      bind:value={cfg.polish.provider}
+      onchange={() => {
+        out = null;
+        settings.save();
+      }}
     >
-    <div class="hint">e.g. claude -p "…" · codex exec "…" · ollama run llama3.2 "…"</div>
-    {#if noCommand}
-      <div class="hint">
-        <span class="chip warn">!!</span>
-        the Dictate + polish shortcut is on, but there is no command
+      <option value="apple">Apple, on this Mac</option>
+      <option value="command">Your command</option>
+    </select>
+    {#if apple}
+      <div class="hint" data-testid="apple-ai">
+        {#if !ai}
+          checking…
+        {:else if ai.status === "available"}
+          Apple Intelligence: {ai.detail}. Nothing leaves this Mac.
+        {:else}
+          <span class="chip warn">!!</span>
+          {ai.detail}
+          {#if ai.status === "off"}
+            <button onclick={() => api.openSettingsPane("ai")}>Open settings</button>
+          {/if}
+        {/if}
       </div>
     {/if}
   </Field>
+  {#if apple}
+    <Field label="Prompt" restart>
+      <textarea
+        rows="6"
+        aria-label="Polish prompt"
+        bind:value={cfg.polish.prompt}
+        oninput={() => settings.saveSoon()}
+      ></textarea>
+      <div class="hint">what the model does with your words; it gets the transcript as the text</div>
+    </Field>
+  {:else}
+    <Field label="Command" restart>
+      <input
+        type="text"
+        aria-label="Polish command"
+        placeholder={'claude -p "Clean up this dictated text. Output only the cleaned text."'}
+        bind:value={cfg.polish.command}
+        oninput={() => settings.saveSoon()}
+      >
+      <div class="hint">
+        transcript on stdin, result on stdout · e.g. claude -p "…" · codex exec "…" · ollama run llama3.2 "…"
+      </div>
+      {#if noCommand}
+        <div class="hint">
+          <span class="chip warn">!!</span>
+          the Dictate + polish shortcut is on, but there is no command
+        </div>
+      {/if}
+    </Field>
+  {/if}
   <Field label="Timeout" restart>
     <div class="range">
       <input

@@ -10,7 +10,7 @@ const ROWS: { k: HotkeyName; name: string; label: string; help: string }[] = [
     k: "polish",
     name: "Dictate + polish",
     label: "Dictate + polish",
-    help: "hold; text goes through your polish command",
+    help: "hold; the text is polished before it's typed (Polish tab)",
   },
   {
     k: "hands_free",

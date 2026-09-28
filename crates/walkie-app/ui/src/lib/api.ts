@@ -11,11 +11,28 @@ export interface Config {
   model: string;
   hotkeys: Record<HotkeyName, string[]>;
   cleanup: { enabled: boolean; fillers_en: string[]; fillers_es: string[] };
-  polish: { command: string; timeout_secs: number };
+  polish: Polish;
   inject: { strategy: string; restore_clipboard_ms: number };
   history: { enabled: boolean };
   audio: { input_device: string; duck_while_recording: boolean; duck_percent: number };
   theme: ThemeCfg;
+}
+
+export type PolishProvider = "apple" | "command";
+
+export interface Polish {
+  provider: PolishProvider;
+  /** what Apple's model is told to do with the transcript */
+  prompt: string;
+  command: string;
+  timeout_secs: number;
+}
+
+/** Whether Apple's on-device model can polish: a walkie-ai status word
+ * ("available", "off", "not-ready", …) and what it means. */
+export interface AppleAi {
+  status: string;
+  detail: string;
 }
 
 export type Appearance = "system" | "light" | "dark";
@@ -72,7 +89,7 @@ export interface InputDevices {
   devices: string[];
 }
 
-export type Pane = "mic" | "accessibility" | "input" | "keyboard" | "sound" | "loginitems";
+export type Pane = "mic" | "accessibility" | "input" | "keyboard" | "sound" | "loginitems" | "ai";
 
 export const api = {
   getConfig: () => invoke<Config>("get_config"),
@@ -87,8 +104,8 @@ export const api = {
     invoke<HistoryRecord[]>("history_search", { q, limit }),
   historyDelete: (id: number) => invoke<boolean>("history_delete", { id }),
   historyClear: () => invoke<number>("history_clear"),
-  testPolish: (command: string, timeoutSecs: number) =>
-    invoke<string>("test_polish", { command, timeoutSecs }),
+  testPolish: (polish: Polish) => invoke<string>("test_polish", { polish }),
+  appleAiStatus: () => invoke<AppleAi>("apple_ai_status"),
   copyText: (text: string) => invoke<void>("copy_text", { text }),
   openSettingsPane: (pane: Pane | string) => invoke<void>("open_settings_pane", { pane }),
   getLaunchAtLogin: () => invoke<LoginItem>("get_launch_at_login"),

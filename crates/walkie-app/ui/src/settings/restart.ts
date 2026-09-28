@@ -8,7 +8,7 @@ const RESTART: Record<string, (c: Config) => unknown> = {
   injection: (c) => c.inject.strategy,
   ducking: (c) => [c.audio.duck_while_recording, c.audio.duck_percent],
   cleanup: (c) => [c.cleanup.enabled, c.cleanup.fillers_en, c.cleanup.fillers_es],
-  polish: (c) => [c.polish.command, c.polish.timeout_secs],
+  polish: (c) => c.polish,
   history: (c) => c.history.enabled,
 };
 
