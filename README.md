@@ -30,12 +30,11 @@ to any key or combo):
 ## Build
 
 ```sh
-cargo install tauri-cli --locked
-./scripts/create-signing-cert.sh              # once per machine
-cargo run -p hearme-app --example gen_icons   # once
-cd crates/hearme-app && cargo tauri dev        # dev
-cargo tauri build                              # bundles hearme.app
-../../scripts/dev.sh                           # build + install + relaunch + follow log
+mise install    # pinned Rust, tauri-cli, actionlint (mise.toml)
+make cert       # once per machine: local signing identity
+make run        # cargo tauri dev
+make dev        # build + install + relaunch + follow log
+make help       # every other command
 ```
 
 `bundle.macOS.minimumSystemVersion` in `tauri.conf.json` is pinned to `10.15`
@@ -58,11 +57,14 @@ macOS permissions needed: Microphone, Accessibility, Input Monitoring
 
 CI (`.github/workflows/ci.yml`) runs fmt, clippy and unit tests on every PR
 and push to `main`; pushes to `main` also build `hearme.app` and upload it as
-a workflow artifact. To release, bump `version` in `tauri.conf.json`, then:
+a workflow artifact. To release:
 
 ```sh
-git tag v0.2.0 && git push origin v0.2.0
+make release VERSION=0.2.0
 ```
+
+That bumps the version, runs `make check`, commits, tags `v0.2.0` and (after
+a confirmation) pushes.
 
 The release workflow builds an ad-hoc-signed zip (`scripts/package.sh`) and
 attaches it to a GitHub Release. Ad-hoc means no Gatekeeper trust: first
@@ -98,17 +100,17 @@ settings). Failed transcriptions keep their audio in `~/.cache/hearme/spool/`.
 ## Tests
 
 ```sh
-cargo test -p hearme-core                       # fast unit tests
-cargo run -p hearme-core --example fetch_model -- base
-cargo test -p hearme-core --features stt-tests  # real STT on en/es fixtures
-cargo test -p hearme-e2e                        # keystrokes → engine → session → Whisper, in-process
-e2e/run-app-tests.sh                            # the real app: key events, tray, windows (~30s)
+make check      # fmt-check + clippy + unit tests (what CI runs)
+make test-stt   # real STT on en/es fixtures (fetches the base model)
+make test-e2e   # keystrokes → engine → session → Whisper, in-process
+make test-app   # the real app: key events, tray, windows (~30s)
 ```
 
 `e2e/run-app-tests.sh` builds and installs the app, then drives it the way
 a person would: real key events through macOS, the tray menu, the Settings
 and onboarding windows, dictating into a bare test window. It plays a WAV
 instead of the mic and uses temp config/history, so your setup isn't
-touched. Needs Accessibility for hearme and your terminal, and
+touched. The WAV swap only exists in `test-hooks` builds, which the script
+makes; `make install` puts a normal build back. Needs Accessibility for hearme and your terminal, and
 "Press 🌐 key to" set to Do Nothing. Each test must finish within 10s; a
 stuck one aborts the run and says where it stopped. Don't type while it runs.

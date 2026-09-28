@@ -1,0 +1,9 @@
+# Toolchain for hearme, pinned so local builds and CI match.
+#   mise install    then use `make` (make help lists the targets)
+
+[tools]
+rust = { version = "1.98.0", components = "rustfmt,clippy" }
+# Lets mise fetch cargo tools as prebuilt binaries instead of compiling them.
+cargo-binstall = "latest"
+"cargo:tauri-cli" = "2.11.4"
+actionlint = "1.7.12"
