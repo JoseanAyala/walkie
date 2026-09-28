@@ -1,39 +1,63 @@
-<!doctype html><html><head><meta charset="utf-8"><style>
-  body { margin: 0; background: transparent; font: 13px -apple-system, sans-serif; overflow: hidden }
-  #pill { display: flex; align-items: center; gap: 10px; height: 44px; margin: 10px;
-          padding: 0 16px; border-radius: 22px; background: rgba(20,20,20,.85); color: #eee;
-          box-shadow: 0 4px 16px rgba(0,0,0,.35) }
-  #dot { width: 10px; height: 10px; border-radius: 50%; background: #e74c3c; flex: none }
-  .busy #dot { background: #f39c12 }
-  #bars { display: flex; gap: 2px; align-items: flex-end; height: 16px; margin-left: auto }
-  #bars i { width: 3px; height: 3px; background: #2ecc71; display: block; transition: height .06s }
-  .notice #dot { background: #3498db }
-  .notice #bars { display: none }
-  .notice #label { font-size: 12px; line-height: 1.25 }
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="theme.css"><style>
+  /* a dark color-scheme would paint an opaque canvas behind the pill */
+  html, body { background: transparent; overflow: hidden; color-scheme: normal !important }
+  #pill { display: flex; align-items: center; gap: 8px; height: 40px; margin: 9px 13px 15px 9px;
+          padding: 0 8px; background: var(--panel); border: 2px solid var(--line);
+          box-shadow: 4px 4px 0 var(--line) }
+  #chip { flex: none; min-width: 44px; text-align: center; background: var(--accent);
+          color: var(--accent-fg) }
+  #chip::before { content: "■ "; animation: blink 1s steps(1) infinite }
+  .busy #chip { background: var(--chip); color: var(--chip-fg) }
+  .busy #chip::before, .notice #chip::before, .error #chip::before { content: none }
+  .notice #chip { background: var(--tag); color: var(--fg) }
+  .error #chip { background: var(--warn); color: var(--accent-fg) }
+  #label { flex: 1; min-width: 0; line-height: 14px; overflow: hidden; display: -webkit-box;
+           -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere }
+  /* a pixel VU meter: blocks light up left to right with the input level */
+  #bars { display: flex; gap: 2px; flex: none }
+  #bars i { width: 5px; height: 12px; background: var(--tag); display: block }
+  #bars i.on { background: var(--fg) }
+  #bars i.on.hot { background: var(--accent) }
+  .busy #bars, .notice #bars, .error #bars { display: none }
 </style></head><body>
 <div id="pill">
-  <span id="dot"></span><span id="label">listening…</span>
-  <span id="bars"><i></i><i></i><i></i><i></i><i></i></span>
+  <span id="chip">REC</span><span id="label">listening…</span>
+  <span id="bars"></span>
 </div>
 <script>
   const { listen } = window.__TAURI__.event;
-  const label = document.getElementById('label');
-  const pill = document.getElementById('pill');
+  const $ = id => document.getElementById(id);
+  const pill = $('pill'), label = $('label'), chip = $('chip');
+  const N = 10;
+  for (let i = 0; i < N; i++) $('bars').appendChild(document.createElement('i'));
   const bars = [...document.querySelectorAll('#bars i')];
+  bars.slice(-2).forEach(b => b.classList.add('hot'));
+
   const names = { recording: 'listening…', transcribing: 'transcribing…',
                   polishing: 'polishing…', injecting: 'typing…' };
+  const SPIN = ['▖', '▘', '▝', '▗'];
+  let spin = 0, spinner;
+  function mode(m, chipText) {
+    pill.classList.remove('busy', 'notice', 'error');
+    if (m) pill.classList.add(m);
+    chip.textContent = chipText;
+    clearInterval(spinner);
+    if (m === 'busy') spinner = setInterval(() => chip.textContent = SPIN[spin++ % 4] + ' BUSY', 150);
+  }
   listen('state', e => {
-    pill.classList.toggle('busy', e.payload !== 'recording');
-    pill.classList.remove('notice');
+    if (e.payload === 'recording') mode(null, 'REC'); else mode('busy', '▖ BUSY');
     label.textContent = names[e.payload] || e.payload;
   });
+  // Lit blocks fall back one at a time, so the meter reads as a level
+  // instead of flickering with every audio buffer.
+  let lit = 0;
   listen('level', e => {
-    const v = Math.min(1, e.payload * 8);
-    bars.forEach((b, i) => {
-      b.style.height = (3 + v * 13 * Math.abs(Math.sin(Date.now() / 90 + i))) + 'px';
-    });
+    const want = Math.round(Math.min(1, e.payload * 8) * N);
+    lit = Math.max(want, lit - 1);
+    bars.forEach((b, i) => b.classList.toggle('on', i < lit));
   });
-  listen('app-error', e => { label.textContent = '⚠ ' + e.payload; });
-  // Informational, not a failure: blue dot, no ⚠.
-  listen('app-notice', e => { pill.classList.add('notice'); label.textContent = e.payload; });
+  listen('app-error', e => { mode('error', 'ERR'); label.textContent = e.payload; });
+  // Informational, not a failure.
+  listen('app-notice', e => { mode('notice', 'NOTE'); label.textContent = e.payload; });
 </script></body></html>
