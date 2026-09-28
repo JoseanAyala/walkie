@@ -167,6 +167,16 @@ impl App {
         h.insert(text, text, None, Some("en"), 1000).unwrap();
     }
 
+    /// The app's history (cleaned text), newest first.
+    pub fn history(&self) -> Vec<String> {
+        hearme_core::history::History::open(&self.root.join("data/hearme/history.sqlite3"))
+            .and_then(|h| h.recent(100))
+            .unwrap()
+            .into_iter()
+            .map(|r| r.cleaned)
+            .collect()
+    }
+
     pub fn launch(&self) {
         step("launching hearme");
         *LOG.lock().unwrap_or_else(|e| e.into_inner()) = Some(self.log.clone());
