@@ -1,0 +1,214 @@
+<script lang="ts">
+import { onMount } from "svelte";
+import { api, type Check, type Config, type Pane } from "../lib/api";
+import Desk from "../lib/Desk.svelte";
+import { glyph } from "../lib/format";
+import Win from "../lib/Win.svelte";
+import { PERMS, verdict } from "./checks";
+
+const ROWS: Record<(typeof PERMS)[number], { name: string; why: string; pane: Pane }> = {
+  mic: { name: "Microphone", why: "to hear you — asked on your first dictation", pane: "mic" },
+  accessibility: {
+    name: "Accessibility",
+    why: "for the shortcut and to type text — restart hearme once after granting",
+    pane: "accessibility",
+  },
+  globe: {
+    name: "Globe (fn) key",
+    why: 'set "Press 🌐 key to" → Do Nothing, so fn only dictates',
+    pane: "keyboard",
+  },
+};
+
+let checks = $state<Check[]>([]);
+let cfg = $state<Config | null>(null);
+let login = $state(true);
+const missing = $derived(PERMS.filter((p) => verdict(checks, p) === "missing").length);
+
+async function refresh() {
+  try {
+    checks = await api.getStatus();
+  } catch {
+    // the next tick tries again
+  }
+}
+
+onMount(() => {
+  api.getConfig().then(
+    (c) => (cfg = c),
+    () => {},
+  );
+  refresh();
+  const timer = setInterval(() => {
+    if (document.visibilityState === "visible") refresh();
+  }, 1500);
+  return () => clearInterval(timer);
+});
+</script>
+
+{#snippet keys(
+  k: string[],
+)}
+  {#each k as name, i (i)}
+    {#if i}
+      {" + "}
+    {/if}
+    <kbd>{glyph(name)}</kbd>
+  {/each}
+{/snippet}
+
+<Desk
+  seed={5}
+  clouds={[
+  [0.02, 0.2, 0.3],
+  [1.0, 0.9, 0.35],
+  [0.6, -0.05, 0.18],
+]}
+/>
+<div class="desktop">
+  <div class="top">
+    <span class="os">HEARME.OS1</span><span class="grow"></span
+    ><span class="chip ghost">setup</span>
+  </div>
+
+  <Win title="Welcome 1.1" bodyClass="intro">
+    <span class="chip big">hearme</span>
+    <span
+      >Hold a key, talk, and your words are typed wherever you're writing. Everything runs locally —
+      your voice never leaves this Mac.</span
+    >
+  </Win>
+
+  <Win title="Permissions">
+    {#snippet extra()}
+      <span>{missing ? `${missing} to go` : "all set"}</span>
+    {/snippet}
+    {#each PERMS as p (p)}
+      {@const v = verdict(checks, p)}
+      {#if v !== "absent"}
+        <div class="perm">
+          <span class="chip" class:ghost={v === "pending"} class:warn={v === "missing"}
+            >{v === "ok" ? "OK" : v === "pending" ? ".." : "!!"}</span
+          >
+          <span><b>{ROWS[p].name}</b><small>{ROWS[p].why}</small></span>
+          <button class:hidden={v === "ok"} onclick={() => api.openSettingsPane(ROWS[p].pane)}>
+            Open Settings
+          </button>
+        </div>
+      {/if}
+    {/each}
+  </Win>
+
+  <Win title="Try it" bodyClass="try">
+    {#if cfg}
+      {@const h = cfg.hotkeys}
+      {#if h.dictate.length}
+        <p>Click into any text field, hold {@render keys(h.dictate)}, speak, release.</p>
+      {/if}
+      {#if h.hands_free.length}
+        <p>
+          {@render keys(h.hands_free)}
+          goes hands-free (press {@render keys(h.dictate)} to stop).
+        </p>
+      {/if}
+      {#if h.polish.length}
+        <p>{@render keys(h.polish)} dictates and polishes.</p>
+      {/if}
+    {:else}
+      <p>Click into any text field, hold the Dictate key, speak, release.</p>
+    {/if}
+    <p class="muted">Change them in Settings → General.</p>
+  </Win>
+
+  <Win title="Finish" class="finish">
+    <div class="row">
+      <label class="cb"
+        ><input type="checkbox" bind:checked={login}> {"Launch hearme at login"}</label
+      >
+      <span class="grow"></span>
+      <button class="primary" onclick={() => api.finishOnboarding(login)}>
+        I've granted everything — finish
+      </button>
+    </div>
+    {#if missing}
+      <div class="hint">
+        <span class="chip warn">!!</span>
+        {missing}
+        still missing — you can finish anyway; Settings → Status keeps checking.
+      </div>
+    {/if}
+    <div class="hint">Running hearme from a terminal? Grant these to the terminal app instead.</div>
+  </Win>
+</div>
+
+<style>
+:global(body) {
+  overflow: auto;
+}
+.desktop {
+  min-height: 100vh;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.top,
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.grow {
+  flex: 1;
+}
+.desktop :global(.body) {
+  line-height: 16px;
+}
+.desktop :global(.intro) {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.desktop :global(.intro .chip.big) {
+  flex: none;
+}
+.perm {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.perm:last-child {
+  border-bottom: 0;
+}
+.perm > .chip {
+  text-align: center;
+}
+small {
+  display: block;
+  color: var(--muted);
+}
+.hidden {
+  visibility: hidden;
+}
+.desktop :global(.try p) {
+  margin: 0 0 6px;
+}
+.desktop :global(kbd) {
+  background: var(--paper);
+  border: 2px solid var(--line);
+  padding: 0 4px;
+}
+/* the way out stays on screen however tall the rest gets */
+.desktop :global(.finish) {
+  position: sticky;
+  bottom: 12px;
+  margin-top: auto;
+  box-shadow: 4px 4px 0 var(--line);
+}
+button.primary {
+  padding: 4px 10px;
+}
+</style>

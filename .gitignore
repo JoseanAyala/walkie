@@ -7,3 +7,7 @@ crates/hearme-app/gen/
 
 # Claude Code local state (agent worktrees, settings)
 .claude/
+
+# Built from crates/hearme-app/ui by `make ui` (or tauri's beforeBuildCommand)
+crates/hearme-app/dist/
+node_modules/

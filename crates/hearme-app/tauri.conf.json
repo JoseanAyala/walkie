@@ -4,10 +4,13 @@
   "version": "0.1.0",
   "identifier": "dev.josean.hearme",
   "build": {
-    "frontendDist": "./dist"
+    "frontendDist": "./dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "cd \"$(git rev-parse --show-toplevel)/crates/hearme-app/ui\" && bun run dev",
+    "beforeBuildCommand": "cd \"$(git rev-parse --show-toplevel)/crates/hearme-app/ui\" && bun run build"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "macOSPrivateApi": true,
     "windows": [
       {
