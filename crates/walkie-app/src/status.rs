@@ -63,6 +63,19 @@ mod mac {
         }
     }
 
+    /// Shows macOS's microphone prompt. Only does anything while the answer
+    /// is "not determined"; after that, only System Settings can change it.
+    pub fn request_microphone() {
+        let done = block2::RcBlock::new(|_granted: objc2::runtime::Bool| {});
+        unsafe {
+            let _: () = objc2::msg_send![
+                objc2::class!(AVCaptureDevice),
+                requestAccessForMediaType: AVMediaTypeAudio,
+                completionHandler: &*done
+            ];
+        }
+    }
+
     /// System Settings → Keyboard → "Press 🌐 key to": 0 = Do Nothing.
     pub fn globe_does_nothing() -> bool {
         std::process::Command::new("defaults")
@@ -73,6 +86,17 @@ mod mac {
             .map(|s| s.trim() == "0")
             .unwrap_or(false)
     }
+}
+
+/// Asks for the microphone the way a first dictation would, if macOS hasn't
+/// asked yet. False when it already has: then only System Settings helps.
+pub fn ask_for_microphone() -> bool {
+    #[cfg(target_os = "macos")]
+    if mac::microphone() == 0 {
+        mac::request_microphone();
+        return true;
+    }
+    false
 }
 
 pub fn pretty(keys: &[Key]) -> String {
@@ -121,7 +145,7 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
                 ok: mic == 3,
                 detail: match mic {
                     3 => "granted".into(),
-                    0 => "not asked yet — it's requested on your first dictation".into(),
+                    0 => "not asked yet — Fix asks now, or your first dictation will".into(),
                     _ => "denied — walkie records silence".into(),
                 },
                 fix: (mic != 3).then_some("mic"),

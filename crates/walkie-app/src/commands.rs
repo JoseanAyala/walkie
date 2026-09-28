@@ -159,6 +159,11 @@ pub fn copy_text(text: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn open_settings_pane(pane: String) -> Result<(), String> {
+    // Before macOS has asked, the microphone pane has no walkie row to
+    // switch on: show the prompt a first dictation would instead.
+    if pane == "mic" && status::ask_for_microphone() {
+        return Ok(());
+    }
     #[cfg(target_os = "macos")]
     {
         let url = match pane.as_str() {
