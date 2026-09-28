@@ -387,7 +387,7 @@ fn handle_signal(app: &AppHandle, tx: &mpsc::Sender<Command>, ready: &AtomicBool
         },
     };
     if !ready.load(Ordering::SeqCst) {
-        if let Command::Start(_) = cmd {
+        if matches!(cmd, Command::Start | Command::Polish) {
             let _ = app.emit("app-error", "still loading the speech model — please wait");
         }
         return;
@@ -459,11 +459,12 @@ fn pump(app: &AppHandle, ev: Event, linger_until: &mut Option<Instant>, epoch: &
                 }
             } else {
                 let _ = app.emit("state", state_name(s));
-                if s == SessionState::Recording {
-                    // A fresh dictation starting means any earlier error's
-                    // grace period is no longer relevant — don't let it
-                    // delay hiding the overlay for *this* (possibly clean)
-                    // recording once it finishes.
+                // Polishing straight from idle: the polish shortcut.
+                if s == SessionState::Recording || s == SessionState::Polishing {
+                    // A fresh dictation (or polish) starting means any earlier
+                    // error's grace period is no longer relevant — don't let
+                    // it delay hiding the overlay for *this* (possibly clean)
+                    // one once it finishes.
                     *linger_until = None;
                     if let Some(w) = app.get_webview_window("overlay") {
                         let _ = position_overlay(&w);

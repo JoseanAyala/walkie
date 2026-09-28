@@ -35,10 +35,10 @@ Workspace crates:
 - **`crates/walkie-app/swift/walkie-ai.swift`** — a Swift CLI for Apple's on-device model (FoundationModels), built by `walkie-app/build.rs` and bundled as a Tauri `externalBin`. `pipeline::polish` runs it (`status`, `respond <prompt>` with text on stdin) for the opt-in Apple polish provider; a separate process so the timeout can kill it. `make fmt`/`lint` run swift-format on it.
 - **`e2e`** — two test layers (see below).
 
-Data flow: macOS event tap (`hotkey/tap.rs`) → `hotkey::engine::Engine` (pure, no OS calls; turns key events into `Signal`s, decides what to swallow) → `Command::from_signal` → `pipeline::session::Session` worker thread (Idle → Recording → Transcribing → [Polishing] → Injecting) → emits `Event`s (state, level, done, error, notice) back to the app.
+Data flow: macOS event tap (`hotkey/tap.rs`) → `hotkey::engine::Engine` (pure, no OS calls; turns key events into `Signal`s, decides what to swallow) → `Command::from_signal` → `pipeline::session::Session` worker thread (dictate: Idle → Recording → Transcribing → Injecting; polish: Idle → Polishing (grab the focused field's selection or all its text via the `Injector`) → Injecting) → emits `Event`s (state, level, done, error, notice) back to the app.
 
 Key design points:
-- The hotkey `Engine`/`HotkeyMachine` are deliberately pure so gestures (hold, double-tap lock, stray-key cancel, paste-last) are unit-testable. Timing constants (`HOLD_MIN_MS`, `TAP_WINDOW_MS`, `STRAY_CANCEL_MS`) carry comments explaining measured macOS behavior — keep them in sync.
+- The hotkey `Engine`/`HotkeyMachine` are deliberately pure so gestures (hold, double-tap lock, stray-key cancel, polish, paste-last) are unit-testable. Timing constants (`HOLD_MIN_MS`, `TAP_WINDOW_MS`, `STRAY_CANCEL_MS`) carry comments explaining measured macOS behavior — keep them in sync.
 - The session takes its OS edges as trait objects via `Deps` (`Capture`, `Injector`, `SttEngine`, `Ducker`/volume). Tests substitute `FileCapture` (WAV), a fake `Injector`, `MemVolume`.
 - Keystroke synthesis must run on the main thread (`inject::MainThread`); off-main enigo calls crash after an input-source change.
 - Tauri windows are declared once in `tauri.conf.json`; close requests hide instead of destroy.

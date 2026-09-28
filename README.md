@@ -28,7 +28,7 @@ Default shortcuts; rebind any of them in Settings → General:
 | | |
 |---|---|
 | **hold fn** | speak, release → the text appears (< 1s). Double-tap fn to lock it on. |
-| **hold fn + shift** | dictate + polish: the transcript goes through a command of yours (`claude -p`, `codex exec`, ollama, …) before it's typed. Or, optionally, Apple's on-device model (macOS 26 with Apple Intelligence on). |
+| **fn + shift** | polish: tidies the text you already have — the selection, or the whole field when nothing is selected — and puts the result in its place. It goes through a command of yours (`claude -p`, `codex exec`, ollama, …) or, optionally, Apple's on-device model (macOS 26 with Apple Intelligence on). The original stays in History. |
 | **ctrl + cmd + V** | paste the last transcript again, for when it landed in the wrong window (also in the tray menu). |
 
 The tray icon is gray when idle, red while recording and amber while it works.
@@ -43,7 +43,7 @@ windows. Every change saves itself.
   lower other audio while you speak.
 - **Status**: what walkie needs to work (permissions, model, mic, keyboard
   hook), with a button to fix each, and the version.
-- **Polish**: what dictate + polish uses: your command, or Apple's
+- **Polish**: what the polish shortcut uses: your command, or Apple's
   on-device model in the tone you pick — Formal, Casual, Very casual or
   Excited (it says whether Apple Intelligence is ready). Test tries it.
 - **History**: your past dictations, searchable, stored only on this Mac.
@@ -66,7 +66,7 @@ Settings writes `~/.config/walkie/config.toml`; you can edit it too.
 [polish]
 provider = "command"         # or "apple": Apple's on-device model (optional)
 tone = "formal"              # Apple's model: formal, casual, very_casual or excited
-command = "claude -p 'Clean up this dictated text. Output only the cleaned text.'"
+command = "claude -p 'Clean up this text. Output only the cleaned text.'"
 timeout_secs = 60
 
 [audio]

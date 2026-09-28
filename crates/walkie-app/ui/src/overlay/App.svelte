@@ -57,7 +57,7 @@ onMount(() => {
   const ticker = setInterval(tick, TICK_MS);
   const offs = [
     on("state", (s) => {
-      if (s === "recording" && (last === "" || last === "idle")) {
+      if ((s === "recording" || s === "polishing") && (last === "" || last === "idle")) {
         shown++;
         wave = FLAT();
         startedAt = Date.now();

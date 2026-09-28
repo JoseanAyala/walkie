@@ -95,6 +95,14 @@ pub fn frontmost() -> Option<(String, String)> {
 #[cfg(target_os = "macos")]
 pub use ax::frontmost;
 
+#[cfg(not(target_os = "macos"))]
+pub fn selected_text() -> Option<String> {
+    None
+}
+
+#[cfg(target_os = "macos")]
+pub use ax::selected_text;
+
 #[cfg(target_os = "macos")]
 mod ax {
     use super::Probe;
@@ -202,6 +210,20 @@ mod ax {
             .map(|w| w.string("AXTitle"))
             .unwrap_or_default();
         Some((name, title))
+    }
+
+    /// The focused element's selected text: empty when nothing is selected,
+    /// None when the app doesn't say (web views, custom-drawn editors). Off
+    /// the main thread, like `probe`.
+    pub fn selected_text() -> Option<String> {
+        focused_app()?
+            .attr("AXFocusedUIElement")
+            .ok()?
+            .attr("AXSelectedText")
+            .ok()?
+            .0
+            .downcast::<CFString>()
+            .map(|s| s.to_string())
     }
 
     /// A handful of AX round-trips (~1ms total); a hung app costs at most

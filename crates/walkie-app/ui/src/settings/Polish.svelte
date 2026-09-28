@@ -104,17 +104,17 @@ async function test() {
       <input
         type="text"
         aria-label="Polish command"
-        placeholder={'claude -p "Clean up this dictated text. Output only the cleaned text."'}
+        placeholder={'claude -p "Clean up this text. Output only the cleaned text."'}
         bind:value={cfg.polish.command}
         oninput={() => settings.saveSoon()}
       >
       <div class="hint">
-        transcript on stdin, result on stdout · e.g. claude -p "…" · codex exec "…" · ollama run llama3.2 "…"
+        text on stdin, result on stdout · e.g. claude -p "…" · codex exec "…" · ollama run llama3.2 "…"
       </div>
       {#if noCommand}
         <div class="hint">
           <span class="chip warn">!!</span>
-          the Dictate + polish shortcut is on, but there is no command
+          the Polish shortcut is on, but there is no command
         </div>
       {/if}
     </Field>

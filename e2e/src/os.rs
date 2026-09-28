@@ -1058,6 +1058,11 @@ fn target_bundle() -> PathBuf {
 
 impl Target {
     pub fn open() -> Target {
+        Target::with_text("")
+    }
+
+    /// Like `open`, with `text` already in the window (cursor at its end).
+    pub fn with_text(text: &str) -> Target {
         step("opening the typing target");
         let _ = Command::new("pkill").args(["-x", TARGET]).status();
         let out =
@@ -1068,6 +1073,7 @@ impl Target {
             .arg(target_bundle())
             .arg("--args")
             .arg(&out)
+            .arg(text)
             .status()
             .unwrap();
         assert!(ok.success(), "couldn't launch the typing target");

@@ -10,9 +10,3 @@ pub enum Output {
     Finish,
     CancelDiscard,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Mode {
-    Dictate,
-    Polish,
-}

@@ -33,6 +33,8 @@ struct FocusedApp {
     typed: Rc<RefCell<Vec<String>>>,
     copied: Rc<RefCell<Vec<String>>>,
     no_text_field: bool,
+    /// The focused field's text, for polish to grab.
+    field: String,
 }
 impl Injector for FocusedApp {
     fn inject(&mut self, text: &str) -> anyhow::Result<Injected> {
@@ -42,6 +44,9 @@ impl Injector for FocusedApp {
         }
         self.typed.borrow_mut().push(text.to_string());
         Ok(Injected::Typed)
+    }
+    fn grab(&mut self) -> anyhow::Result<Option<String>> {
+        Ok((!self.no_text_field && !self.field.is_empty()).then(|| self.field.clone()))
     }
 }
 
@@ -68,6 +73,8 @@ pub struct Setup {
     pub apple_helper: Option<&'static str>,
     /// Focus is somewhere nothing can be typed (the desktop, a Finder list).
     pub no_text_field: bool,
+    /// What the focused text field already holds (what polish works on).
+    pub field: &'static str,
     /// How Apple's model writes.
     pub tone: Tone,
 }
@@ -80,6 +87,7 @@ impl Default for Setup {
             polish_command: "",
             apple_helper: None,
             no_text_field: false,
+            field: "",
             tone: Tone::Formal,
         }
     }
@@ -130,6 +138,7 @@ impl Rig {
                 typed: typed.clone(),
                 copied: copied.clone(),
                 no_text_field: setup.no_text_field,
+                field: setup.field.into(),
             }),
             history: Some(History::open_in_memory().unwrap()),
             cfg,

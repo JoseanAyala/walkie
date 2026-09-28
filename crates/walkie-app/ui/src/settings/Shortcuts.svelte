@@ -8,9 +8,9 @@ const ROWS: { k: HotkeyName; name: string; label: string; help: string }[] = [
   { k: "dictate", name: "Dictate", label: "Dictate", help: "hold to talk · double-tap to lock" },
   {
     k: "polish",
-    name: "Dictate + polish",
-    label: "Dictate + polish",
-    help: "hold; the text is polished before it's typed (Polish tab)",
+    name: "Polish",
+    label: "Polish",
+    help: "tap; polishes the selected text, or the whole field (Polish tab)",
   },
   {
     k: "paste_last",
@@ -22,9 +22,7 @@ const ROWS: { k: HotkeyName; name: string; label: string; help: string }[] = [
 const label = (k: HotkeyName) => ROWS.find((r) => r.k === k)?.label ?? k;
 
 let recording = $state<HotkeyName | null>(null);
-let msg = $state(
-  "Holding Dictate and adding the extra key of another shortcut switches the running recording (e.g. Fn, then Shift → polish).",
-);
+let msg = $state("Press Record, then the new keys together.");
 let err = $state(false);
 const say = (text: string, isErr = false) => {
   msg = text;

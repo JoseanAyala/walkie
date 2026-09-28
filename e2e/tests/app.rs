@@ -8,7 +8,7 @@
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET);
 //! past that the run aborts and reports the step it was stuck on.
 
-use walkie_e2e::os::{begin, sleep, step, App, Keyboard, Target};
+use walkie_e2e::os::{begin, clipboard, set_clipboard, sleep, step, App, Keyboard, Target};
 
 fn ready_app() -> App {
     let app = App::new();
@@ -275,24 +275,60 @@ fn typing_strategy_dictates_twice_in_a_row() {
     }
 }
 
+/// Shift+Fn, the default polish shortcut: a tap, no recording.
+fn tap_polish(kb: &mut Keyboard) {
+    kb.down("Shift").down("Fn").wait(80).up("Fn").up("Shift");
+}
+
 #[test]
-fn fn_shift_runs_the_polish_command() {
-    let _t = begin("fn_shift_runs_the_polish_command");
+fn fn_shift_polishes_the_whole_field_and_keeps_the_clipboard() {
+    let _t = begin("fn_shift_polishes_the_whole_field_and_keeps_the_clipboard");
+    let app = ready_app();
+    app.require_keyboard();
+    set_clipboard("walkie-e2e sentinel");
+    let doc = Target::with_text("hello there\nsecond line");
+    tap_polish(&mut Keyboard::new());
+    let t = doc.wait_for(5, |t| t == "HELLO THERE\nSECOND LINE");
+    assert_eq!(
+        t,
+        "HELLO THERE\nSECOND LINE",
+        "the upper-casing polish command should replace it all\n{}",
+        app.log_text()
+    );
+    sleep(500); // the paste's own clipboard restore
+    assert_eq!(clipboard(), "walkie-e2e sentinel", "clipboard not restored");
+}
+
+#[test]
+fn fn_shift_polishes_only_the_selection() {
+    let _t = begin("fn_shift_polishes_only_the_selection");
+    let app = ready_app();
+    app.require_keyboard();
+    let doc = Target::with_text("keep this, hello");
+    let mut kb = Keyboard::new();
+    kb.down("Shift");
+    for _ in 0.."hello".len() {
+        kb.tap("Left");
+    }
+    kb.up("Shift").wait(100);
+    tap_polish(&mut kb);
+    let t = doc.wait_for(5, |t| t.contains("HELLO"));
+    assert_eq!(t, "keep this, HELLO", "{}", app.log_text());
+}
+
+#[test]
+fn fn_shift_in_an_empty_field_says_so() {
+    let _t = begin("fn_shift_in_an_empty_field_says_so");
     let app = ready_app();
     app.require_keyboard();
     let doc = Target::open();
-    Keyboard::new()
-        .down("Shift")
-        .down("Fn")
-        .wait(600)
-        .up("Fn")
-        .up("Shift");
-    let t = doc.wait_for(5, |t| t.contains("HELLO"));
+    tap_polish(&mut Keyboard::new());
     assert!(
-        t.contains("HELLO"),
-        "expected the upper-casing polish command to run: {t:?}\n{}",
+        app.wait_log("Nothing to polish", 3),
+        "no notice\n{}",
         app.log_text()
     );
+    assert_eq!(doc.text(), "");
 }
 
 /// Regression: a 🌐 tap switches the input source, after which enigo's

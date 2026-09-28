@@ -1,9 +1,9 @@
 //! Manual smoke test for the keyboard hook with the default (Wispr-style)
 //! bindings. Run and try:
-//!   hold Fn ≥150ms, release            → Start(Dictate) … Finish
+//!   hold Fn ≥150ms, release            → Start … Finish
 //!   quick-tap Fn                       → Start, Cancel
 //!   double-tap Fn, wait, tap           → Start (locked) … Finish
-//!   hold Fn, add Shift                 → Start(Dictate), SetMode(Polish)
+//!   Shift+Fn, release                  → Polish
 //! Needs Accessibility for the process running it (your terminal).
 //! cargo run -p walkie-core --example hotkey_demo
 

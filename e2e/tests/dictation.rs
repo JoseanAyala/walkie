@@ -33,42 +33,51 @@ fn hold_fn_types_spanish() {
     assert!(one(&r).contains("hola"), "{:?}", r.typed());
 }
 
-#[test]
-fn fn_shift_polishes() {
-    let mut r = Rig::new(Setup {
-        polish_command: "tr 'a-z' 'A-Z'",
-        ..Default::default()
-    });
+/// Shift, then Fn, both released: what the default polish shortcut is.
+fn tap_fn_shift(r: &mut Rig) {
     r.press("Shift")
         .press("Fn")
-        .wait(3000)
+        .wait(80)
         .release("Fn")
         .release("Shift");
-    let t = r.typed();
-    assert_eq!(t.len(), 1, "{t:?}");
-    assert!(
-        t[0].contains("HELLO"),
-        "polish command should have run: {t:?}"
+}
+
+#[test]
+fn fn_shift_polishes_the_fields_text_in_place() {
+    let mut r = Rig::new(Setup {
+        polish_command: "tr 'a-z' 'A-Z'",
+        field: "um so hello there",
+        ..Default::default()
+    });
+    tap_fn_shift(&mut r);
+    assert_eq!(
+        r.typed(),
+        ["UM SO HELLO THERE"],
+        "(errors: {:?})",
+        r.errors()
     );
+    assert!(
+        !r.signals
+            .iter()
+            .any(|s| matches!(s, walkie_core::hotkey::engine::Signal::Start)),
+        "polish must not record: {:?}",
+        r.signals
+    );
+    assert_eq!(r.history(), ["um so hello there"], "the original is kept");
 }
 
 #[test]
 fn fn_shift_polishes_with_apples_model() {
     let mut r = Rig::new(Setup {
-        // walkie-ai's contract: `respond <prompt>`, the transcript on stdin
+        // walkie-ai's contract: `respond <prompt>`, the text on stdin
         apple_helper: Some(
             r#"[ "$1" = respond ] && [ -n "$2" ] && { printf 'apple: '; tr a-z A-Z; }"#,
         ),
+        field: "hello",
         ..Default::default()
     });
-    r.press("Shift")
-        .press("Fn")
-        .wait(3000)
-        .release("Fn")
-        .release("Shift");
-    let t = r.typed();
-    assert_eq!(t.len(), 1, "{t:?} (errors: {:?})", r.errors());
-    assert!(t[0].starts_with("apple: HELLO"), "{t:?}");
+    tap_fn_shift(&mut r);
+    assert_eq!(r.typed(), ["apple: HELLO"], "(errors: {:?})", r.errors());
 }
 
 #[test]
@@ -79,29 +88,58 @@ fn apples_model_writes_in_the_chosen_tone() {
             r#"cat >/dev/null; case $2 in *lowercase*) echo 'Hello, Ana.' ;; *) echo 'wrong prompt' ;; esac"#,
         ),
         tone: Tone::VeryCasual,
+        field: "hello ana",
         ..Default::default()
     });
-    r.press("Shift")
-        .press("Fn")
-        .wait(3000)
-        .release("Fn")
-        .release("Shift");
+    tap_fn_shift(&mut r);
     assert_eq!(r.typed(), ["hello, Ana"], "(errors: {:?})", r.errors());
 }
 
 #[test]
-fn adding_shift_mid_hold_polishes_the_same_recording() {
+fn fn_then_shift_drops_the_recording_and_polishes() {
     let mut r = Rig::new(Setup {
         polish_command: "tr 'a-z' 'A-Z'",
+        field: "typed earlier",
         ..Default::default()
     });
     r.press("Fn")
         .wait(500)
         .press("Shift")
-        .wait(2500)
+        .wait(100)
         .release("Shift")
         .release("Fn");
-    assert!(r.typed()[0].contains("HELLO"), "{:?}", r.typed());
+    assert_eq!(r.typed(), ["TYPED EARLIER"], "no dictation typed");
+    assert_eq!(r.volume.volume(), 0.8, "recording stopped");
+}
+
+#[test]
+fn fn_shift_with_an_empty_field_changes_nothing() {
+    let mut r = Rig::new(Setup {
+        polish_command: "tr 'a-z' 'A-Z'",
+        ..Default::default()
+    });
+    tap_fn_shift(&mut r);
+    assert!(r.typed().is_empty(), "{:?}", r.typed());
+    let (errors, notices) = r.messages();
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(notices.len(), 1, "{notices:?}");
+}
+
+#[test]
+fn fn_shift_arrow_selects_text_and_polishes_nothing() {
+    let mut r = Rig::new(Setup {
+        polish_command: "tr 'a-z' 'A-Z'",
+        field: "hello",
+        ..Default::default()
+    });
+    r.press("Shift")
+        .press("Fn")
+        .press("Left")
+        .release("Left")
+        .release("Fn")
+        .release("Shift");
+    assert!(r.typed().is_empty(), "{:?}", r.typed());
+    assert!(r.swallowed.is_empty(), "the arrow must reach the app");
 }
 
 #[test]
@@ -196,7 +234,7 @@ fn ctrl_cmd_v_pastes_the_last_transcript_again() {
     let starts = r
         .signals
         .iter()
-        .filter(|s| matches!(s, walkie_core::hotkey::engine::Signal::Start(_)))
+        .filter(|s| matches!(s, walkie_core::hotkey::engine::Signal::Start))
         .count();
     assert_eq!(
         starts, 1,

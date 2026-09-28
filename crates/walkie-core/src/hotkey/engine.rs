@@ -4,18 +4,19 @@
 //!
 //! A binding is *satisfied* when the held keys are exactly its keys — so
 //! `Fn+A` never triggers an `Fn` binding. Gestures:
-//! - dictate / polish: hold to talk, double-tap to lock (see `machine.rs`)
-//! - while holding dictate, adding keys that satisfy polish upgrades the
-//!   running recording instead of starting a new one
+//! - dictate: hold to talk, double-tap to lock (see `machine.rs`)
 //! - any other key within STRAY_CANCEL_MS of starting cancels (you were
 //!   typing a shortcut, not dictating)
-//! - paste-last: a one-shot tap that never records; it fires once every key
-//!   of the chord is up, so the paste it triggers isn't mixed with (or
-//!   swallowed as) the chord's own keys
+//! - polish and paste-last: one-shot taps that never record. Each fires once
+//!   every key of the chord is up, so the keystrokes it triggers (⌘A, ⌘C,
+//!   ⌘V) aren't mixed with (or swallowed as) the chord's own keys. Any other
+//!   key pressed before then drops it: fn+shift+← is selecting text.
+//! - while holding dictate, adding keys that satisfy polish drops the
+//!   recording and polishes instead
 
 use super::keys::{self, Key, ESCAPE};
 use super::machine::HotkeyMachine;
-use super::{Mode, Output};
+use super::Output;
 use crate::config::Hotkeys;
 use std::collections::HashSet;
 
@@ -88,11 +89,11 @@ impl Bindings {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Signal {
-    Start(Mode),
-    /// The running recording switches mode (dictate → polish).
-    SetMode(Mode),
+    Start,
     Finish,
     Cancel,
+    /// Polish the focused field's text in place. Never starts a recording.
+    Polish,
     /// Re-insert the most recent transcript. Never starts a recording.
     PasteLast,
     /// Shortcut recorder result: the keys held together, normalized.
@@ -111,8 +112,6 @@ pub struct Engine {
     bindings: Bindings,
     held: Vec<Key>,
     machine: HotkeyMachine,
-    /// Mode of the current (or double-tap-pending) session.
-    mode: Option<Mode>,
     /// The key whose press started the current hold; releasing it ends it.
     anchor: Option<Key>,
     pressed_at: u128,
@@ -120,15 +119,9 @@ pub struct Engine {
     inhibit: bool,
     swallowed: HashSet<Key>,
     recording: Option<Vec<Key>>,
-    /// The paste-last chord was pressed; fire once every key is up.
-    paste_pending: bool,
-}
-
-fn mode_of(a: Action) -> Mode {
-    match a {
-        Action::Polish => Mode::Polish,
-        _ => Mode::Dictate,
-    }
+    /// A one-shot chord (polish, paste-last) was pressed; fires once every
+    /// key is up.
+    pending: Option<Signal>,
 }
 
 impl Engine {
@@ -137,13 +130,12 @@ impl Engine {
             bindings,
             held: Vec::new(),
             machine: HotkeyMachine::new(),
-            mode: None,
             anchor: None,
             pressed_at: 0,
             inhibit: false,
             swallowed: HashSet::new(),
             recording: None,
-            paste_pending: false,
+            pending: None,
         }
     }
 
@@ -160,7 +152,7 @@ impl Engine {
     /// triggering anything. Esc alone cancels.
     pub fn start_recording(&mut self) {
         self.recording = Some(Vec::new());
-        self.paste_pending = false;
+        self.pending = None;
     }
 
     pub fn is_recording(&self) -> bool {
@@ -213,9 +205,10 @@ impl Engine {
                 };
             }
             let mut signal = self.up(k, t);
-            if self.paste_pending && self.held.is_empty() {
-                self.paste_pending = false;
-                signal = signal.or(Some(Signal::PasteLast));
+            if self.held.is_empty() {
+                if let Some(p) = self.pending.take() {
+                    signal = signal.or(Some(p));
+                }
             }
             Verdict { signal, swallow }
         }
@@ -224,9 +217,6 @@ impl Engine {
     /// Call every ~50ms so an unanswered first tap expires.
     pub fn poll(&mut self, now: u128) {
         self.machine.poll(now);
-        if !self.machine.is_engaged() && self.anchor.is_none() {
-            self.mode = None;
-        }
     }
 
     fn satisfied(&self) -> Option<Action> {
@@ -244,16 +234,23 @@ impl Engine {
     fn down(&mut self, k: Key, t: u128) -> Down {
         let sat = self.satisfied();
 
+        if self.pending.take().is_some() {
+            // A key on top of a one-shot chord: some other shortcut.
+            self.inhibit = true;
+            return Down::Ignored;
+        }
+
         if self.anchor.is_some() && self.machine.is_holding() {
             return match sat {
-                Some(Action::Polish) if self.mode == Some(Mode::Dictate) => {
-                    self.mode = Some(Mode::Polish);
-                    Down::Consumed(Some(Signal::SetMode(Mode::Polish)))
+                Some(Action::Polish) => {
+                    self.machine.reset();
+                    self.anchor = None;
+                    self.pending = Some(Signal::Polish);
+                    Down::Consumed(Some(Signal::Cancel))
                 }
                 _ if !k.is_modifier() && t.saturating_sub(self.pressed_at) < STRAY_CANCEL_MS => {
                     self.machine.reset();
                     self.anchor = None;
-                    self.mode = None;
                     self.inhibit = true;
                     Down::Ignored.with(Signal::Cancel)
                 }
@@ -262,29 +259,23 @@ impl Engine {
         }
 
         match sat {
-            Some(a @ (Action::Dictate | Action::Polish)) => {
-                let m = mode_of(a);
-                if self.machine.is_engaged() && self.mode != Some(m) {
-                    if self.machine.is_locked() {
-                        return Down::Ignored; // the other mode's locked session owns the keys
-                    }
-                    self.machine.reset(); // a pending tap of the other mode just expires
-                }
+            Some(Action::Dictate) => {
                 self.anchor = Some(k);
                 self.pressed_at = t;
-                let out = self.machine.press(t);
-                if self.machine.is_holding() || self.machine.is_locked() {
-                    self.mode = Some(m);
-                }
-                Down::Consumed(match out {
-                    Some(Output::Start) => Some(Signal::Start(m)),
+                Down::Consumed(match self.machine.press(t) {
+                    Some(Output::Start) => Some(Signal::Start),
                     Some(Output::Finish) => Some(Signal::Finish),
                     _ => None,
                 })
             }
-            // Not while a locked recording runs: the paste would land mid-dictation.
+            // Not while a locked recording runs: the text would change mid-dictation.
+            Some(Action::Polish) if !self.machine.is_locked() => {
+                self.machine.reset(); // an unanswered first tap just expires
+                self.pending = Some(Signal::Polish);
+                Down::Consumed(None)
+            }
             Some(Action::PasteLast) if !self.machine.is_locked() => {
-                self.paste_pending = true;
+                self.pending = Some(Signal::PasteLast);
                 Down::Consumed(None)
             }
             _ => Down::Ignored,
@@ -296,11 +287,7 @@ impl Engine {
             return None;
         }
         self.anchor = None;
-        let out = self.machine.release(t);
-        if !self.machine.is_engaged() {
-            self.mode = None;
-        }
-        match out {
+        match self.machine.release(t) {
             Some(Output::Finish) => Some(Signal::Finish),
             Some(Output::CancelDiscard) => Some(Signal::Cancel),
             _ => None,
@@ -421,7 +408,7 @@ mod tests {
         let mut e = wispr();
         assert_eq!(
             run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 800)]),
-            vec![Start(Mode::Dictate), Finish]
+            vec![Start, Finish]
         );
     }
 
@@ -439,29 +426,24 @@ mod tests {
                 (Key::Fn, false, 5060),
             ],
         );
-        assert_eq!(
-            s,
-            vec![Start(Mode::Dictate), Cancel, Start(Mode::Dictate), Finish]
-        );
+        assert_eq!(s, vec![Start, Cancel, Start, Finish]);
     }
 
     #[test]
-    fn shift_then_fn_is_polish() {
+    fn shift_fn_polishes_once_everything_is_up() {
         let mut e = wispr();
-        let s = run(
-            &mut e,
-            &[
-                (LSHIFT, true, 0),
-                (Key::Fn, true, 10),
-                (LSHIFT, false, 300), // releasing Shift doesn't end it
-                (Key::Fn, false, 900),
-            ],
+        assert_eq!(e.on_key(LSHIFT, true, 0).signal, None);
+        assert_eq!(e.on_key(Key::Fn, true, 10).signal, None, "never records");
+        assert_eq!(
+            e.on_key(Key::Fn, false, 900).signal,
+            None,
+            "Shift still down"
         );
-        assert_eq!(s, vec![Start(Mode::Polish), Finish]);
+        assert_eq!(e.on_key(LSHIFT, false, 910).signal, Some(Polish));
     }
 
     #[test]
-    fn adding_shift_mid_hold_upgrades_to_polish() {
+    fn adding_shift_mid_hold_drops_the_recording_and_polishes() {
         let mut e = wispr();
         let s = run(
             &mut e,
@@ -472,7 +454,54 @@ mod tests {
                 (Key::Fn, false, 900),
             ],
         );
-        assert_eq!(s, vec![Start(Mode::Dictate), SetMode(Mode::Polish), Finish]);
+        assert_eq!(s, vec![Start, Cancel, Polish]);
+        assert_eq!(e.on_key(Key::Fn, true, 2000).signal, Some(Start));
+    }
+
+    #[test]
+    fn fn_shift_arrow_is_selecting_text_not_polish() {
+        let mut e = wispr();
+        let left = Key::Code(123);
+        e.on_key(LSHIFT, true, 0);
+        e.on_key(Key::Fn, true, 10);
+        let v = e.on_key(left, true, 300);
+        assert_eq!(v, Verdict::default(), "the arrow reaches the app");
+        assert_eq!(
+            run(
+                &mut e,
+                &[
+                    (left, false, 350),
+                    (Key::Fn, false, 400),
+                    (LSHIFT, false, 410)
+                ]
+            ),
+            vec![]
+        );
+        assert_eq!(e.on_key(Key::Fn, true, 1000).signal, Some(Start));
+    }
+
+    #[test]
+    fn polish_is_ignored_while_a_locked_recording_runs() {
+        let mut e = wispr();
+        run(
+            &mut e,
+            &[
+                (Key::Fn, true, 0),
+                (Key::Fn, false, 60),
+                (Key::Fn, true, 150),
+                (Key::Fn, false, 200),
+            ],
+        );
+        let s = run(
+            &mut e,
+            &[
+                (LSHIFT, true, 1000),
+                (Key::Fn, true, 1010),
+                (Key::Fn, false, 1100),
+                (LSHIFT, false, 1110),
+            ],
+        );
+        assert_eq!(s, vec![], "Shift+Fn isn't the stop tap, and polish waits");
     }
 
     #[test]
@@ -487,10 +516,7 @@ mod tests {
             run(&mut e, &[(A, false, 60), (Key::Fn, false, 100)]),
             vec![]
         );
-        assert_eq!(
-            e.on_key(Key::Fn, true, 500).signal,
-            Some(Start(Mode::Dictate))
-        );
+        assert_eq!(e.on_key(Key::Fn, true, 500).signal, Some(Start));
     }
 
     #[test]
@@ -542,7 +568,7 @@ mod tests {
         assert!(!e.on_key(Key::Ctrl(Left), true, 0).swallow);
         assert!(!e.on_key(Key::Opt(Right), true, 10).swallow);
         let d = e.on_key(D, true, 20);
-        assert_eq!(d.signal, Some(Start(Mode::Dictate)));
+        assert_eq!(d.signal, Some(Start));
         assert!(d.swallow);
         assert!(e.on_key(D, true, 60).swallow, "auto-repeat swallowed too");
         let up = e.on_key(D, false, 900);
@@ -571,7 +597,7 @@ mod tests {
                     (Key::Cmd(Right), false, 1900)
                 ]
             ),
-            vec![Start(Mode::Dictate), Finish]
+            vec![Start, Finish]
         );
     }
 
@@ -603,10 +629,7 @@ mod tests {
             run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 900)]),
             vec![]
         );
-        assert_eq!(
-            e.on_key(Key::Cmd(Right), true, 1000).signal,
-            Some(Start(Mode::Dictate))
-        );
+        assert_eq!(e.on_key(Key::Cmd(Right), true, 1000).signal, Some(Start));
     }
 
     #[test]
@@ -625,10 +648,7 @@ mod tests {
         let v = e.on_key(Key::Fn, false, 120);
         assert_eq!(v.signal, Some(Recorded(vec![Key::Fn, Key::Ctrl(Any), D])));
         assert!(!e.is_recording());
-        assert_eq!(
-            e.on_key(Key::Fn, true, 500).signal,
-            Some(Start(Mode::Dictate))
-        );
+        assert_eq!(e.on_key(Key::Fn, true, 500).signal, Some(Start));
     }
 
     #[test]
@@ -654,19 +674,25 @@ mod tests {
     }
 
     #[test]
-    fn poll_expires_a_pending_tap_so_polish_can_start() {
+    fn a_pending_tap_does_not_block_polish() {
         let mut e = wispr();
         run(&mut e, &[(Key::Fn, true, 0), (Key::Fn, false, 80)]);
-        e.poll(500);
+        // still inside the double-tap window
         let s = run(
             &mut e,
             &[
-                (LSHIFT, true, 600),
-                (Key::Fn, true, 610),
-                (Key::Fn, false, 1400),
+                (LSHIFT, true, 100),
+                (Key::Fn, true, 110),
+                (Key::Fn, false, 200),
+                (LSHIFT, false, 210),
             ],
         );
-        assert_eq!(s, vec![Start(Mode::Polish), Finish]);
+        assert_eq!(s, vec![Polish]);
+        assert_eq!(
+            e.on_key(Key::Fn, true, 300).signal,
+            Some(Start),
+            "not a lock"
+        );
     }
 
     #[test]
@@ -702,7 +728,7 @@ mod tests {
         e.poll(3000);
         assert_eq!(
             e.on_key(Key::Fn, true, 3100).signal,
-            Some(Start(Mode::Dictate)),
+            Some(Start),
             "dictation unaffected"
         );
     }

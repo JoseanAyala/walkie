@@ -4,7 +4,7 @@
 //! grab focus or block AppleEvents, and it holds the user's own documents.
 //! This window has none of that, and reports its text by writing it to the
 //! file given as argv[1] on every change, so tests read it back without
-//! scripting the app at all.
+//! scripting the app at all. argv[2], if given, is the text it starts with.
 
 #[cfg(target_os = "macos")]
 fn main() {
@@ -18,28 +18,35 @@ fn main() {
 
     let out = std::env::args()
         .nth(1)
-        .expect("usage: typing-target <out-file>");
+        .expect("usage: typing-target <out-file> [text]");
+    let initial = std::env::args().nth(2).unwrap_or_default();
     let _ = std::fs::write(&out, "");
     let mtm = MainThreadMarker::new().expect("main thread");
     let app = NSApplication::sharedApplication(mtm);
     app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
 
-    // An Edit menu, so ⌘V reaches the text view's paste: like in any app.
+    // An Edit menu, so ⌘A/⌘C/⌘V reach the text view: like in any app.
     let menubar = NSMenu::new(mtm);
     let app_item = NSMenuItem::new(mtm);
     let edit_item = NSMenuItem::new(mtm);
     menubar.addItem(&app_item);
     menubar.addItem(&edit_item);
     let edit = NSMenu::initWithTitle(NSMenu::alloc(mtm), ns_string!("Edit"));
-    let paste = unsafe {
-        NSMenuItem::initWithTitle_action_keyEquivalent(
-            NSMenuItem::alloc(mtm),
-            ns_string!("Paste"),
-            Some(sel!(paste:)),
-            ns_string!("v"),
-        )
-    };
-    edit.addItem(&paste);
+    for (title, action, key) in [
+        (ns_string!("Select All"), sel!(selectAll:), ns_string!("a")),
+        (ns_string!("Copy"), sel!(copy:), ns_string!("c")),
+        (ns_string!("Paste"), sel!(paste:), ns_string!("v")),
+    ] {
+        let item = unsafe {
+            NSMenuItem::initWithTitle_action_keyEquivalent(
+                NSMenuItem::alloc(mtm),
+                title,
+                Some(action),
+                key,
+            )
+        };
+        edit.addItem(&item);
+    }
     edit_item.setSubmenu(Some(&edit));
     app.setMainMenu(Some(&menubar));
 
@@ -63,6 +70,9 @@ fn main() {
     tv.setAutomaticQuoteSubstitutionEnabled(false);
     tv.setAutomaticDashSubstitutionEnabled(false);
     tv.setAutomaticTextCompletionEnabled(false);
+    tv.setString(&objc2_foundation::NSString::from_str(&initial));
+    let end = initial.encode_utf16().count();
+    tv.setSelectedRange(objc2_foundation::NSRange::new(end, 0));
     window.setContentView(Some(&tv));
     window.makeKeyAndOrderFront(None);
     window.makeFirstResponder(Some(&tv));

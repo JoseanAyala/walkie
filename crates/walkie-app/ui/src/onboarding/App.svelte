@@ -112,7 +112,7 @@ onMount(() => {
         <p>Click into any text field, hold {@render keys(h.dictate)}, speak, release.</p>
       {/if}
       {#if h.polish.length}
-        <p>{@render keys(h.polish)} dictates and polishes.</p>
+        <p>{@render keys(h.polish)} polishes the selected text, or the whole field.</p>
       {/if}
     {:else}
       <p>Click into any text field, hold the Dictate key, speak, release.</p>

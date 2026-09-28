@@ -56,6 +56,80 @@ pub enum Injected {
 
 pub trait Injector {
     fn inject(&mut self, text: &str) -> Result<Injected>;
+    /// The focused field's text, for polish: its selection or, with nothing
+    /// selected, all of it. Either way it's left selected, so the next
+    /// `inject` replaces it. None when there's no text to be had. The
+    /// clipboard is back to what it was on return.
+    fn grab(&mut self) -> Result<Option<String>>;
+}
+
+/// How long a ⌘C gets to reach the clipboard: the app answers it on its own
+/// main thread, so it isn't instant.
+const COPY_WAIT_MS: u64 = 500;
+
+/// Presses ⌘ (Ctrl elsewhere) + `ch` in the focused app.
+fn shortcut(main: &Option<MainThread>, ch: char) -> Result<()> {
+    on_main(main, move || {
+        let mut enigo = enigo()?;
+        let modk = if cfg!(target_os = "macos") {
+            Key::Meta
+        } else {
+            Key::Control
+        };
+        enigo.key(modk, Direction::Press)?;
+        let r = enigo.key(Key::Unicode(ch), Direction::Click);
+        enigo.key(modk, Direction::Release)?; // never leave Cmd stuck down
+        Ok(r?)
+    })
+}
+
+/// Copies from the focused app: the text that lands on the (emptied)
+/// clipboard, or None if nothing does in time — nothing was selected.
+fn copy(cb: &mut arboard::Clipboard, main: &Option<MainThread>) -> Result<Option<String>> {
+    cb.clear().context("clearing clipboard")?;
+    shortcut(main, 'c')?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(COPY_WAIT_MS);
+    loop {
+        if let Ok(t) = cb.get_text() {
+            if !t.is_empty() {
+                return Ok(Some(t));
+            }
+        }
+        if std::time::Instant::now() > deadline {
+            return Ok(None);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+/// `Injector::grab` for the real focused app. Asks Accessibility for the
+/// selection first; where it can't tell, a ⌘C does (it copies only when
+/// something is selected). Nothing selected → ⌘A, ⌘C.
+fn grab_focused(main: &Option<MainThread>) -> Result<Option<String>> {
+    if focus::current() == focus::Focus::NoField {
+        return Ok(None);
+    }
+    let selected = focus::selected_text();
+    if let Some(sel) = selected.as_ref().filter(|s| !s.is_empty()) {
+        return Ok(Some(sel.clone()));
+    }
+    let mut cb = arboard::Clipboard::new().context("clipboard unavailable")?;
+    let saved = cb.get_text().ok();
+    let mut grab = || -> Result<Option<String>> {
+        if selected.is_none() {
+            if let Some(t) = copy(&mut cb, main)? {
+                return Ok(Some(t));
+            }
+        }
+        shortcut(main, 'a')?;
+        copy(&mut cb, main)
+    };
+    let grabbed = grab();
+    let _ = match saved {
+        Some(old) => cb.set_text(old),
+        None => cb.clear(),
+    };
+    grabbed
 }
 
 /// If focus clearly isn't a text field, puts `text` on the clipboard (not
@@ -85,19 +159,7 @@ impl Injector for PasteInjector {
         let saved = cb.get_text().ok();
         cb.set_text(text.to_string()).context("setting clipboard")?;
 
-        let paste = || -> Result<()> {
-            let mut enigo = enigo()?;
-            let modk = if cfg!(target_os = "macos") {
-                Key::Meta
-            } else {
-                Key::Control
-            };
-            enigo.key(modk, Direction::Press)?;
-            let v = enigo.key(Key::Unicode('v'), Direction::Click);
-            enigo.key(modk, Direction::Release)?; // never leave Cmd stuck down
-            Ok(v?)
-        };
-        if let Err(e) = on_main(&self.main, paste) {
+        if let Err(e) = shortcut(&self.main, 'v') {
             // Leave the transcript on the clipboard so no words are lost.
             anyhow::bail!("paste blocked ({e}); text left on clipboard — press ⌘V manually");
         }
@@ -107,6 +169,10 @@ impl Injector for PasteInjector {
             let _ = cb.set_text(old);
         }
         Ok(Injected::Typed)
+    }
+
+    fn grab(&mut self) -> Result<Option<String>> {
+        grab_focused(&self.main)
     }
 }
 
@@ -138,6 +204,10 @@ impl Injector for TypeInjector {
             );
         }
         Ok(Injected::Typed)
+    }
+
+    fn grab(&mut self) -> Result<Option<String>> {
+        grab_focused(&self.main)
     }
 }
 
