@@ -138,5 +138,5 @@ onMount(() => {
     </div>
     <div class="hint">volume while recording, as % of the current level</div>
   </Field>
-  <p class="hint">* applies after restarting walkie. Everything saves as you change it.</p>
+  <p class="hint"><span class="req">*</span> applies after restarting walkie. Everything saves as you change it.</p>
 {/if}

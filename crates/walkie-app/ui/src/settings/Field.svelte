@@ -11,11 +11,10 @@ let {
 </script>
 
 <div class="f">
-  <span class="chip k"
-    >{label}
-    {#if restart}
-      <span class="rs" title="applies after a restart">*</span>
-    {/if}</span
+  <span class="k"
+    ><span class="chip">{label}</span>{#if restart}<span class="req" title="applies after a restart"
+        >*</span
+      >{/if}</span
   >
   <div class="v">{@render children()}</div>
 </div>
@@ -35,8 +34,7 @@ let {
 .v {
   min-width: 0;
 }
-.rs {
-  opacity: 0.6;
+.req {
   margin-left: 4px;
 }
 </style>

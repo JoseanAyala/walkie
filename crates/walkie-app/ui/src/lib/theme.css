@@ -167,6 +167,10 @@ textarea {
 .tag::before {
   content: "✣ ";
 }
+/* marks a setting that applies after a restart */
+.req {
+  color: var(--accent);
+}
 .muted,
 .hint {
   color: var(--muted);

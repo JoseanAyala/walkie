@@ -66,7 +66,7 @@ async function test() {
       {/if}
     </div>
   </Field>
-  <p class="hint">* applies after restarting walkie.</p>
+  <p class="hint"><span class="req">*</span> applies after restarting walkie.</p>
 {/if}
 
 <style>

@@ -49,7 +49,7 @@ function edit() {
       {/each}
     </div>
   </Field>
-  <p class="hint">Comma-separated. * applies after restarting walkie.</p>
+  <p class="hint">Comma-separated. <span class="req">*</span> applies after restarting walkie.</p>
 {/if}
 
 <style>
