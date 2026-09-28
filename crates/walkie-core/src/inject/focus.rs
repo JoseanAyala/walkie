@@ -87,6 +87,14 @@ pub fn probe() -> Probe {
 #[cfg(target_os = "macos")]
 pub use ax::probe;
 
+#[cfg(not(target_os = "macos"))]
+pub fn frontmost() -> Option<(String, String)> {
+    None
+}
+
+#[cfg(target_os = "macos")]
+pub use ax::frontmost;
+
 #[cfg(target_os = "macos")]
 mod ax {
     use super::Probe;
@@ -169,21 +177,41 @@ mod ax {
         path.rsplit('/').next().unwrap_or_default().to_string()
     }
 
-    /// A handful of AX round-trips (~1ms total); a hung app costs at most
-    /// the messaging timeout per call before we give up and paste anyway.
-    pub fn probe() -> Probe {
+    fn focused_app() -> Option<Owned> {
         let sys = unsafe { AXUIElementCreateSystemWide() };
         if sys.is_null() {
-            return Probe::Failed;
+            return None;
         }
         let sys = Owned(unsafe { CFType::wrap_under_create_rule(sys) });
         unsafe { AXUIElementSetMessagingTimeout(sys.ptr(), 0.25) };
+        let app = sys.attr("AXFocusedApplication").ok()?;
+        unsafe { AXUIElementSetMessagingTimeout(app.ptr(), 0.25) };
+        Some(app)
+    }
+
+    /// The frontmost app's executable name and its focused window's title
+    /// (empty when it has none). Off the main thread, like `probe`.
+    pub fn frontmost() -> Option<(String, String)> {
+        let app = focused_app()?;
+        let name = app_name(&app);
+        if name.is_empty() {
+            return None;
+        }
+        let title = app
+            .attr("AXFocusedWindow")
+            .map(|w| w.string("AXTitle"))
+            .unwrap_or_default();
+        Some((name, title))
+    }
+
+    /// A handful of AX round-trips (~1ms total); a hung app costs at most
+    /// the messaging timeout per call before we give up and paste anyway.
+    pub fn probe() -> Probe {
         // Needs a WindowServer connection (any GUI app has one; a bare CLI
         // process gets kAXErrorCannotComplete → Failed → paste as before).
-        let Ok(app) = sys.attr("AXFocusedApplication") else {
+        let Some(app) = focused_app() else {
             return Probe::Failed;
         };
-        unsafe { AXUIElementSetMessagingTimeout(app.ptr(), 0.25) };
         let name = app_name(&app);
         if name.is_empty() {
             return Probe::Failed;

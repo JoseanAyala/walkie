@@ -1,7 +1,32 @@
 <script lang="ts">
-import { type AppleAi, api, message } from "@/lib/api";
+import { type AppleAi, api, message, type Tone } from "@/lib/api";
 import Field from "./Field.svelte";
 import { settings } from "./state.svelte";
+
+// The prompts behind the tones are built into walkie (pipeline/style.rs).
+const TONES: { value: Tone; name: string; example: string }[] = [
+  {
+    value: "formal",
+    name: "Formal · caps + punctuation",
+    example: "Hey, are you free for lunch tomorrow? Let's do 12 if that works for you.",
+  },
+  {
+    value: "casual",
+    name: "Casual · caps + less punctuation",
+    example: "Hey are you free for lunch tomorrow? Let's do 12 if that works for you",
+  },
+  {
+    value: "very_casual",
+    name: "Very casual · no caps + less punctuation",
+    example: "hey are you free for lunch tomorrow? let's do 12 if that works for you",
+  },
+  {
+    value: "excited",
+    name: "Excited · more exclamations",
+    example: "Hey, are you free for lunch tomorrow? Let's do 12 if that works for you!",
+  },
+];
+const example = $derived(TONES.find((t) => t.value === cfg?.polish.tone)?.example ?? "");
 
 const cfg = $derived(settings.cfg);
 const apple = $derived(cfg?.polish.provider === "apple");
@@ -59,14 +84,20 @@ async function test() {
     {/if}
   </Field>
   {#if apple}
-    <Field label="Prompt" restart>
-      <textarea
-        rows="6"
-        aria-label="Polish prompt"
-        bind:value={cfg.polish.prompt}
-        oninput={() => settings.saveSoon()}
-      ></textarea>
-      <div class="hint">what the model does with your words; it gets the transcript as the text</div>
+    <Field label="Tone" restart>
+      <select
+        aria-label="Polish tone"
+        bind:value={cfg.polish.tone}
+        onchange={() => {
+          out = null;
+          settings.save();
+        }}
+      >
+        {#each TONES as t (t.value)}
+          <option value={t.value}>{t.name}</option>
+        {/each}
+      </select>
+      <div class="example" data-testid="tone-example">{example}</div>
     </Field>
   {:else}
     <Field label="Command" restart>
@@ -118,6 +149,14 @@ async function test() {
 {/if}
 
 <style>
+.example {
+  margin-top: 6px;
+  border: 1px dashed var(--line);
+  padding: 4px 6px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  opacity: 0.8;
+}
 .out {
   margin-top: 8px;
   min-height: 44px;

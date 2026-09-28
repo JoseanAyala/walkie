@@ -46,8 +46,8 @@ windows. Every change saves itself.
   hook), with a button to fix each, and the version.
 - **Cleanup**: filler words to drop ("um", "o sea", …), per language.
 - **Polish**: what dictate + polish uses: your command, or Apple's
-  on-device model with a prompt you can edit (it says whether Apple
-  Intelligence is ready). Test tries it.
+  on-device model in the tone you pick — Formal, Casual, Very casual or
+  Excited (it says whether Apple Intelligence is ready). Test tries it.
 - **History**: your past dictations, searchable, stored only on this Mac.
 - **Theme**: eight palettes, System / Light / Dark, and your own palettes.
   Paste hex codes, a [coolors.co](https://coolors.co) link or a
@@ -67,7 +67,7 @@ Settings writes `~/.config/walkie/config.toml`; you can edit it too.
 ```toml
 [polish]
 provider = "command"         # or "apple": Apple's on-device model (optional)
-prompt = "The user dictated the text you're given. …"   # what Apple's model does with it
+tone = "formal"              # Apple's model: formal, casual, very_casual or excited
 command = "claude -p 'Clean up this dictated text. Output only the cleaned text.'"
 timeout_secs = 60
 

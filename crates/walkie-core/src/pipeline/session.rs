@@ -481,6 +481,24 @@ mod tests {
         assert_eq!(r.injected.borrow().as_slice(), ["apple: Hello"]);
     }
 
+    #[test]
+    fn apple_polish_writes_in_the_configured_tone() {
+        let dir = tempfile::tempdir().unwrap();
+        let helper = dir.path().join("walkie-ai");
+        // says whether its prompt asked for the tone
+        let script = "#!/bin/sh\ncat >/dev/null\ncase $2 in *lowercase*) echo 'Hi, ok.' ;; *) echo 'Wrong.' ;; esac\n";
+        std::fs::write(&helper, script).unwrap();
+        std::fs::set_permissions(&helper, std::os::unix::fs::PermissionsExt::from_mode(0o755))
+            .unwrap();
+        let mut r = rig("hello there", Some("en"), (false, false, false));
+        r.session.deps.cfg.polish.provider = PolishProvider::Apple;
+        r.session.deps.cfg.polish.tone = crate::config::Tone::VeryCasual;
+        r.session.ai_helper = helper;
+        r.session.start(Mode::Polish);
+        r.session.finish();
+        assert_eq!(r.injected.borrow().as_slice(), ["hi, ok"]);
+    }
+
     /// A walkie-ai that notes each `prewarm` in `log`.
     fn prewarm_logger(dir: &std::path::Path) -> (PathBuf, PathBuf) {
         let log = dir.join("prewarms");

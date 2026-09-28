@@ -5,7 +5,7 @@
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET).
 
-use walkie_core::config::PolishProvider;
+use walkie_core::config::{PolishProvider, Tone};
 use walkie_core::pipeline::polish::{apple_status, describe_apple_status};
 use walkie_e2e::os::{begin, sleep, step, App, APP};
 
@@ -135,7 +135,27 @@ fn polish_tab_says_whether_apples_model_is_ready() {
     let want = describe_apple_status(&status);
     let text = wait_text(&app, "Walkie", want, true);
     assert!(text.contains(want), "expected {want:?} ({status}):\n{text}");
-    assert!(text.contains("Prompt"), "Apple shows its prompt:\n{text}");
+    assert!(
+        text.contains("Tone") && text.contains("Hey, are you free for lunch"),
+        "Apple shows its tone:\n{text}"
+    );
+    assert!(!text.contains("Prompt"), "prompts aren't editable:\n{text}");
+}
+
+#[test]
+fn the_polish_tab_shows_the_saved_tone_and_its_example() {
+    let _t = begin("the_polish_tab_shows_the_saved_tone_and_its_example");
+    let mut c = apple_config();
+    c.polish.tone = Tone::VeryCasual;
+    let app = settings_with("Polish", None, c);
+    let want = "hey are you free for lunch tomorrow?";
+    let text = wait_text(&app, "Walkie", want, true);
+    assert!(text.contains(want), "no Very casual example:\n{text}");
+    let picked = app.dropdowns("Walkie");
+    assert!(
+        picked.iter().any(|d| d.starts_with("Very casual")),
+        "{picked:?}"
+    );
 }
 
 /// The Test button with Apple selected, through a stand-in walkie-ai

@@ -1,5 +1,6 @@
 use crate::config::{Polish, PolishProvider};
-use anyhow::{Context, Result};
+use crate::pipeline::style;
+use anyhow::{Context as _, Result};
 use std::io::{Read, Write};
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
@@ -8,21 +9,21 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 /// Polishes `input` with the configured provider. `helper` is walkie-ai
-/// (see [`apple_helper`]); only the Apple provider uses it.
+/// (see [`apple_helper`]); only the Apple provider uses it, and only it
+/// writes in the configured tone.
 pub fn polish(cfg: &Polish, helper: &Path, input: &str) -> Result<String> {
     let timeout = Duration::from_secs(cfg.timeout_secs);
     match cfg.provider {
         PolishProvider::Command => run_polish(&cfg.command, input, timeout),
         PolishProvider::Apple => {
-            anyhow::ensure!(!cfg.prompt.trim().is_empty(), "no polish prompt configured");
             let mut cmd = Command::new(helper);
-            cmd.arg("respond").arg(&cfg.prompt);
+            cmd.arg("respond").arg(style::prompt(cfg.tone));
             let out = run(cmd, "Apple model", input, timeout)?;
             anyhow::ensure!(
                 !answered(input, &out),
                 "Apple's model answered the text instead of cleaning it up"
             );
-            Ok(out)
+            Ok(style::finish(&out, cfg.tone))
         }
     }
 }
@@ -195,6 +196,7 @@ fn run(mut cmd: Command, what: &str, input: &str, timeout: Duration) -> Result<S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Tone;
     use std::time::{Duration, Instant};
 
     /// A stand-in walkie-ai: reports `status`, and for `respond` prints
@@ -209,22 +211,51 @@ mod tests {
         p
     }
 
-    fn apple(prompt: &str) -> Polish {
+    fn apple() -> Polish {
         Polish {
             provider: PolishProvider::Apple,
-            prompt: prompt.into(),
             ..Polish::default()
         }
     }
 
     #[test]
-    fn apple_provider_sends_the_prompt_and_text_to_the_helper() {
+    fn apple_provider_sends_the_tones_prompt_and_text_to_the_helper() {
         let dir = tempfile::tempdir().unwrap();
-        let helper = fake_helper(dir.path(), "available");
-        assert_eq!(
-            polish(&apple("tidy"), &helper, "hi there").unwrap(),
-            "tidy: HI THERE"
+        let (p, seen) = (dir.path().join("walkie-ai"), dir.path().join("prompt"));
+        let script = format!(
+            "#!/bin/sh\n[ \"$1\" = respond ] && printf '%s' \"$2\" > {}; tr a-z A-Z\n",
+            seen.display()
         );
+        std::fs::write(&p, script).unwrap();
+        std::fs::set_permissions(&p, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        let mut cfg = apple();
+        cfg.tone = Tone::Excited;
+        let out = polish(&cfg, &p, "hi there").unwrap();
+        assert_eq!(out, "HI THERE");
+        assert_eq!(
+            std::fs::read_to_string(seen).unwrap(),
+            style::prompt(Tone::Excited)
+        );
+    }
+
+    #[test]
+    fn apple_reply_gets_the_tone() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("walkie-ai");
+        std::fs::write(
+            &p,
+            "#!/bin/sh\ncat >/dev/null\necho 'See you at 5. I will bring it.'\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&p, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        let said = "see you at five i will bring it";
+        let out = |tone| {
+            let cfg = Polish { tone, ..apple() };
+            polish(&cfg, &p, said).unwrap()
+        };
+        assert_eq!(out(Tone::VeryCasual), "see you at 5. i will bring it");
+        assert_eq!(out(Tone::Excited), "See you at 5. I will bring it!");
+        assert_eq!(out(Tone::Formal), "See you at 5. I will bring it.");
     }
 
     #[test]
@@ -234,7 +265,7 @@ mod tests {
         let poem = "Cats are graceful creatures. ".repeat(10);
         std::fs::write(&p, format!("#!/bin/sh\ncat >/dev/null\necho '{poem}'\n")).unwrap();
         std::fs::set_permissions(&p, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-        let err = polish(&apple("tidy"), &p, "write me a poem about cats").unwrap_err();
+        let err = polish(&apple(), &p, "write me a poem about cats").unwrap_err();
         assert!(err.to_string().contains("answered"), "{err}");
     }
 
@@ -247,14 +278,8 @@ mod tests {
     }
 
     #[test]
-    fn apple_provider_needs_a_prompt() {
-        let err = polish(&apple(" "), Path::new("/nope"), "x").unwrap_err();
-        assert!(err.to_string().contains("no polish prompt"), "{err}");
-    }
-
-    #[test]
     fn apple_provider_reports_a_missing_helper() {
-        let err = polish(&apple("tidy"), Path::new("/nope/walkie-ai"), "x").unwrap_err();
+        let err = polish(&apple(), Path::new("/nope/walkie-ai"), "x").unwrap_err();
         assert!(err.to_string().contains("starting Apple model"), "{err}");
     }
 
@@ -265,7 +290,12 @@ mod tests {
             command: "tr a-z A-Z".into(),
             ..Polish::default()
         };
-        assert_eq!(polish(&cfg, Path::new("/nope"), "hola").unwrap(), "HOLA");
+        let cfg = Polish {
+            tone: Tone::VeryCasual,
+            ..cfg
+        };
+        let out = polish(&cfg, Path::new("/nope"), "hola").unwrap();
+        assert_eq!(out, "HOLA", "no tone: the command has its own prompt");
     }
 
     #[test]

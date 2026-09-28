@@ -2,7 +2,7 @@
 //! test says otherwise. Run: cargo test -p walkie-e2e
 //! Needs: cargo run -p walkie-core --example fetch_model -- base
 
-use walkie_core::config::Hotkeys;
+use walkie_core::config::{Hotkeys, Tone};
 use walkie_e2e::{Rig, Setup};
 
 fn one(rig: &Rig) -> String {
@@ -69,6 +69,24 @@ fn fn_shift_polishes_with_apples_model() {
     let t = r.typed();
     assert_eq!(t.len(), 1, "{t:?} (errors: {:?})", r.errors());
     assert!(t[0].starts_with("apple: HELLO"), "{t:?}");
+}
+
+#[test]
+fn apples_model_writes_in_the_chosen_tone() {
+    let mut r = Rig::new(Setup {
+        // says whether its prompt asked for the tone
+        apple_helper: Some(
+            r#"cat >/dev/null; case $2 in *lowercase*) echo 'Hello, Ana.' ;; *) echo 'wrong prompt' ;; esac"#,
+        ),
+        tone: Tone::VeryCasual,
+        ..Default::default()
+    });
+    r.press("Shift")
+        .press("Fn")
+        .wait(3000)
+        .release("Fn")
+        .release("Shift");
+    assert_eq!(r.typed(), ["hello, Ana"], "(errors: {:?})", r.errors());
 }
 
 #[test]

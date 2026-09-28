@@ -13,7 +13,7 @@ use std::rc::Rc;
 use std::sync::{mpsc, Arc};
 use walkie_core::audio::duck::{Ducker, MemVolume};
 use walkie_core::audio::FileCapture;
-use walkie_core::config::{models, Config, Hotkeys, PolishProvider};
+use walkie_core::config::{models, Config, Hotkeys, PolishProvider, Tone};
 use walkie_core::history::History;
 use walkie_core::hotkey::engine::{Bindings, Engine, Signal};
 use walkie_core::hotkey::keys::Key;
@@ -68,6 +68,8 @@ pub struct Setup {
     pub apple_helper: Option<&'static str>,
     /// Focus is somewhere nothing can be typed (the desktop, a Finder list).
     pub no_text_field: bool,
+    /// How Apple's model writes.
+    pub tone: Tone,
 }
 
 impl Default for Setup {
@@ -78,6 +80,7 @@ impl Default for Setup {
             polish_command: "",
             apple_helper: None,
             no_text_field: false,
+            tone: Tone::Formal,
         }
     }
 }
@@ -116,6 +119,7 @@ impl Rig {
             None => PolishProvider::Command,
         };
         cfg.polish.command = setup.polish_command.into();
+        cfg.polish.tone = setup.tone;
         let typed = Rc::new(RefCell::new(Vec::new()));
         let copied = Rc::new(RefCell::new(Vec::new()));
         let (tx, events) = mpsc::channel();

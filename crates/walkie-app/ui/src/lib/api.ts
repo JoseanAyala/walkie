@@ -20,10 +20,12 @@ export interface Config {
 
 export type PolishProvider = "apple" | "command";
 
+/** How Apple's model writes; the prompts behind the tones are built in. */
+export type Tone = "formal" | "casual" | "very_casual" | "excited";
+
 export interface Polish {
   provider: PolishProvider;
-  /** what Apple's model is told to do with the transcript */
-  prompt: string;
+  tone: Tone;
   command: string;
   timeout_secs: number;
 }
