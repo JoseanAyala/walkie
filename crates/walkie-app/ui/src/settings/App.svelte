@@ -10,12 +10,18 @@ import Status from "./Status.svelte";
 import { settings } from "./state.svelte";
 import Theme from "./Theme.svelte";
 
+// `file` names the main window, like a document open on the desk; the
+// page itself carries the tab's name
 const TABS = {
-  general: { name: "General", sub: "how walkie listens and types" },
-  status: { name: "Status", sub: "what walkie needs to work" },
-  polish: { name: "Polish", sub: "rewrite with Apple's on-device model or any CLI" },
-  history: { name: "History", sub: "your dictations, stored only on this Mac" },
-  theme: { name: "Theme", sub: "colors, light and dark, your own palettes" },
+  general: { name: "General", file: "general.cfg", sub: "how walkie listens and types" },
+  status: { name: "Status", file: "status.log", sub: "what walkie needs to work" },
+  polish: {
+    name: "Polish",
+    file: "polish.cfg",
+    sub: "rewrite with Apple's on-device model or any CLI",
+  },
+  history: { name: "History", file: "history.db", sub: "your dictations, stored only on this Mac" },
+  theme: { name: "Theme", file: "theme.cfg", sub: "colors, light and dark, your own palettes" },
 } as const;
 type Tab = keyof typeof TABS;
 
@@ -95,7 +101,7 @@ onMount(() => {
       </nav>
     </Win>
     <Win class="about" bodyClass="muted">
-      Runs locally.<br>Your voice never<br>leaves this Mac.
+      Runs locally. Your voice never leaves this Mac.
     </Win>
   </div>
 
@@ -103,7 +109,7 @@ onMount(() => {
        the restart bar takes its place at the bottom -->
   <div class="right" data-tauri-drag-region>
   {#key tab}
-  <Win title={TABS[tab].name} class="main" bodyClass="scroll">
+  <Win title={TABS[tab].file} class="main" bodyClass="scroll">
     {#snippet extra()}
       <!-- every change saves itself; this just confirms it happened -->
       {#if settings.saved}{#key settings.saves}<span class="saved">saved ✓</span>{/key}{/if}

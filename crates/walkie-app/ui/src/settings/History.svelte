@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { api, type HistoryRecord } from "@/lib/api";
-import { when } from "@/lib/format";
+import { byDay, clock } from "@/lib/format";
 import { settings } from "./state.svelte";
 
 const cfg = $derived(settings.cfg);
@@ -90,10 +90,12 @@ onMount(load);
     <span class="chip">{q.trim() ? "no matches" : "no dictations yet"}</span>
   </div>
 {:else if rows}
-  {#each rows as r (r.id)}
+  {#each byDay(rows) as g (g.day)}
+    <div class="day">{g.day}</div>
+    {#each g.rows as r (r.id)}
     <div class="entry">
       <div class="meta">
-        <span class="chip">{when(r.created_at)}</span>
+        <span class="chip">{clock(r.created_at) || r.created_at}</span>
         {#if r.lang}
           <span class="tag">{r.lang}</span>
         {/if}
@@ -102,11 +104,14 @@ onMount(load);
         {/if}
         <span class="muted">{(r.duration_ms / 1000).toFixed(1)}s</span>
         <span class="grow"></span>
-        <button onclick={() => copy(r)}>{copied === r.id ? "Copied ✓" : "Copy"}</button>
-        <button onclick={() => remove(r)}>Delete</button>
+        <span class="acts" class:shown={copied === r.id}>
+          <button onclick={() => copy(r)}>{copied === r.id ? "Copied ✓" : "Copy"}</button>
+          <button onclick={() => remove(r)}>Delete</button>
+        </span>
       </div>
       <p>{r.polished || r.cleaned}</p>
     </div>
+    {/each}
   {/each}
 {/if}
 
@@ -127,9 +132,37 @@ onMount(load);
 .grow {
   flex: 1;
 }
+/* a day heading: a hairline with the date riding on it */
+.day {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  color: var(--muted);
+}
+.day::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--muted);
+}
 .entry {
   border-bottom: 1px solid var(--line);
   padding: 8px 0;
+}
+.entry:last-child {
+  border-bottom: 0;
+}
+/* the row's buttons stay out of the way until it's pointed at or tabbed
+   into (opacity, not visibility, so they stay reachable) */
+.acts {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+}
+.entry:hover .acts,
+.entry:focus-within .acts,
+.acts.shown {
+  opacity: 1;
 }
 .meta {
   display: flex;

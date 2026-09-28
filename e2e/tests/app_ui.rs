@@ -86,6 +86,11 @@ fn history_delete_removes_the_row() {
         text.contains("delete me from history"),
         "row not shown:\n{text}"
     );
+    assert!(
+        text.contains("Today"),
+        "rows are grouped by day; this one was made today:\n{text}"
+    );
+    // Delete only shows on hover, but stays reachable
     app.click("Walkie", "Delete", 1);
     let text = wait_text(&app, "Walkie", "delete me from history", false);
     assert!(

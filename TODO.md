@@ -15,7 +15,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       permissions flash when they turn OK. Respect reduced motion.
 - [x] **One type grid.** Line heights on the 11px grid (no 14px/16px strays in
       `.hint`, `.about`, onboarding, History, overlay label).
-- [ ] **Less noise.** Drop the duplicated tab title; History actions on hover,
+- [x] **Less noise.** Drop the duplicated tab title; History actions on hover,
       rows grouped by day; About text wraps instead of hand-placed `<br>`s.
 - [ ] **Pixel icons.** 11×11 icons for the Menu, permission rows, overlay chip;
       an illustration for the empty History.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chord, glyph, megabytes, sameKeys, when, words } from "./format";
+import { byDay, chord, clock, day, glyph, megabytes, sameKeys, words } from "./format";
 
 describe("glyph", () => {
   it("shows modifiers as symbols and sides in words", () => {
@@ -28,16 +28,42 @@ describe("words", () => {
   });
 });
 
-describe("when", () => {
+describe("day", () => {
   const now = new Date(2026, 8, 27, 21, 0);
-  it("says today for today's rows", () => {
-    expect(when("2026-09-27 20:10:07", now)).toBe("today 20:10");
+  it("says Today and Yesterday", () => {
+    expect(day("2026-09-27 20:10:07", now)).toBe("Today");
+    expect(day("2026-09-26 23:59:00", now)).toBe("Yesterday");
   });
-  it("shows month and day otherwise", () => {
-    expect(when("2026-09-25 09:15:00", now)).toBe("Sep 25 09:15");
+  it("knows yesterday across a month and a year", () => {
+    expect(day("2026-08-31 10:00:00", new Date(2026, 8, 1))).toBe("Yesterday");
+    expect(day("2025-12-31 10:00:00", new Date(2026, 0, 1))).toBe("Yesterday");
+  });
+  it("shows month and day otherwise, and the year if it isn't this one", () => {
+    expect(day("2026-09-25 09:15:00", now)).toBe("Sep 25");
+    expect(day("2025-09-25 09:15:00", now)).toBe("Sep 25 2025");
   });
   it("passes through what it can't parse", () => {
-    expect(when("yesterday", now)).toBe("yesterday");
+    expect(day("yesterday", now)).toBe("yesterday");
+  });
+});
+
+describe("clock", () => {
+  it("is the time of day", () => {
+    expect(clock("2026-09-27 20:10:07")).toBe("20:10");
+    expect(clock("garbage")).toBe("");
+  });
+});
+
+describe("byDay", () => {
+  it("groups consecutive rows by day, keeping their order", () => {
+    const now = new Date(2026, 8, 27, 21, 0);
+    const rows = ["2026-09-27 20:00:00", "2026-09-27 08:00:00", "2026-09-25 09:00:00"].map(
+      (created_at, id) => ({ id, created_at }),
+    );
+    expect(byDay(rows, now).map((g) => [g.day, g.rows.map((r) => r.id)])).toEqual([
+      ["Today", [0, 1]],
+      ["Sep 25", [2]],
+    ]);
   });
 });
 
