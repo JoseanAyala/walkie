@@ -152,6 +152,7 @@ impl App {
             model: "base".into(),
             ..Default::default()
         };
+        c.polish.provider = walkie_core::config::PolishProvider::Command;
         c.polish.command = "tr 'a-z' 'A-Z'".into();
         c
     }

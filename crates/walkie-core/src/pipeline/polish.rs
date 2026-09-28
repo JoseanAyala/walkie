@@ -1,12 +1,73 @@
+use crate::config::{Polish, PolishProvider};
 use anyhow::{Context, Result};
 use std::io::{Read, Write};
 use std::os::unix::process::{CommandExt, ExitStatusExt};
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// Polishes `input` with the configured provider. `helper` is walkie-ai
+/// (see [`apple_helper`]); only the Apple provider uses it.
+pub fn polish(cfg: &Polish, helper: &Path, input: &str) -> Result<String> {
+    let timeout = Duration::from_secs(cfg.timeout_secs);
+    match cfg.provider {
+        PolishProvider::Command => run_polish(&cfg.command, input, timeout),
+        PolishProvider::Apple => {
+            anyhow::ensure!(!cfg.prompt.trim().is_empty(), "no polish prompt configured");
+            let mut cmd = Command::new(helper);
+            cmd.arg("respond").arg(&cfg.prompt);
+            run(cmd, "Apple model", input, timeout)
+        }
+    }
+}
+
 /// Pipe `input` through a user-configured shell command (`claude -p '…'`,
 /// `codex exec '…'`, an ollama call, …) and return its stdout.
+pub fn run_polish(command: &str, input: &str, timeout: Duration) -> Result<String> {
+    anyhow::ensure!(!command.trim().is_empty(), "no polish command configured");
+    let mut cmd = Command::new("sh");
+    cmd.arg("-c").arg(command);
+    run(cmd, "polish command", input, timeout)
+}
+
+/// walkie-ai: next to the walkie binary, both in Walkie.app and in
+/// `target/<profile>` (tauri-build copies it there). Test binaries live one
+/// level down, in `target/<profile>/deps`.
+pub fn apple_helper() -> PathBuf {
+    let exe = std::env::current_exe().unwrap_or_default();
+    let beside = |dir: Option<&Path>| dir.map(|d| d.join("walkie-ai"));
+    let dir = exe.parent();
+    beside(dir)
+        .filter(|p| p.exists())
+        .or_else(|| beside(dir.and_then(Path::parent)).filter(|p| p.exists()))
+        .unwrap_or_else(|| PathBuf::from("walkie-ai"))
+}
+
+/// Whether Apple's model can polish right now, as walkie-ai reports it:
+/// "available", "off", "not-ready", "not-eligible", "unavailable" or
+/// "unsupported"; "missing" when the helper itself can't run.
+pub fn apple_status(helper: &Path) -> String {
+    let mut cmd = Command::new(helper);
+    cmd.arg("status");
+    run(cmd, "walkie-ai", "", Duration::from_secs(5)).unwrap_or_else(|_| "missing".into())
+}
+
+/// What an [`apple_status`] word means, for the Status and Polish tabs.
+pub fn describe_apple_status(status: &str) -> &'static str {
+    match status {
+        "available" => "ready",
+        "off" => "Apple Intelligence is off — turn it on in System Settings",
+        "not-ready" => "Apple Intelligence is still downloading its model",
+        "not-eligible" => "this Mac can't run Apple Intelligence",
+        "unsupported" => "needs macOS 26 with Apple Intelligence",
+        "missing" => "walkie-ai is missing from Walkie.app — reinstall walkie",
+        _ => "Apple's model is unavailable",
+    }
+}
+
+/// Runs `cmd` with `input` on stdin and returns its trimmed stdout.
+/// `what` names it in errors.
 ///
 /// stdin is written and stdout/stderr are read concurrently on background
 /// threads. A command that echoes or transforms its input while producing
@@ -24,12 +85,8 @@ use std::time::{Duration, Instant};
 /// forks `sleep` as a real child process; killing only `sh` would leave
 /// `sleep` alive, reparented, running for its full remaining duration in
 /// the background.
-pub fn run_polish(command: &str, input: &str, timeout: Duration) -> Result<String> {
-    anyhow::ensure!(!command.trim().is_empty(), "no polish command configured");
-
-    let mut child = Command::new("sh")
-        .arg("-c")
-        .arg(command)
+fn run(mut cmd: Command, what: &str, input: &str, timeout: Duration) -> Result<String> {
+    let mut child = cmd
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -37,7 +94,7 @@ pub fn run_polish(command: &str, input: &str, timeout: Duration) -> Result<Strin
         // target the whole group, taking any forked descendants with it.
         .process_group(0)
         .spawn()
-        .context("spawning polish command")?;
+        .with_context(|| format!("starting {what}"))?;
 
     let mut stdin = child.stdin.take().expect("stdin was piped");
     let mut stdout = child.stdout.take().expect("stdout was piped");
@@ -83,7 +140,7 @@ pub fn run_polish(command: &str, input: &str, timeout: Duration) -> Result<Strin
             let _ = writer.join();
             let _ = stdout_reader.join();
             let _ = stderr_reader.join();
-            anyhow::bail!("polish command timed out after {timeout:?}");
+            anyhow::bail!("{what} timed out after {timeout:?}");
         }
         thread::sleep(Duration::from_millis(25));
     };
@@ -101,18 +158,85 @@ pub fn run_polish(command: &str, input: &str, timeout: Duration) -> Result<Strin
                 None => "terminated abnormally".to_string(),
             },
         };
-        anyhow::bail!("polish command failed ({code_desc}): {}", err.trim());
+        anyhow::bail!("{what} failed ({code_desc}): {}", err.trim());
     }
 
     let out = String::from_utf8_lossy(&out).trim().to_string();
-    anyhow::ensure!(!out.is_empty(), "polish command returned empty output");
+    anyhow::ensure!(!out.is_empty(), "{what} returned empty output");
     Ok(out)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::run_polish;
+    use super::*;
     use std::time::{Duration, Instant};
+
+    /// A stand-in walkie-ai: reports `status`, and for `respond` prints
+    /// its instructions and upper-cases stdin.
+    fn fake_helper(dir: &Path, status: &str) -> PathBuf {
+        let p = dir.join("walkie-ai");
+        let script = format!(
+            "#!/bin/sh\ncase $1 in\n  status) echo {status} ;;\n  respond) printf '%s: ' \"$2\"; tr a-z A-Z ;;\nesac\n"
+        );
+        std::fs::write(&p, script).unwrap();
+        std::fs::set_permissions(&p, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        p
+    }
+
+    fn apple(prompt: &str) -> Polish {
+        Polish {
+            provider: PolishProvider::Apple,
+            prompt: prompt.into(),
+            ..Polish::default()
+        }
+    }
+
+    #[test]
+    fn apple_provider_sends_the_prompt_and_text_to_the_helper() {
+        let dir = tempfile::tempdir().unwrap();
+        let helper = fake_helper(dir.path(), "available");
+        assert_eq!(
+            polish(&apple("tidy"), &helper, "hi there").unwrap(),
+            "tidy: HI THERE"
+        );
+    }
+
+    #[test]
+    fn apple_provider_needs_a_prompt() {
+        let err = polish(&apple(" "), Path::new("/nope"), "x").unwrap_err();
+        assert!(err.to_string().contains("no polish prompt"), "{err}");
+    }
+
+    #[test]
+    fn apple_provider_reports_a_missing_helper() {
+        let err = polish(&apple("tidy"), Path::new("/nope/walkie-ai"), "x").unwrap_err();
+        assert!(err.to_string().contains("starting Apple model"), "{err}");
+    }
+
+    #[test]
+    fn command_provider_runs_the_shell_command() {
+        let cfg = Polish {
+            provider: PolishProvider::Command,
+            command: "tr a-z A-Z".into(),
+            ..Polish::default()
+        };
+        assert_eq!(polish(&cfg, Path::new("/nope"), "hola").unwrap(), "HOLA");
+    }
+
+    #[test]
+    fn apple_status_reads_the_helper() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(apple_status(&fake_helper(dir.path(), "off")), "off");
+        assert_eq!(apple_status(Path::new("/nope/walkie-ai")), "missing");
+    }
+
+    #[test]
+    fn every_status_has_a_description() {
+        for s in ["off", "not-ready", "not-eligible", "unsupported", "missing"] {
+            assert_ne!(describe_apple_status(s), describe_apple_status("?"), "{s}");
+        }
+        assert_eq!(describe_apple_status("available"), "ready");
+    }
 
     #[test]
     fn identity_command_roundtrips() {

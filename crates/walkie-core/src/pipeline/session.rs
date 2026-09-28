@@ -7,9 +7,9 @@ use crate::hotkey::Mode;
 use crate::inject::{Injected, Injector};
 use crate::pipeline::{cleanup, polish};
 use crate::stt::{LangHint, SttEngine};
+use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
-use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SessionState {
@@ -74,6 +74,8 @@ pub struct Session {
     tx: Sender<Event>,
     mode: Option<Mode>,
     ducker: Option<Arc<Ducker>>,
+    /// walkie-ai, for the Apple polish provider.
+    ai_helper: PathBuf,
 }
 
 const MIN_UTTERANCE_MS: usize = 300;
@@ -85,7 +87,14 @@ impl Session {
             tx,
             mode: None,
             ducker: None,
+            ai_helper: polish::apple_helper(),
         }
+    }
+
+    /// Uses this walkie-ai instead of the one next to the binary (tests).
+    pub fn with_ai_helper(mut self, path: PathBuf) -> Self {
+        self.ai_helper = path;
+        self
     }
 
     /// Lowers other audio while recording (see `audio::duck`).
@@ -237,8 +246,7 @@ impl Session {
         let mut polished: Option<String> = None;
         if mode == Mode::Polish {
             self.emit(Event::State(SessionState::Polishing));
-            let p = &self.deps.cfg.polish;
-            match polish::run_polish(&p.command, &cleaned, Duration::from_secs(p.timeout_secs)) {
+            match polish::polish(&self.deps.cfg.polish, &self.ai_helper, &cleaned) {
                 Ok(out) => {
                     final_text = out.clone();
                     polished = Some(out);
@@ -384,6 +392,7 @@ mod tests {
         let stt_calls = Rc::new(RefCell::new(0));
         let (tx, rx) = mpsc::channel();
         let mut cfg = crate::config::Config::default();
+        cfg.polish.provider = crate::config::PolishProvider::Command;
         cfg.polish.command = "tr 'a-z' 'A-Z'".into(); // deterministic local "LLM"
         let deps = Deps {
             capture: Box::new(MockCapture {
@@ -446,6 +455,21 @@ mod tests {
         r.session.finish();
         assert_eq!(r.injected.borrow().as_slice(), ["HELLO"]);
         assert!(states(&r.rx).contains(&"Polishing".to_string()));
+    }
+
+    #[test]
+    fn apple_polish_goes_through_the_helper() {
+        let dir = tempfile::tempdir().unwrap();
+        let helper = dir.path().join("walkie-ai");
+        std::fs::write(&helper, "#!/bin/sh\nprintf 'apple: '; cat\n").unwrap();
+        std::fs::set_permissions(&helper, std::os::unix::fs::PermissionsExt::from_mode(0o755))
+            .unwrap();
+        let mut r = rig("hello", Some("en"), (false, false, false));
+        r.session.deps.cfg.polish.provider = crate::config::PolishProvider::Apple;
+        r.session.ai_helper = helper;
+        r.session.start(Mode::Polish);
+        r.session.finish();
+        assert_eq!(r.injected.borrow().as_slice(), ["apple: Hello"]);
     }
 
     #[test]

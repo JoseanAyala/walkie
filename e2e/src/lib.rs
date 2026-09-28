@@ -13,7 +13,7 @@ use std::rc::Rc;
 use std::sync::{mpsc, Arc};
 use walkie_core::audio::duck::{Ducker, MemVolume};
 use walkie_core::audio::FileCapture;
-use walkie_core::config::{models, Config, Hotkeys};
+use walkie_core::config::{models, Config, Hotkeys, PolishProvider};
 use walkie_core::history::History;
 use walkie_core::hotkey::engine::{Bindings, Engine, Signal};
 use walkie_core::hotkey::keys::Key;
@@ -91,6 +91,7 @@ impl Rig {
             language: "auto".into(),
             ..Default::default()
         };
+        cfg.polish.provider = PolishProvider::Command;
         cfg.polish.command = setup.polish_command.into();
         let typed = Rc::new(RefCell::new(Vec::new()));
         let copied = Rc::new(RefCell::new(Vec::new()));
