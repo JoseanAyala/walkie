@@ -1,79 +1,67 @@
 # hearme 🎙️
 
-Local-only dictation for any agent. Hold a key, speak (English or Spanish),
-and the transcription is typed into whatever window has focus — Claude Code,
-Cursor, a browser, anything. Whisper runs on-device; audio never leaves your
-machine.
+Local-only dictation for macOS. Hold a key, speak (English or Spanish), and
+the text is typed into whatever window has focus: Claude Code, Cursor, a
+browser, anything. Whisper runs on your Mac; your voice never leaves it.
+
+<p align="center">
+  <img src="docs/settings.png" width="640" alt="hearme's Settings window: a dotted pink desktop with small pixel-font windows">
+</p>
+
+## Install
+
+1. Download `hearme-*.zip` from the
+   [latest release](https://github.com/JoseanAyala/hearme/releases/latest),
+   unzip it and move `hearme.app` to Applications.
+2. The first time, right-click → **Open**. Releases are ad-hoc signed, so
+   Gatekeeper doesn't know them.
+3. Onboarding walks you through Microphone, Accessibility and Input
+   Monitoring, with a link to each setting. The speech model (~570 MB)
+   downloads on first launch to `~/.cache/hearme/models`.
+
+After an update, macOS asks for those permissions again.
 
 ## Use
 
-Default shortcuts (Wispr-style; rebind any of them in Settings → General,
-to any key or combo):
+Default shortcuts; rebind any of them in Settings → General:
 
-- **Hold fn** — speak, release → text appears (< 1s). Double-tap fn to lock.
-- **fn + space** — hands-free: keeps recording after you let go; press fn to stop.
-  Holding fn and then tapping space switches a running recording to hands-free.
-- **Hold fn + shift** — dictate + polish: the transcript is piped
-  through your configured command (`claude -p`, `codex exec`, ollama, …).
-- **ctrl + cmd + V** — paste last transcript again, for when it landed in the
-  wrong window (also in the tray menu).
-- Tray icon: gray idle · red recording · amber working.
-- **Launch at login**: Settings → General (on by default from onboarding).
-  It's a real macOS login item (System Settings → General → Login Items),
-  read live rather than stored in the config; it needs the installed
-  `hearme.app`, not `cargo tauri dev`. `hearme --login-item status|on|off`
-  does the same from a terminal.
-- Microphone: Settings → General (applies to the next dictation). If the
-  chosen mic is unplugged, hearme records from the system default and the
-  Status tab says so.
+| | |
+|---|---|
+| **hold fn** | speak, release → the text appears (< 1s). Double-tap fn to lock it on. |
+| **fn + space** | hands-free: keeps recording after you let go; fn stops it. Tapping space while holding fn switches a running recording to hands-free. |
+| **hold fn + shift** | dictate + polish: the transcript goes through a command of yours (`claude -p`, `codex exec`, ollama, …) before it's typed. |
+| **ctrl + cmd + V** | paste the last transcript again, for when it landed in the wrong window (also in the tray menu). |
 
-## Build
+The tray icon is gray when idle, red while recording and amber while it works.
 
-```sh
-mise install    # pinned Rust, tauri-cli, actionlint (mise.toml)
-make cert       # once per machine: local signing identity
-make run        # cargo tauri dev
-make dev        # build + install + relaunch + follow log
-make help       # every other command
-```
+## Settings
 
-`bundle.macOS.minimumSystemVersion` in `tauri.conf.json` is pinned to `10.15`
-— don't lower it. `cargo tauri build` propagates it into
-`MACOSX_DEPLOYMENT_TARGET` for the whole build graph, and whisper.cpp's use
-of `std::filesystem` doesn't link below 10.15.
+Open hearme again (or pick Settings… in the tray) for a small desktop of
+windows. Every change saves itself.
 
-`cargo tauri build` signs with the self-signed "hearme local signing"
-identity, so macOS permission grants survive rebuilds. Without it the bundle
-is only ad-hoc signed and every rebuild silently invalidates Microphone,
-Accessibility and Input Monitoring — the toggles still show on, but no
-longer apply. `hearme.entitlements` carries `audio-input`; the hardened
-runtime otherwise mutes the mic.
+- **General**: the shortcuts, launch at login, microphone, language, speech
+  model (with its disk, memory and GPU use), paste vs. type, and how much to
+  lower other audio while you speak.
+- **Status**: what hearme needs to work (permissions, model, mic, keyboard
+  hook), with a button to fix each.
+- **Cleanup**: filler words to drop ("um", "o sea", …), per language.
+- **Polish**: the command for dictate + polish, with a Test button.
+- **History**: your past dictations, searchable, stored only on this Mac.
+- **Theme**: eight palettes, System / Light / Dark, and your own palettes.
+  Paste hex codes, a [coolors.co](https://coolors.co) link or a
+  [Lospec](https://lospec.com/palette-list) list; hearme picks the dark,
+  main and accent colors (you can swap them) and keeps every shade readable.
+  Nothing is fetched. The **light | dark** switch in the top bar pins a mode.
 
-First launch downloads the Whisper model (~570MB) to `~/.cache/hearme/models`.
-macOS permissions needed: Microphone, Accessibility, Input Monitoring
-(the onboarding window has deep links).
-
-## Release
-
-CI (`.github/workflows/ci.yml`) runs fmt, clippy and unit tests on every PR
-and push to `main`; pushes to `main` also build `hearme.app` and upload it as
-a workflow artifact. To release:
-
-```sh
-make release VERSION=0.2.0
-```
-
-That bumps the version, runs `make check`, commits, tags `v0.2.0` and (after
-a confirmation) pushes.
-
-The release workflow builds an ad-hoc-signed zip (`scripts/package.sh`) and
-attaches it to a GitHub Release. Ad-hoc means no Gatekeeper trust: first
-launch needs right-click → Open, and macOS permissions must be re-granted
-after each update.
+Launch at login is a real macOS login item (System Settings → General →
+Login Items); it needs the installed app, not `cargo tauri dev`.
+`hearme --login-item status|on|off` does the same from a terminal. If the
+chosen mic is unplugged, hearme records from the system default and Status
+says so.
 
 ## Config
 
-`~/.config/hearme/config.toml` — created on first run. Polish example:
+Settings writes `~/.config/hearme/config.toml`; you can edit it too.
 
 ```toml
 [polish]
@@ -81,52 +69,73 @@ command = "claude -p 'Clean up this dictated text. Output only the cleaned text.
 timeout_secs = 60
 
 [audio]
-input_device = ""   # a device name from Settings; empty = system default
-```
+input_device = ""            # a name from Settings; empty = the system default
+duck_while_recording = true  # lower other audio while you dictate…
+duck_percent = 30            # …to this % of its volume (restored after, unless you changed it)
 
-While you dictate, other audio is lowered (not muted) to `duck_percent` of
-its volume and put back when the recording ends — unless you changed the
-volume yourself meanwhile. Settings → General, or:
-
-```toml
-[audio]
-duck_while_recording = true
-duck_percent = 30
-```
-
-Colors: Settings → Theme has presets, System / Light / Dark, and an importer
-(paste hex codes, a coolors.co link or a Lospec list; nothing is fetched).
-The top bar's light | dark switch pins a mode.
-
-```toml
 [theme]
-name = "klein"          # a preset, or one of your imported themes
-appearance = "system"   # "light" | "dark"
+name = "classic"             # classic, pantone, riso, terminal, matcha, klein, mocha, lilac, or yours
+appearance = "system"        # "light" | "dark"
 
-[[theme.custom]]
+[[theme.custom]]             # an imported palette
 name = "Sunset"
-base = "#2b2a30"        # text in light mode, the desk in dark
-main = "#7479d8"        # the desk in light mode, title bars in dark
-accent = "#e94b3c"      # hover, focus, warnings
+base = "#2b2a30"             # text in light mode, the desktop in dark
+main = "#7479d8"             # the desktop in light mode, title bars in dark
+accent = "#e94b3c"           # the selection, hover, warnings
 ```
 
 History lives in `~/.local/share/hearme/history.sqlite3` (off switch in
-settings). Failed transcriptions keep their audio in `~/.cache/hearme/spool/`.
+Settings). Failed transcriptions keep their audio in `~/.cache/hearme/spool/`.
 
-## Tests
+## Develop
+
+Rust + Tauri 2; the windows are a Svelte UI in `crates/hearme-app/ui`
+(bun, Vite). [AGENTS.md](AGENTS.md) maps the code.
 
 ```sh
-make check      # fmt-check + clippy + unit tests (what CI runs)
-make test-stt   # real STT on en/es fixtures (fetches the base model)
-make test-e2e   # keystrokes → engine → session → Whisper, in-process
-make test-app   # the real app: key events, tray, windows (~30s)
+mise install    # pinned Rust, tauri-cli, bun, actionlint (mise.toml)
+make cert       # once per machine: a local signing identity
+make hooks      # pre-commit: format the staged files, then lint
+make run        # cargo tauri dev
+make dev        # build + install + relaunch + follow the log
+make help       # everything else
 ```
 
-`e2e/run-app-tests.sh` builds and installs the app, then drives it the way
-a person would: real key events through macOS, the tray menu, the Settings
-and onboarding windows, dictating into a bare test window. It plays a WAV
-instead of the mic and uses temp config/history, so your setup isn't
-touched. The WAV swap only exists in `test-hooks` builds, which the script
-makes; `make install` puts a normal build back. Needs Accessibility for hearme and your terminal, and
-"Press 🌐 key to" set to Do Nothing. Each test must finish within 10s; a
-stuck one aborts the run and says where it stopped. Don't type while it runs.
+Local builds sign with the self-signed "hearme local signing" identity, so
+macOS permission grants survive rebuilds. Ad-hoc signed, every rebuild
+silently invalidates Microphone, Accessibility and Input Monitoring: the
+toggles still show on but no longer apply. `hearme.entitlements` carries
+`audio-input`; without it the hardened runtime mutes the mic.
+
+`bundle.macOS.minimumSystemVersion` in `tauri.conf.json` stays at `10.15`.
+`cargo tauri build` turns it into `MACOSX_DEPLOYMENT_TARGET` for the whole
+build, and whisper.cpp's `std::filesystem` doesn't link below 10.15.
+
+### Tests
+
+```sh
+make check      # fmt + lint + unit tests (Rust and UI), what CI runs
+make test-stt   # real Whisper on en/es fixtures (fetches the base model)
+make test-e2e   # keystrokes → engine → session → Whisper, in-process
+make test-app   # the installed app, driven from outside (~30s)
+```
+
+`make test-app` (`e2e/run-app-tests.sh`) builds and installs the app, then
+drives it like a person: real key events through macOS, the tray menu, the
+Settings and onboarding windows, dictating into a bare test window. It plays
+a WAV instead of the mic and uses a temp config and history, so your setup
+isn't touched; `make install` puts a normal build back afterwards. It needs
+Accessibility for hearme and your terminal, and "Press 🌐 key to" set to Do
+Nothing. Each test must finish in 10s; a stuck one stops the run and says
+where. Don't type while it runs.
+
+### Release
+
+```sh
+make release VERSION=0.3.0
+```
+
+Bumps the version, runs `make check`, commits, tags `v0.3.0` and, once you
+confirm, pushes. The tag builds an ad-hoc-signed zip (`scripts/package.sh`)
+and attaches it to a GitHub Release. CI runs fmt, lint and tests on every PR
+and push to `main`, and uploads a `hearme.app` build for each push to `main`.
