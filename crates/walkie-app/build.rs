@@ -1,3 +1,4 @@
+use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 fn main() {
@@ -17,34 +18,51 @@ fn main() {
 /// Deployment target 12: the first macOS with Swift concurrency built in.
 /// FoundationModels only exists on 26, so it's weak-linked: the helper
 /// launches on older systems and reports "unsupported".
+///
+/// Apple's model is an optional extra, so it never fails the build: without
+/// a working Swift toolchain the sidecar is a stub that says "unsupported".
 fn build_ai_helper() {
     let src = "swift/walkie-ai.swift";
     println!("cargo:rerun-if-changed={src}");
-    let out_dir = std::env::var("OUT_DIR").expect("cargo sets OUT_DIR");
-    let slices: Vec<String> = ["arm64", "x86_64"]
-        .iter()
-        .map(|arch| {
-            let out = format!("{out_dir}/walkie-ai-{arch}");
-            run(Command::new("xcrun")
-                .args(["swiftc", "-O", "-parse-as-library", "-target"])
-                .arg(format!("{arch}-apple-macos12.0"))
-                .args([src, "-o", &out]));
-            out
-        })
-        .collect();
     std::fs::create_dir_all("binaries").expect("creating binaries/");
     let universal = "binaries/walkie-ai-aarch64-apple-darwin";
+    if let Err(e) = compile_universal(src, universal) {
+        println!("cargo:warning=walkie-ai: {e}; Apple's model will be unavailable");
+        std::fs::write(universal, STUB).expect("writing the walkie-ai stub");
+        std::fs::set_permissions(universal, std::fs::Permissions::from_mode(0o755))
+            .expect("making the walkie-ai stub executable");
+    }
+    std::fs::copy(universal, "binaries/walkie-ai-x86_64-apple-darwin").expect("copying walkie-ai");
+}
+
+/// walkie-ai's interface, answering "unsupported" to everything.
+const STUB: &str = "#!/bin/sh
+[ \"$1\" = status ] && { echo unsupported; exit 0; }
+echo 'apple model unavailable: unsupported' >&2
+exit 1
+";
+
+fn compile_universal(src: &str, out: &str) -> Result<(), String> {
+    let dir = std::env::var("OUT_DIR").expect("cargo sets OUT_DIR");
+    let mut slices = Vec::new();
+    for arch in ["arm64", "x86_64"] {
+        let slice = format!("{dir}/walkie-ai-{arch}");
+        run(Command::new("xcrun")
+            .args(["swiftc", "-O", "-parse-as-library", "-target"])
+            .arg(format!("{arch}-apple-macos12.0"))
+            .args([src, "-o", &slice]))?;
+        slices.push(slice);
+    }
     run(Command::new("lipo")
         .arg("-create")
         .args(&slices)
-        .args(["-output", universal]));
-    std::fs::copy(universal, "binaries/walkie-ai-x86_64-apple-darwin")
-        .expect("copying walkie-ai");
+        .args(["-output", out]))
 }
 
-fn run(cmd: &mut Command) {
-    let status = cmd
-        .status()
-        .unwrap_or_else(|e| panic!("running {cmd:?} (install Xcode's Command Line Tools): {e}"));
-    assert!(status.success(), "{cmd:?} failed building walkie-ai");
+fn run(cmd: &mut Command) -> Result<(), String> {
+    match cmd.status() {
+        Ok(s) if s.success() => Ok(()),
+        Ok(s) => Err(format!("{:?} failed ({s})", cmd.get_program())),
+        Err(e) => Err(format!("couldn't run {:?}: {e}", cmd.get_program())),
+    }
 }

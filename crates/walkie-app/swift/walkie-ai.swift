@@ -62,13 +62,24 @@ struct WalkieAI {
     }
 
     #if canImport(FoundationModels)
+        /// The input goes in <transcript> tags, which keeps the small model
+        /// from treating a dictated question or request as one for it. The
+        /// reply is capped near the input's length, so if it starts
+        /// answering anyway it stops within a second instead of writing an
+        /// essay.
         @available(macOS 26.0, *)
         static func respond(instructions: String, to input: String) async throws -> String {
             let session = LanguageModelSession(instructions: instructions)
-            // Greedy: the same dictation polishes the same way every time.
+            let options = GenerationOptions(
+                // Greedy: the same dictation polishes the same way every time.
+                sampling: .greedy,
+                maximumResponseTokens: input.utf8.count / 2 + 64)
             let reply = try await session.respond(
-                to: input, options: GenerationOptions(sampling: .greedy))
+                to: "<transcript>\n\(input)\n</transcript>", options: options)
             return reply.content
+                .replacingOccurrences(of: "<transcript>", with: "")
+                .replacingOccurrences(of: "</transcript>", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
     #endif
 

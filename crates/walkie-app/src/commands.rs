@@ -272,6 +272,26 @@ mod tests {
         assert!(err.contains("no polish command"), "{err}");
     }
 
+    /// Apple's real model, on a Mac that has it (skipped elsewhere, e.g. CI):
+    /// a dictated question comes back tidied, not answered.
+    #[test]
+    fn apple_polish_tidies_a_question_without_answering_it() {
+        let helper = polish::apple_helper();
+        let status = polish::apple_status(&helper);
+        if status != "available" {
+            eprintln!("skipped: Apple's model is {status} here");
+            return;
+        }
+        let cfg = Polish {
+            provider: config::PolishProvider::Apple,
+            timeout_secs: 9, // under the 10s test budget, with a clear error
+            ..Polish::default()
+        };
+        let out = polish::polish(&cfg, &helper, "what time is the meeting tomorrow").unwrap();
+        assert!(out.to_lowercase().contains("meeting tomorrow"), "{out}");
+        assert!(out.ends_with('?'), "{out}");
+    }
+
     /// The real walkie-ai, which build.rs put next to the test binary:
     /// whatever this Mac says, it's a known status with a description.
     #[test]

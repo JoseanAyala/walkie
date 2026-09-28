@@ -13,7 +13,7 @@ const cfg = (): Config => ({
     paste_last: [],
   },
   cleanup: { enabled: true, fillers_en: ["um"], fillers_es: ["eh"] },
-  polish: { provider: "apple", prompt: "tidy", command: "", timeout_secs: 60 },
+  polish: { provider: "command", prompt: "tidy", command: "", timeout_secs: 60 },
   inject: { strategy: "paste", restore_clipboard_ms: 300 },
   history: { enabled: true },
   audio: { input_device: "", duck_while_recording: true, duck_percent: 30 },
@@ -49,7 +49,7 @@ describe("pendingRestart", () => {
 
   it("needs a restart for the polish provider and prompt", () => {
     const now = cfg();
-    now.polish.provider = "command";
+    now.polish.provider = "apple";
     expect(pendingRestart(cfg(), now)).toEqual(["polish"]);
     const prompt = cfg();
     prompt.polish.prompt = "shorter";

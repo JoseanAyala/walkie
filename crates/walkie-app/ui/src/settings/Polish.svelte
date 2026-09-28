@@ -39,8 +39,8 @@ async function test() {
         settings.save();
       }}
     >
-      <option value="apple">Apple, on this Mac</option>
       <option value="command">Your command</option>
+      <option value="apple">Apple, on this Mac (macOS 26)</option>
     </select>
     {#if apple}
       <div class="hint" data-testid="apple-ai">

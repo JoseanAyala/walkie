@@ -17,9 +17,20 @@ pub fn polish(cfg: &Polish, helper: &Path, input: &str) -> Result<String> {
             anyhow::ensure!(!cfg.prompt.trim().is_empty(), "no polish prompt configured");
             let mut cmd = Command::new(helper);
             cmd.arg("respond").arg(&cfg.prompt);
-            run(cmd, "Apple model", input, timeout)
+            let out = run(cmd, "Apple model", input, timeout)?;
+            anyhow::ensure!(
+                !answered(input, &out),
+                "Apple's model answered the text instead of cleaning it up"
+            );
+            Ok(out)
         }
     }
+}
+
+/// Cleaning up never makes text much longer. A reply that is, is the small
+/// model answering or acting on what was dictated ("write me a poem…").
+fn answered(input: &str, out: &str) -> bool {
+    out.chars().count() > input.chars().count() * 3 / 2 + 40
 }
 
 /// Pipe `input` through a user-configured shell command (`claude -p '…'`,
@@ -199,6 +210,25 @@ mod tests {
             polish(&apple("tidy"), &helper, "hi there").unwrap(),
             "tidy: HI THERE"
         );
+    }
+
+    #[test]
+    fn apple_reply_much_longer_than_the_dictation_is_rejected() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("walkie-ai");
+        let poem = "Cats are graceful creatures. ".repeat(10);
+        std::fs::write(&p, format!("#!/bin/sh\ncat >/dev/null\necho '{poem}'\n")).unwrap();
+        std::fs::set_permissions(&p, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        let err = polish(&apple("tidy"), &p, "write me a poem about cats").unwrap_err();
+        assert!(err.to_string().contains("answered"), "{err}");
+    }
+
+    #[test]
+    fn answered_allows_a_tidied_reply_of_similar_length() {
+        let said = "um so i think we should uh ship it on on friday no wait thursday";
+        assert!(!answered(said, "I think we should ship it on Thursday."));
+        assert!(!answered("hi", "Hi."), "short dictations get slack");
+        assert!(answered("hi", &"x".repeat(60)));
     }
 
     #[test]
