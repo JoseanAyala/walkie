@@ -36,8 +36,8 @@ The tray icon is gray when idle, red while recording and amber while it works.
 
 ## Settings
 
-Open walkie again (or pick Settings… in the tray) for a small desktop of
-windows. Every change saves itself.
+Open walkie again (or pick Settings… in the tray). Every change saves
+itself.
 
 - **General**: the shortcuts, microphone, language, appearance (Light, Dark
   or System) and launch at login.
@@ -142,5 +142,5 @@ and push to `main`, and uploads a `Walkie.app` build for each push to `main`.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The bundled Departure Mono font is under the SIL Open Font License
-([its license](crates/walkie-app/ui/src/lib/fonts/DepartureMono-LICENSE.txt)).
+MIT, see [LICENSE](LICENSE). The bundled fonts, Inter and Instrument Serif, are under the SIL
+Open Font License.

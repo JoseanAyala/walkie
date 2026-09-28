@@ -175,7 +175,7 @@ fn settings_window_drags_by_its_top_strip_and_desk() {
     let _t = begin("settings_window_drags_by_its_top_strip_and_desk");
     let app = settings("General", None);
     for (what, at) in [
-        // right of the WALKIE.OS1 chip, level with the traffic lights
+        // right of the wordmark, level with the traffic lights
         ("top strip", (300.0, 20.0)),
         // the desk between the Menu and About windows
         ("desk", (80.0, 300.0)),
