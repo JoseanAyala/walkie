@@ -364,7 +364,7 @@ fn startup_check(app: AppHandle, first_run: bool) {
         }
         let blocking = checks
             .iter()
-            .any(|c| !c.ok && c.id != "model" && c.id != "device-missing");
+            .any(|c| !c.ok && !["model", "device-missing", "apple-ai"].contains(&c.id));
         if blocking && !first_run {
             if let Some(w) = app.get_webview_window("settings") {
                 let _ = app.emit("show-tab", "status");

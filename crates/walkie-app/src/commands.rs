@@ -1,12 +1,11 @@
 use crate::login_item::{self, LoginItem};
 use crate::status::{self, Check, HotkeyState, ModelStatus};
-use std::time::Duration;
 use tauri::{Emitter, Manager, State};
 use walkie_core::audio;
-use walkie_core::config::{self, models, Config, ThemeCfg};
+use walkie_core::config::{self, models, Config, Polish, ThemeCfg};
 use walkie_core::history::{History, Record};
 use walkie_core::hotkey::engine::Bindings;
-use walkie_core::pipeline::polish::run_polish;
+use walkie_core::pipeline::polish;
 
 fn estr(e: impl std::fmt::Display) -> String {
     e.to_string()
@@ -113,18 +112,40 @@ pub fn history_clear() -> Result<usize, String> {
         .map_err(estr)
 }
 
-/// What the Polish tab's Test button sends through the command.
+/// What the Polish tab's Test button polishes.
 pub const POLISH_SAMPLE: &str = "um so this is uh a quick test of the polish command";
 
-/// Runs `command` on [`POLISH_SAMPLE`] off the main thread, so a slow CLI
-/// doesn't freeze the window while it thinks.
+/// Polishes [`POLISH_SAMPLE`] with `polish` (the tab's unsaved settings)
+/// off the main thread, so a slow model doesn't freeze the window.
 #[tauri::command]
-pub async fn test_polish(command: String, timeout_secs: u64) -> Result<String, String> {
-    let timeout = Duration::from_secs(timeout_secs.clamp(1, 300));
-    tauri::async_runtime::spawn_blocking(move || run_polish(&command, POLISH_SAMPLE, timeout))
-        .await
-        .map_err(estr)?
-        .map_err(estr)
+pub async fn test_polish(mut polish: Polish) -> Result<String, String> {
+    polish.timeout_secs = polish.timeout_secs.clamp(1, 300);
+    tauri::async_runtime::spawn_blocking(move || {
+        polish::polish(&polish, &polish::apple_helper(), POLISH_SAMPLE)
+    })
+    .await
+    .map_err(estr)?
+    .map_err(estr)
+}
+
+#[derive(serde::Serialize, Debug)]
+pub struct AppleAi {
+    /// A `polish::apple_status` word: "available", "off", …
+    pub status: String,
+    pub detail: &'static str,
+}
+
+/// Whether Apple's on-device model can polish right now.
+#[tauri::command]
+pub async fn apple_ai_status() -> AppleAi {
+    let status =
+        tauri::async_runtime::spawn_blocking(|| polish::apple_status(&polish::apple_helper()))
+            .await
+            .unwrap_or_else(|_| "missing".into());
+    AppleAi {
+        detail: polish::describe_apple_status(&status),
+        status,
+    }
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -177,6 +198,7 @@ pub fn open_settings_pane(pane: String) -> Result<(), String> {
             "keyboard" => "x-apple.systempreferences:com.apple.Keyboard-Settings.extension",
             "sound" => "x-apple.systempreferences:com.apple.Sound-Settings.extension",
             "loginitems" => "x-apple.systempreferences:com.apple.LoginItems-Settings.extension",
+            "ai" => "x-apple.systempreferences:com.apple.Siri-Settings.extension",
             _ => return Err(format!("unknown pane: {pane}")),
         };
         std::process::Command::new("open")
@@ -229,16 +251,37 @@ pub fn finish_onboarding(app: tauri::AppHandle, launch_at_login: bool) -> Result
 mod tests {
     use super::*;
 
+    fn command(c: &str) -> Polish {
+        Polish {
+            provider: config::PolishProvider::Command,
+            command: c.into(),
+            timeout_secs: 5,
+            ..Polish::default()
+        }
+    }
+
     #[test]
     fn test_polish_runs_the_command_on_the_sample() {
-        let out = tauri::async_runtime::block_on(test_polish("tr 'a-z' 'A-Z'".into(), 5)).unwrap();
+        let out = tauri::async_runtime::block_on(test_polish(command("tr 'a-z' 'A-Z'"))).unwrap();
         assert_eq!(out.trim(), POLISH_SAMPLE.to_uppercase());
     }
 
     #[test]
     fn test_polish_reports_a_missing_command() {
-        let err = tauri::async_runtime::block_on(test_polish("  ".into(), 5)).unwrap_err();
+        let err = tauri::async_runtime::block_on(test_polish(command("  "))).unwrap_err();
         assert!(err.contains("no polish command"), "{err}");
+    }
+
+    /// The real walkie-ai, which build.rs put next to the test binary:
+    /// whatever this Mac says, it's a known status with a description.
+    #[test]
+    fn apple_ai_status_asks_the_bundled_helper() {
+        let s = tauri::async_runtime::block_on(apple_ai_status());
+        assert_ne!(
+            s.status, "missing",
+            "walkie-ai wasn't built next to the binary"
+        );
+        assert!(!s.detail.is_empty());
     }
 
     #[test]

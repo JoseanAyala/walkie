@@ -33,6 +33,7 @@ fn main() {
             commands::history_delete,
             commands::history_clear,
             commands::test_polish,
+            commands::apple_ai_status,
             commands::list_models,
             commands::copy_text,
             commands::open_settings_pane,

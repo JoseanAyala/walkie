@@ -5,9 +5,11 @@ use serde::Serialize;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use walkie_core::audio;
+use walkie_core::config::{Config, PolishProvider};
 use walkie_core::hotkey::engine::{Bindings, Engine};
 use walkie_core::hotkey::keys::Key;
 use walkie_core::hotkey::tap::TapStatus;
+use walkie_core::pipeline::polish;
 
 /// Shared between the keyboard hook, the commands and the status page.
 pub struct HotkeyState {
@@ -282,7 +284,24 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
         fix: None,
     });
 
+    let cfg = Config::load().unwrap_or_default();
+    if cfg.polish.provider == PolishProvider::Apple && !bindings.polish.is_empty() {
+        out.push(apple_check(&polish::apple_status(&polish::apple_helper())));
+    }
+
     out
+}
+
+/// Only listed when dictate + polish uses Apple's model. Not a broken setup:
+/// plain dictation works without it, so it never pops Settings open.
+fn apple_check(status: &str) -> Check {
+    Check {
+        id: "apple-ai",
+        label: "Apple Intelligence",
+        ok: status == "available",
+        detail: format!("for polish: {}", polish::describe_apple_status(status)),
+        fix: (status == "off").then_some("ai"),
+    }
 }
 
 #[cfg(test)]
@@ -294,6 +313,17 @@ mod tests {
         assert!(looks_virtual("MOTIV Mix Virtual"));
         assert!(looks_virtual("BlackHole 2ch"));
         assert!(!looks_virtual("MacBook Pro Microphone"));
+    }
+
+    #[test]
+    fn apple_check_offers_a_fix_only_when_it_is_off() {
+        let off = apple_check("off");
+        assert!(!off.ok);
+        assert_eq!(off.fix, Some("ai"));
+        let ready = apple_check("available");
+        assert!(ready.ok);
+        assert_eq!(ready.detail, "for polish: ready");
+        assert_eq!(apple_check("not-eligible").fix, None);
     }
 
     #[test]
