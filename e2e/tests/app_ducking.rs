@@ -72,8 +72,13 @@ fn app_with(duck: bool) -> App {
 
 /// Starts a locked (double-tap) recording, so the test can look at the
 /// volume while nothing is held. A Fn tap stops it.
-fn start_locked() -> Keyboard {
+fn start_locked(app: &App) -> Keyboard {
+    // The first recording after launch holds key events back (~500ms, the
+    // overlay's first show), long enough that a quick tap reads as a hold. A
+    // lone tap gets that out of the way; the double-tap window then expires.
+    app.wait_log("Speech model:", 3);
     let mut kb = Keyboard::new();
+    kb.down("Fn").wait(40).up("Fn").wait(800);
     kb.down("Fn")
         .wait(40)
         .up("Fn")
@@ -90,7 +95,7 @@ fn recording_lowers_the_volume_and_stopping_restores_it() {
     let _keep = KeepVolume::at(50);
     let app = app_with(true);
     let doc = Target::open();
-    let mut kb = start_locked();
+    let mut kb = start_locked(&app);
     let v = wait_volume(2, |v| v < 50);
     assert!(
         (13..=17).contains(&v),
@@ -114,7 +119,7 @@ fn volume_changed_during_recording_is_kept() {
     let _keep = KeepVolume::at(50);
     let app = app_with(true);
     let _doc = Target::open();
-    let mut kb = start_locked();
+    let mut kb = start_locked(&app);
     wait_volume(2, |v| v < 50);
     set_volume(70);
     kb.down("Fn").wait(60).up("Fn");
@@ -133,7 +138,7 @@ fn quitting_mid_recording_restores_the_volume() {
     let _keep = KeepVolume::at(50);
     let app = app_with(true);
     let _doc = Target::open();
-    start_locked();
+    start_locked(&app);
     let v = wait_volume(2, |v| v < 50);
     assert!(v < 50, "never lowered\n{}", app.log_text());
     quit(); // SIGTERM, like `kill` or logging out
@@ -150,7 +155,7 @@ fn turned_off_leaves_the_volume_alone() {
     let _keep = KeepVolume::at(50);
     let app = app_with(false);
     let _doc = Target::open();
-    let mut kb = start_locked();
+    let mut kb = start_locked(&app);
     sleep(800);
     assert_eq!(
         volume(),
