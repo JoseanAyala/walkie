@@ -1,4 +1,4 @@
-/* hearme's look: a dithered desktop with small monochrome windows.
+/* hearme's look: a dotted desktop with small monochrome windows.
    Light mode is a pink desktop; dark mode is near-black with pink highlights.
    Departure Mono is a pixel font drawn on an 11px grid, so sizes stay at
    multiples of 11 to keep it crisp. */
@@ -79,7 +79,8 @@ body {
     ui-monospace,
     monospace;
   color: var(--fg);
-  background: var(--desk);
+  /* the desktop: an even grid of dots */
+  background: var(--desk) radial-gradient(var(--desk-dot) 0.9px, transparent 1.1px) 0 0 / 6px 6px;
   -webkit-font-smoothing: none;
   -webkit-user-select: none;
   user-select: none;
@@ -95,14 +96,6 @@ textarea {
 ::selection {
   background: var(--chip);
   color: var(--chip-fg);
-}
-
-/* the dithered desktop (theme.js draws it) */
-#desk {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  image-rendering: pixelated;
 }
 
 /* ---- windows ---- */

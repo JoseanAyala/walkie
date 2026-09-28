@@ -1,7 +1,6 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { api, type Check, type Config, type Pane } from "../lib/api";
-import Desk from "../lib/Desk.svelte";
 import { glyph } from "../lib/format";
 import Win from "../lib/Win.svelte";
 import { PERMS, verdict } from "./checks";
@@ -57,14 +56,6 @@ onMount(() => {
   {/each}
 {/snippet}
 
-<Desk
-  seed={5}
-  clouds={[
-  [0.02, 0.2, 0.3],
-  [1.0, 0.9, 0.35],
-  [0.6, -0.05, 0.18],
-]}
-/>
 <div class="desktop">
   <div class="top">
     <span class="os">HEARME.OS1</span><span class="grow"></span

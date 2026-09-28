@@ -50,7 +50,7 @@ fn tray(rgba: [u8; 4], dither: bool) -> RgbaImage {
     })
 }
 
-/// mulberry32, same as the desk's dither (ui/src/lib/dither.ts).
+/// mulberry32: a tiny seeded PRNG, so the icon is the same every run.
 fn rng(seed: u32) -> impl FnMut() -> f32 {
     let mut a = seed;
     move || {
@@ -84,7 +84,7 @@ fn app() -> RgbaImage {
         (dx * dx + dy * dy).sqrt() + inner - R
     };
 
-    // Dither clouds, like the desk: [x, y, radius] as fractions of the tile.
+    // Dither clouds: [x, y, radius] as fractions of the tile.
     let clouds = [(0.12, 0.88, 0.55), (0.95, 0.1, 0.35)];
     let mut r = rng(7);
     let mut dots = std::collections::HashSet::new();

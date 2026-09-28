@@ -2,7 +2,6 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { onMount } from "svelte";
 import { api, type Check, on } from "../lib/api";
-import Desk from "../lib/Desk.svelte";
 import Win from "../lib/Win.svelte";
 import Cleanup from "./Cleanup.svelte";
 import General from "./General.svelte";
@@ -75,14 +74,6 @@ onMount(() => {
 });
 </script>
 
-<Desk
-  seed={11}
-  clouds={[
-  [0.05, 0.95, 0.32],
-  [0.98, 0.55, 0.28],
-  [0.55, 1.08, 0.22],
-]}
-/>
 <div class="desktop">
   <div class="top">
     <span class="os">HEARME.OS1</span><span class="grow"></span>
