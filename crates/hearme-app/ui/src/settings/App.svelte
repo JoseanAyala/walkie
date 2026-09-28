@@ -2,6 +2,8 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { onMount } from "svelte";
 import { api, type Check, on } from "@/lib/api";
+import type { Mode } from "@/lib/palette";
+import { applyTheme, modeOf } from "@/lib/theme";
 import Win from "@/lib/Win.svelte";
 import Cleanup from "./Cleanup.svelte";
 import General from "./General.svelte";
@@ -9,6 +11,7 @@ import History from "./History.svelte";
 import Polish from "./Polish.svelte";
 import Status from "./Status.svelte";
 import { settings } from "./state.svelte";
+import Theme from "./Theme.svelte";
 
 const TABS = {
   general: { name: "General", sub: "how hearme listens and types" },
@@ -16,6 +19,7 @@ const TABS = {
   cleanup: { name: "Cleanup", sub: "drop filler words before typing" },
   polish: { name: "Polish", sub: "rewrite with any CLI: transcript on stdin, result on stdout" },
   history: { name: "History", sub: "your dictations, stored only on this Mac" },
+  theme: { name: "Theme", sub: "colors, light and dark, your own palettes" },
 } as const;
 type Tab = keyof typeof TABS;
 
@@ -36,6 +40,17 @@ async function loadStatus() {
   } catch (e) {
     settings.fail(e);
   }
+}
+
+// the light | dark switch: the mode showing now is filled; picking one pins
+// it (Theme → Appearance → system follows macOS again)
+const mode = $derived(settings.cfg ? modeOf(settings.cfg.theme) : null);
+function setMode(m: Mode) {
+  const cfg = settings.cfg;
+  if (!cfg || cfg.theme.appearance === m) return;
+  cfg.theme.appearance = m;
+  applyTheme($state.snapshot(cfg.theme));
+  settings.save();
 }
 
 function show(t: Tab) {
@@ -77,6 +92,15 @@ onMount(() => {
 <div class="desktop">
   <div class="top">
     <span class="os">HEARME.OS1</span><span class="grow"></span>
+    {#if settings.cfg}
+      <div class="modes" role="group" aria-label="Light or dark">
+        {#each ["light", "dark"] as const as m (m)}
+          <button class:on={mode === m} aria-pressed={mode === m} onclick={() => setMode(m)}
+            >{m}</button
+          >
+        {/each}
+      </div>
+    {/if}
     <span class="chip ghost">model: {modelStatus}</span>
   </div>
 
@@ -122,6 +146,8 @@ onMount(() => {
         <Polish />
       {:else if tab === "history"}
         <History />
+      {:else if tab === "theme"}
+        <Theme />
       {/if}
     {/if}
   </Win>
@@ -150,6 +176,16 @@ onMount(() => {
 }
 .grow {
   flex: 1;
+}
+.modes {
+  display: flex;
+}
+.modes button + button {
+  border-left: 0;
+}
+.modes button.on {
+  background: var(--chip);
+  color: var(--chip-fg);
 }
 .side {
   grid-row: 2 / 4;

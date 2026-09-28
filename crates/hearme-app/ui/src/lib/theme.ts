@@ -3,13 +3,13 @@
 // the first paint before the config loads already looks right).
 import { api, on, type ThemeCfg } from "@/lib/api";
 import { find, type Mode, TOKENS, tokensFor } from "@/lib/palette";
+import { onSystemFlip, system } from "@/lib/system.svelte";
 
-const dark = matchMedia("(prefers-color-scheme: dark)");
 let current: ThemeCfg | null = null;
 
-/** The mode a theme shows in right now. */
+/** The mode a theme shows in right now (reactive in components). */
 export const modeOf = (t: ThemeCfg): Mode =>
-  t.appearance === "system" ? (dark.matches ? "dark" : "light") : t.appearance;
+  t.appearance === "system" ? (system.dark ? "dark" : "light") : t.appearance;
 
 export function applyTheme(t: ThemeCfg) {
   current = t;
@@ -28,7 +28,7 @@ export function followTheme() {
     () => {}, // keep theme.css's colors
   );
   on("theme", applyTheme);
-  dark.addEventListener("change", () => {
+  onSystemFlip(() => {
     if (current?.appearance === "system") applyTheme(current);
   });
 }
