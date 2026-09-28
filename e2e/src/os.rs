@@ -10,7 +10,7 @@
 use crate::fixture;
 use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation, CGEventType};
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
@@ -187,6 +187,11 @@ impl App {
     }
 
     pub fn launch(&self) {
+        self.launch_with(&[]);
+    }
+
+    /// Launches with extra environment, e.g. WALKIE_AI_BIN (test-hooks only).
+    pub fn launch_with(&self, extra_env: &[(&str, &Path)]) {
         step("launching walkie");
         *LOG.lock().unwrap_or_else(|e| e.into_inner()) = Some(self.log.clone());
         quit();
@@ -204,6 +209,11 @@ impl App {
             .arg(env("WALKIE_TEST_AUDIO", &fixture("en.wav")))
             .arg("--env")
             .arg("WALKIE_DEBUG_EVENTS=1")
+            .args(
+                extra_env
+                    .iter()
+                    .flat_map(|(k, v)| ["--env".to_string(), env(k, &v.to_path_buf())]),
+            )
             .status()
             .unwrap();
         assert!(

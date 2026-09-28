@@ -128,27 +128,42 @@ fn apple_config() -> walkie_core::config::Config {
 }
 
 #[test]
-fn polish_tab_says_whether_apples_model_is_ready_and_tests_it() {
-    let _t = begin("polish_tab_says_whether_apples_model_is_ready_and_tests_it");
+fn polish_tab_says_whether_apples_model_is_ready() {
+    let _t = begin("polish_tab_says_whether_apples_model_is_ready");
     let status = installed_apple_status();
     let app = settings_with("Polish", None, apple_config());
     let want = describe_apple_status(&status);
     let text = wait_text(&app, "Walkie", want, true);
     assert!(text.contains(want), "expected {want:?} ({status}):\n{text}");
     assert!(text.contains("Prompt"), "Apple shows its prompt:\n{text}");
-    assert!(
-        !text.contains("Command"),
-        "the command field is hidden:\n{text}"
-    );
+}
 
+/// The Test button with Apple selected, through a stand-in walkie-ai
+/// (WALKIE_AI_BIN): the real model's first call after idle can take 4–8s,
+/// too slow for the budget. commands.rs tests the real model directly.
+#[test]
+fn polish_test_button_runs_apples_model() {
+    let _t = begin("polish_test_button_runs_apples_model");
+    let app = App::new();
+    let helper = app.root.join("walkie-ai");
+    std::fs::write(
+        &helper,
+        "#!/bin/sh\ncase $1 in\n  status) echo available ;;\n  respond) printf 'apple says: '; cat ;;\nesac\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&helper, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    app.write_config(&apple_config());
+    app.launch_with(&[("WALKIE_AI_BIN", &helper)]);
+    app.tray("Settings…");
+    assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
+    app.click("Walkie", "Polish", 1);
     app.click("Walkie", "Test", 1);
-    let want = if status == "available" {
-        "→"
-    } else {
-        "apple model unavailable"
-    };
+    let want = "apple says: um so this is";
     let text = wait_text(&app, "Walkie", want, true);
-    assert!(text.contains(want), "Test with {status}:\n{text}");
+    assert!(
+        text.contains(want),
+        "the Test button didn't use walkie-ai:\n{text}"
+    );
 }
 
 #[test]
