@@ -70,7 +70,7 @@ timeout_secs = 60
 [audio]
 input_device = ""            # a name from Settings; empty = the system default
 duck_while_recording = true  # lower other audio while you dictate…
-duck_percent = 30            # …to this % of its volume (restored after, unless you changed it)
+duck_percent = 70            # …to this % of its volume (restored after, unless you changed it)
 
 [theme]
 name = "classic"             # classic, pantone, riso, terminal, matcha, klein, mocha, lilac, or yours

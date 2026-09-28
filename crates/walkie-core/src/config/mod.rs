@@ -230,7 +230,7 @@ impl Default for AudioCfg {
     fn default() -> Self {
         Self {
             duck_while_recording: true,
-            duck_percent: 30,
+            duck_percent: 70,
             input_device: String::new(),
         }
     }
@@ -333,7 +333,7 @@ mod tests {
         assert!(c.history.enabled);
         assert_eq!(c.audio.input_device, "");
         assert!(c.audio.duck_while_recording);
-        assert_eq!(c.audio.duck_percent, 30);
+        assert_eq!(c.audio.duck_percent, 70);
         assert_eq!(c.theme.name, "classic");
         assert_eq!(c.theme.appearance, Appearance::System);
         assert!(c.theme.custom.is_empty());
