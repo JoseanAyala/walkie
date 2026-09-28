@@ -171,6 +171,8 @@ nav button {
   width: 100%;
   border: 0;
   background: none;
+  box-shadow: none;
+  transform: none;
   text-align: left;
   padding: 2px 6px;
   line-height: 22px;
@@ -224,6 +226,8 @@ nav button.on {
 .error button {
   border: 0;
   background: none;
+  box-shadow: none;
+  transform: none;
   padding: 0 4px;
 }
 .restart {

@@ -187,13 +187,21 @@ kbd {
 }
 
 /* ---- controls ---- */
+/* buttons stand on a hard shadow and press into it: on click, and while a
+   toggle (aria-pressed) is on. A disabled one lies flat. */
 button {
   background: var(--panel);
   border: 2px solid var(--line);
+  box-shadow: 2px 2px 0 var(--line);
   padding: 0 8px;
   cursor: pointer;
   line-height: 18px;
   white-space: nowrap;
+}
+button:active:not(:disabled),
+button[aria-pressed="true"] {
+  transform: translate(2px, 2px);
+  box-shadow: none;
 }
 button:hover:not(:disabled) {
   background: var(--tag);
@@ -210,10 +218,13 @@ button.primary:hover:not(:disabled) {
 button:disabled {
   opacity: 0.4;
   cursor: default;
+  box-shadow: none;
 }
 button.link {
   border: 0;
   background: none;
+  box-shadow: none;
+  transform: none;
   padding: 0;
   text-decoration: underline;
   color: var(--muted);

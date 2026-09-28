@@ -194,6 +194,9 @@ function add() {
   width: 100%;
   padding: 10px 8px;
   border: 2px solid var(--line);
+  /* the preview inside carries the shadow; the card itself stays put */
+  box-shadow: none;
+  transform: none;
   background: var(--desk) radial-gradient(var(--desk-dot) 0.9px, transparent 1.1px) 0 0 / 6px 6px;
   color: var(--fg);
   text-align: left;

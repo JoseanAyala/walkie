@@ -7,7 +7,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       `WALKIE.OS1` strip and the bare desk drag the window.
 - [x] **Depth everywhere.** Every `.win` gets the 4px hard shadow (not just the
       restart bar, Finish window and overlay pill).
-- [ ] **Tactile buttons.** A 2px hard shadow that collapses on `:active` as the
+- [x] **Tactile buttons.** A 2px hard shadow that collapses on `:active` as the
       button shifts 2px down-right.
 - [ ] **Stepped motion.** `steps()` animations: the main window opens on tab
       switch, `saved ✓` blinks in and fades, the restart bar slides up, the
@@ -21,7 +21,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       an illustration for the empty History.
 - [ ] **Own the dropdowns.** A custom listbox instead of native `<select>`
       popups (microphone, language, model, injection).
-- [ ] **Overlay meter.** Peak-hold on the VU meter; a fixed pill width so the
-      label doesn't reflow between states.
 - [ ] **Window limits.** `minWidth`/`minHeight` on settings so resizing can't
       break the grid.
+- [ ] **Overlay meter.** (last — talk it over first) Peak-hold on the VU meter; a fixed pill width so the
+      label doesn't reflow between states.
