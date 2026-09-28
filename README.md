@@ -94,6 +94,22 @@ duck_while_recording = true
 duck_percent = 30
 ```
 
+Colors: Settings → Theme has presets, System / Light / Dark, and an importer
+(paste hex codes, a coolors.co link or a Lospec list; nothing is fetched).
+The top bar's light | dark switch pins a mode.
+
+```toml
+[theme]
+name = "klein"          # a preset, or one of your imported themes
+appearance = "system"   # "light" | "dark"
+
+[[theme.custom]]
+name = "Sunset"
+base = "#2b2a30"        # text in light mode, the desk in dark
+main = "#7479d8"        # the desk in light mode, title bars in dark
+accent = "#e94b3c"      # hover, focus, warnings
+```
+
 History lives in `~/.local/share/hearme/history.sqlite3` (off switch in
 settings). Failed transcriptions keep their audio in `~/.cache/hearme/spool/`.
 
