@@ -46,7 +46,7 @@ pub fn save_config(
 
 /// The log line for a theme change, or None if the theme didn't change.
 fn theme_change(before: Option<&ThemeCfg>, now: &ThemeCfg) -> Option<String> {
-    (before != Some(now)).then(|| format!("theme {} ({:?})", now.name, now.appearance))
+    (before != Some(now)).then(|| format!("theme {:?}", now.appearance))
 }
 
 #[derive(serde::Serialize)]
@@ -321,14 +321,9 @@ mod tests {
         let a = ThemeCfg::default();
         assert_eq!(theme_change(Some(&a), &a), None);
         let b = ThemeCfg {
-            name: "klein".into(),
             appearance: config::Appearance::Dark,
-            ..a.clone()
         };
-        assert_eq!(
-            theme_change(Some(&a), &b).as_deref(),
-            Some("theme klein (Dark)")
-        );
+        assert_eq!(theme_change(Some(&a), &b).as_deref(), Some("theme Dark"));
         assert!(theme_change(None, &a).is_some(), "no saved config yet");
     }
 

@@ -1,4 +1,4 @@
-//! Themes (Settings → Theme), against the real
+//! Light and dark (Settings → Theme), against the real
 //! installed app. Run: e2e/run-app-tests.sh theme
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
@@ -32,64 +32,22 @@ fn wait_config(app: &App, what: &str, ok: impl Fn(&Config) -> bool) -> Config {
 }
 
 #[test]
-fn picking_a_theme_saves_it_and_tells_every_window() {
-    let _t = begin("picking_a_theme_saves_it_and_tells_every_window");
-    let app = theme_tab();
-    app.click("Walkie", "Klein", 1);
-    let c = wait_config(&app, "theme klein", |c| c.theme.name == "klein");
-    assert_eq!(c.theme.name, "klein", "not saved");
-    // logged where the "theme" event goes out to every window
-    assert!(
-        app.wait_log("walkie: theme klein", 2),
-        "no theme change in the log:\n{}",
-        app.log_text()
-    );
-}
-
-#[test]
 fn theme_appearance_pins_light_or_dark() {
     let _t = begin("theme_appearance_pins_light_or_dark");
     let app = theme_tab();
     app.click("Walkie", "dark", 1);
     let c = wait_config(&app, "dark", |c| c.theme.appearance == Appearance::Dark);
     assert_eq!(c.theme.appearance, Appearance::Dark);
+    // logged where the "theme" event goes out to every window
+    assert!(
+        app.wait_log("walkie: theme Dark", 2),
+        "no theme change in the log:\n{}",
+        app.log_text()
+    );
     app.click("Walkie", "light", 1);
     let c = wait_config(&app, "light", |c| c.theme.appearance == Appearance::Light);
     assert_eq!(c.theme.appearance, Appearance::Light);
     app.click("Walkie", "system", 1);
     let c = wait_config(&app, "system", |c| c.theme.appearance == Appearance::System);
     assert_eq!(c.theme.appearance, Appearance::System);
-}
-
-#[test]
-fn importing_a_coolors_link_adds_and_picks_a_theme() {
-    let _t = begin("importing_a_coolors_link_adds_and_picks_a_theme");
-    let app = theme_tab();
-    app.set_field(
-        "Walkie",
-        "Colors to import",
-        "https://coolors.co/e94b3c-7479d8-2b2a30",
-    );
-    app.set_field("Walkie", "Theme name", "Sunset");
-    app.click("Walkie", "Save theme", 1);
-    let c = wait_config(&app, "theme Sunset", |c| c.theme.name == "Sunset");
-    assert_eq!(c.theme.name, "Sunset", "not picked after saving");
-    let t = &c.theme.custom[0];
-    assert_eq!(
-        (
-            t.name.as_str(),
-            t.base.as_str(),
-            t.main.as_str(),
-            t.accent.as_str()
-        ),
-        ("Sunset", "#2b2a30", "#7479d8", "#e94b3c"),
-        "roles: the darkest is the base, the most colorful the accent"
-    );
-    app.click("Walkie", "Delete Sunset", 1);
-    let c = wait_config(&app, "no imported themes", |c| c.theme.custom.is_empty());
-    assert!(c.theme.custom.is_empty(), "not deleted: {:?}", c.theme);
-    assert_eq!(
-        c.theme.name, "classic",
-        "deleting the theme in use falls back"
-    );
 }

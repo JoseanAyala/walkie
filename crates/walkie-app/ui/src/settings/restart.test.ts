@@ -20,7 +20,7 @@ const cfg = (): Config => ({
   inject: { strategy: "paste", restore_clipboard_ms: 300 },
   history: { enabled: true },
   audio: { input_device: "", duck_while_recording: true, duck_percent: 30 },
-  theme: { name: "classic", appearance: "system", custom: [] },
+  theme: { appearance: "system" },
 });
 
 describe("pendingRestart", () => {
@@ -30,7 +30,7 @@ describe("pendingRestart", () => {
 
   it("applies a theme change live", () => {
     const now = cfg();
-    now.theme = { name: "klein", appearance: "dark", custom: [] };
+    now.theme = { appearance: "dark" };
     expect(pendingRestart(cfg(), now)).toEqual([]);
   });
 

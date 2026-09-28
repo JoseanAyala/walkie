@@ -47,10 +47,7 @@ windows. Every change saves itself.
   on-device model in the tone you pick — Formal, Casual, Very casual or
   Excited (it says whether Apple Intelligence is ready). Test tries it.
 - **History**: your past dictations, searchable, stored only on this Mac.
-- **Theme**: eight palettes, System / Light / Dark, and your own palettes.
-  Paste hex codes, a [coolors.co](https://coolors.co) link or a
-  [Lospec](https://lospec.com/palette-list) list; walkie picks the dark,
-  main and accent colors (you can swap them) and keeps every shade readable.
+- **Theme**: Light, Dark, or System (follows macOS).
 
 Launch at login is a real macOS login item (System Settings → General →
 Login Items); it needs the installed app, not `cargo tauri dev`.
@@ -75,14 +72,7 @@ duck_while_recording = true  # lower other audio while you dictate…
 duck_percent = 70            # …to this % of its volume (restored after, unless you changed it)
 
 [theme]
-name = "classic"             # classic, pantone, riso, terminal, matcha, klein, mocha, lilac, or yours
 appearance = "system"        # "light" | "dark"
-
-[[theme.custom]]             # an imported palette
-name = "Sunset"
-base = "#2b2a30"             # text in light mode, the desktop in dark
-main = "#7479d8"             # the desktop in light mode, title bars in dark
-accent = "#e94b3c"           # the selection, hover, warnings
 ```
 
 History lives in `~/.local/share/walkie/history.sqlite3` (off switch in

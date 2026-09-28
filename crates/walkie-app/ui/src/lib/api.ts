@@ -38,18 +38,8 @@ export interface AppleAi {
 
 export type Appearance = "system" | "light" | "dark";
 
-export interface CustomTheme {
-  name: string;
-  base: string;
-  main: string;
-  accent: string;
-}
-
 export interface ThemeCfg {
-  /** a preset key or a custom theme's name */
-  name: string;
   appearance: Appearance;
-  custom: CustomTheme[];
 }
 
 export interface Check {

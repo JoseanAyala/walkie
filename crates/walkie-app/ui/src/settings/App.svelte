@@ -22,7 +22,7 @@ const TABS = {
     sub: "rewrite with Apple's on-device model or any CLI",
   },
   history: { name: "History", file: "history.db", sub: "your dictations, stored only on this Mac" },
-  theme: { name: "Theme", file: "theme.cfg", sub: "colors, light and dark, your own palettes" },
+  theme: { name: "Theme", file: "theme.cfg", sub: "light, dark, or as macOS is" },
 } as const;
 type Tab = keyof typeof TABS;
 
