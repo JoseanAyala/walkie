@@ -1,4 +1,5 @@
-//! The Status tab: everything that has silently broken dictation before,
+//! The checks behind Settings (what walkie needs, up top; all of them under
+//! Advanced): everything that has silently broken dictation before,
 //! checked directly instead of inferred from "nothing happened".
 
 use serde::Serialize;

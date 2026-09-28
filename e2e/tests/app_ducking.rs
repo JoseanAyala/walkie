@@ -156,6 +156,7 @@ fn turning_it_off_in_settings_applies_without_a_restart() {
     let app = app_with(true);
     app.tray("Settings…");
     assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
+    app.click("Walkie", "Advanced", 1);
     app.click_checkbox("Walkie", "Lower other audio while dictating");
     app.wait_log("walkie: settings applied", 2);
     let _doc = Target::open();

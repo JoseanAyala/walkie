@@ -63,7 +63,7 @@ fn unplugged_microphone_stays_selected_and_marked_not_connected() {
     open_general(&app);
     let m = mic_choice(&app);
     assert_eq!(m, format!("{UNPLUGGED} (not connected)"));
-    app.click("Walkie", "↻", 1); // a refresh mustn't reset it either
+    open_general(&app); // reopening refreshes the list: it mustn't reset it either
     sleep(300);
     assert_eq!(mic_choice(&app), format!("{UNPLUGGED} (not connected)"));
     assert_eq!(

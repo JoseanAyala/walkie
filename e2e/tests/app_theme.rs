@@ -1,4 +1,4 @@
-//! Light and dark (Settings → Theme), against the real
+//! Light and dark (Settings → General → Appearance), against the real
 //! installed app. Run: e2e/run-app-tests.sh theme
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
@@ -13,7 +13,7 @@ fn theme_tab() -> App {
     app.launch();
     app.tray("Settings…");
     assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
-    app.click("Walkie", "Theme", 1);
+    app.click("Walkie", "General", 1);
     app
 }
 

@@ -46,7 +46,7 @@ fn wait_text(app: &App, window: &str, needle: &str, present: bool) -> String {
 #[test]
 fn changing_a_setting_saves_it_without_a_save_button() {
     let _t = begin("changing_a_setting_saves_it_without_a_save_button");
-    let app = settings("General", None);
+    let app = settings("Advanced", None);
     let before = app.config().audio.duck_while_recording;
     app.click_checkbox("Walkie", "Lower other audio while dictating");
     step("waiting for the config file to change");
@@ -69,7 +69,7 @@ fn changing_a_setting_saves_it_without_a_save_button() {
 #[test]
 fn model_picker_says_how_much_ram_it_takes() {
     let _t = begin("model_picker_says_how_much_ram_it_takes");
-    let app = settings("General", None); // test config picks "base"
+    let app = settings("Advanced", None); // test config picks "base"
     let text = wait_text(&app, "Walkie", "about 390 MB of RAM", true);
     assert!(
         text.contains("about 390 MB of RAM"),

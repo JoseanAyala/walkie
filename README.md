@@ -39,22 +39,26 @@ The tray icon is gray when idle, red while recording and amber while it works.
 Open walkie again (or pick Settings… in the tray) for a small desktop of
 windows. Every change saves itself.
 
-- **General**: the shortcuts, launch at login, microphone, language, speech
-  model (with the RAM it takes), paste vs. type, and how much to
-  lower other audio while you speak.
-- **Status**: what walkie needs to work (permissions, model, mic, keyboard
-  hook), with a button to fix each, and the version.
+- **General**: the shortcuts, microphone, language, appearance (Light, Dark
+  or System) and launch at login.
 - **Polish**: what the polish shortcut uses: your command, or Apple's
   on-device model in the tone you pick — Formal, Casual, Very casual or
-  Excited (it says whether Apple Intelligence is ready). Test tries it.
+  Excited (it says whether Apple Intelligence is ready). Try it on a
+  sentence of your own.
 - **History**: your past dictations, searchable, stored only on this Mac.
-- **Theme**: Light, Dark, or System (follows macOS).
+- **Advanced**: the speech model (with the RAM it takes), paste vs. type,
+  how much to lower other audio while you speak, every check walkie runs,
+  and the version.
+
+Anything walkie still needs (a permission, a mic) is listed above every
+page, with a button to fix it. Every change applies at once; nothing needs
+a restart.
 
 Launch at login is a real macOS login item (System Settings → General →
 Login Items); it needs the installed app, not `cargo tauri dev`.
 `walkie --login-item status|on|off` does the same from a terminal. If the
-chosen mic is unplugged, walkie records from the system default and Status
-says so.
+chosen mic is unplugged, walkie records from the system default and
+Settings says so.
 
 ## Config
 

@@ -2,22 +2,20 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { onMount } from "svelte";
 import { api, type Check, on } from "@/lib/api";
+import Advanced from "./Advanced.svelte";
 import General from "./General.svelte";
 import History from "./History.svelte";
 import Polish from "./Polish.svelte";
 import Problems from "./Problems.svelte";
 import { problems } from "./problems";
-import Status from "./Status.svelte";
 import { settings } from "./state.svelte";
-import Theme from "./Theme.svelte";
 
 // in menu order; each page is titled with its number
 const TABS = {
-  general: { name: "General", sub: "How walkie listens and types." },
-  status: { name: "Status", sub: "What walkie needs to work." },
+  general: { name: "General", sub: "Your shortcuts, microphone and language." },
   polish: { name: "Polish", sub: "Rewrite with Apple's on-device model or any CLI." },
   history: { name: "History", sub: "Your dictations, stored only on this Mac." },
-  theme: { name: "Theme", sub: "Light, dark, or as macOS is." },
+  advanced: { name: "Advanced", sub: "The speech model, how text gets in, and checks." },
 } as const;
 const num = (t: Tab) => String(Object.keys(TABS).indexOf(t) + 1).padStart(2, "0");
 type Tab = keyof typeof TABS;
@@ -41,7 +39,7 @@ async function loadStatus() {
 
 function show(t: Tab) {
   tab = t;
-  if (t === "status") loadStatus();
+  if (t === "advanced") loadStatus();
 }
 
 onMount(() => {
@@ -52,16 +50,13 @@ onMount(() => {
     () => {},
   );
   // every 2s while something's missing (so a grant shows at once) or the
-  // Status tab is open; otherwise every 10s
+  // Advanced tab (with every check) is open; otherwise every 10s
   let ticks = 0;
   const timer = setInterval(() => {
     if (document.visibilityState !== "visible") return;
-    if (needs || tab === "status" || ++ticks % 5 === 0) loadStatus();
+    if (needs || tab === "advanced" || ++ticks % 5 === 0) loadStatus();
   }, 2000);
   const offs = [
-    on("show-tab", (t) => {
-      if (t in TABS) show(t as Tab);
-    }),
     on("model-status", (s) => (modelStatus = s)),
     on("download-progress", (p) => (modelStatus = `downloading ${p}%`)),
     // Errors are otherwise only shown on the overlay, which most of the
@@ -114,17 +109,15 @@ onMount(() => {
           <h1 class="title"><em>{num(tab)}</em> {TABS[tab].name}</h1>
           <div class="muted">{TABS[tab].sub}</div>
         </div>
-        {#if tab === "status"}
-          <Status {checks} {version} />
+        {#if tab === "advanced"}
+          <Advanced {modelStatus} {checks} {version} />
         {:else if settings.cfg}
           {#if tab === "general"}
-            <General {modelStatus} />
+            <General />
           {:else if tab === "polish"}
             <Polish />
           {:else if tab === "history"}
             <History />
-          {:else if tab === "theme"}
-            <Theme />
           {/if}
         {/if}
       </div>

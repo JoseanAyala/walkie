@@ -64,7 +64,7 @@ fn tray_opens_settings_and_closing_only_hides_it() {
         app.wait_window("Walkie", true, 3),
         "Settings didn't open from the tray"
     );
-    for tab in ["General", "Status", "Polish", "History"] {
+    for tab in ["General", "Polish", "History", "Advanced"] {
         app.click("Walkie", tab, 1);
     }
     app.close("Walkie");
@@ -97,12 +97,12 @@ fn quitting_from_the_tray_does_not_crash() {
 }
 
 #[test]
-fn status_tab_lists_every_check() {
-    let _t = begin("status_tab_lists_every_check");
+fn advanced_lists_every_check() {
+    let _t = begin("advanced_lists_every_check");
     let app = ready_app();
     app.tray("Settings…");
     assert!(app.wait_window("Walkie", true, 3));
-    app.click("Walkie", "Status", 1);
+    app.click("Walkie", "Advanced", 1);
     let mut text = String::new();
     for _ in 0..20 {
         text = app.text("Walkie");

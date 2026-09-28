@@ -1,13 +1,12 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import { api, type LoginItem, type ModelChoice } from "@/lib/api";
-import { megabytes } from "@/lib/format";
+import { type Appearance, api, type LoginItem } from "@/lib/api";
 import Select from "@/lib/Select.svelte";
+import { applyTheme } from "@/lib/theme";
 import Field from "./Field.svelte";
 import Shortcuts from "./Shortcuts.svelte";
 import { settings } from "./state.svelte";
 
-let { modelStatus }: { modelStatus: string } = $props();
 const cfg = $derived(settings.cfg);
 
 // ---- launch at login: macOS owns this, so it's applied on toggle and
@@ -45,31 +44,24 @@ async function loadMics() {
   mics = list;
 }
 
-let models = $state<ModelChoice[]>([]);
-const modelText = (m: ModelChoice) => `${m.key} · ${m.note}`;
-const chosen = $derived(models.find((m) => m.key === cfg?.model));
-// a model the list doesn't know (set by hand in the config) stays shown
-const modelOptions = $derived([
-  ...models.map((m) => ({ value: m.key, text: modelText(m) })),
-  ...(cfg && !models.some((m) => m.key === cfg.model)
-    ? [{ value: cfg.model, text: cfg.model }]
-    : []),
-]);
 const LANGUAGES = [
   { value: "auto", text: "Auto-detect (en/es)" },
   { value: "en", text: "English" },
   { value: "es", text: "Español" },
 ];
-const STRATEGIES = [
-  { value: "paste", text: "Paste (recommended)" },
-  { value: "type", text: "Type keystrokes" },
-];
+const APPEARANCES: Appearance[] = ["system", "light", "dark"];
 const save = () => settings.save();
+
+function appearance(a: Appearance) {
+  if (!cfg) return;
+  cfg.theme.appearance = a;
+  applyTheme($state.snapshot(cfg.theme));
+  save();
+}
 
 onMount(() => {
   loadLogin();
   loadMics();
-  api.listModels().then((m) => (models = m), settings.fail.bind(settings));
   // e.g. back from System Settings, or a mic plugged in meanwhile
   const focus = () => {
     loadLogin();
@@ -81,6 +73,25 @@ onMount(() => {
 </script>
 
 {#if cfg}
+  <Field label="Shortcuts"><Shortcuts /></Field>
+  <Field label="Microphone">
+    <Select
+      label="Microphone"
+      bind:value={cfg.audio.input_device}
+      options={mics}
+      onchange={save}
+    />
+  </Field>
+  <Field label="Language">
+    <Select label="Language" bind:value={cfg.language} options={LANGUAGES} onchange={save} />
+  </Field>
+  <Field label="Appearance">
+    <div class="inline">
+      {#each APPEARANCES as a (a)}
+        <button aria-pressed={cfg.theme.appearance === a} onclick={() => appearance(a)}>{a}</button>
+      {/each}
+    </div>
+  </Field>
   <Field label="Startup">
     <label class="cb"
       ><input type="checkbox" checked={login?.on ?? false} onchange={toggleLogin}>
@@ -94,53 +105,5 @@ onMount(() => {
         {/if}
       </div>
     {/if}
-  </Field>
-  <Field label="Shortcuts"><Shortcuts /></Field>
-  <Field label="Microphone">
-    <div class="inline">
-      <Select
-        label="Microphone"
-        bind:value={cfg.audio.input_device}
-        options={mics.map((m) => ({ value: m.value, text: m.text }))}
-        onchange={save}
-      />
-      <button title="Refresh the device list" onclick={loadMics}>↻</button>
-    </div>
-  </Field>
-  <Field label="Language">
-    <Select label="Language" bind:value={cfg.language} options={LANGUAGES} onchange={save} />
-  </Field>
-  <Field label="Model">
-    <Select label="Model" bind:value={cfg.model} options={modelOptions} onchange={save} />
-    {#if chosen}
-      <div class="hint">about {megabytes(chosen.memory_mb)} of RAM while walkie is open</div>
-    {/if}
-    <div class="hint">model: {modelStatus}</div>
-  </Field>
-  <Field label="Injection">
-    <Select label="Injection" bind:value={cfg.inject.strategy} options={STRATEGIES} onchange={save} />
-  </Field>
-  <Field label="Ducking">
-    <label class="cb"
-      ><input
-        type="checkbox"
-        bind:checked={cfg.audio.duck_while_recording}
-        onchange={() => settings.save()}
-      >
-      {"Lower other audio while dictating"}</label
-    >
-    <div class="range">
-      <input
-        type="range"
-        min="0"
-        max="100"
-        step="5"
-        aria-label="Volume while recording"
-        bind:value={cfg.audio.duck_percent}
-        disabled={!cfg.audio.duck_while_recording}
-        oninput={() => settings.saveSoon()}
-      ><output>{cfg.audio.duck_percent}%</output>
-    </div>
-    <div class="hint">volume while recording, as % of the current level</div>
   </Field>
 {/if}

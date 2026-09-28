@@ -17,7 +17,7 @@ use walkie_core::stt::{LangHint, SttEngine, Transcript};
 
 use crate::status::{self, HotkeyState, ModelStatus};
 
-/// Emits a model status and remembers it for the Status tab.
+/// Emits a model status and remembers it for Settings.
 /// The OS e2e suite plays a fixture instead of the mic via WALKIE_TEST_AUDIO.
 /// Only `test-hooks` builds honour it; a shipped app always uses the mic.
 pub fn test_audio() -> Option<std::ffi::OsString> {
