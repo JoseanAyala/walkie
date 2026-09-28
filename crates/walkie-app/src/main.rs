@@ -112,7 +112,7 @@ fn main() {
             // Opening walkie again while it runs (e.g. its Dock/Finder icon).
             #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen { .. } => show_front(app),
-            tauri::RunEvent::Exit => glue::unduck(app),
+            tauri::RunEvent::Exit => glue::shutdown(app),
             _ => {}
         });
 }

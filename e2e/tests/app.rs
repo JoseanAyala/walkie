@@ -90,6 +90,26 @@ fn tray_opens_settings_and_closing_only_hides_it() {
     );
 }
 
+/// Regression: exit() with the Whisper model still loaded aborted in ggml's
+/// Metal teardown (GGML_ASSERT), so every quit was a crash.
+#[test]
+fn quitting_from_the_tray_does_not_crash() {
+    let _t = begin("quitting_from_the_tray_does_not_crash");
+    let app = ready_app();
+    assert!(app.wait_log("model ready", 5), "{}", app.log_text());
+    app.tray("Quit Walkie");
+    let gone = (0..50).any(|_| {
+        sleep(100);
+        !std::process::Command::new("pgrep")
+            .args(["-x", "walkie"])
+            .status()
+            .is_ok_and(|s| s.success())
+    });
+    assert!(gone, "walkie didn't quit\n{}", app.log_text());
+    let log = app.log_text();
+    assert!(!log.contains("GGML_ASSERT"), "crashed on quit:\n{log}");
+}
+
 #[test]
 fn status_tab_lists_every_check() {
     let _t = begin("status_tab_lists_every_check");

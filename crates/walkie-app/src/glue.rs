@@ -121,6 +121,11 @@ pub fn start(app: AppHandle) -> Result<()> {
         app.manage(Duck(d.clone()));
         d
     });
+    let (stopped_tx, stopped_rx) = mpsc::channel::<()>();
+    app.manage(Worker {
+        tx: Mutex::new(cmd_tx.clone()),
+        stopped: Mutex::new(stopped_rx),
+    });
     app.manage(PasteLast {
         last: Mutex::new(None),
         tx: Mutex::new(cmd_tx.clone()),
@@ -202,7 +207,8 @@ pub fn start(app: AppHandle) -> Result<()> {
                 session = session.with_ducker(d);
             }
             ready.store(true, Ordering::SeqCst);
-            session.run(cmd_rx);
+            session.run(cmd_rx); // consumes the session: the model is freed here
+            let _ = stopped_tx.send(());
         });
     }
 
@@ -253,6 +259,32 @@ pub fn start(app: AppHandle) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// The session worker, so quitting can stop it (see `shutdown`).
+pub struct Worker {
+    tx: Mutex<mpsc::Sender<Command>>,
+    stopped: Mutex<mpsc::Receiver<()>>,
+}
+
+/// How long quitting waits for the worker (it may be mid-transcription).
+const SHUTDOWN_WAIT: Duration = Duration::from_secs(3);
+
+/// Quit and restart end in `exit()`, whose C++ static destructors include
+/// ggml's Metal device: it aborts (GGML_ASSERT on its residency sets) if the
+/// Whisper model's GPU buffers are still alive. So free the model first by
+/// stopping the worker that owns it.
+pub fn shutdown(app: &AppHandle) {
+    unduck(app);
+    let Some(w) = app.try_state::<Worker>() else {
+        return;
+    };
+    let _ = w.tx.lock().unwrap().send(Command::Shutdown);
+    // Err(Disconnected) is fine too: the worker already ended (model error).
+    let waited = w.stopped.lock().unwrap().recv_timeout(SHUTDOWN_WAIT);
+    if let Err(mpsc::RecvTimeoutError::Timeout) = waited {
+        eprintln!("walkie: worker still busy at quit; exiting anyway");
+    }
 }
 
 /// The ducker, so quitting mid-recording can put the volume back.
