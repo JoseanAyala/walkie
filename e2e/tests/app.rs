@@ -193,6 +193,64 @@ fn the_overlay_says_typed_before_it_hides() {
     );
 }
 
+/// A mic that sends nothing (muted, or a headset not sending audio): while
+/// still recording, the overlay says it can't hear you.
+#[test]
+fn a_silent_mic_says_it_cant_hear_you() {
+    let _t = begin("a_silent_mic_says_it_cant_hear_you");
+    let app = App::new();
+    app.write_config(&App::test_config());
+    let quiet = app.silence(1);
+    app.launch_with(&[("WALKIE_TEST_AUDIO", &quiet)]);
+    app.require_keyboard();
+    let _doc = Target::open();
+    let mut kb = Keyboard::new();
+    kb.down("Fn").wait(2100); // past the overlay's DEAF_MS
+    step("waiting for the overlay to say it can't hear");
+    let mut seen = String::new();
+    for _ in 0..20 {
+        seen = app.overlay_text();
+        if seen.contains("can't hear you") {
+            break;
+        }
+        sleep(50);
+    }
+    kb.up("Fn");
+    assert!(
+        seen.contains("can't hear you"),
+        "the overlay should say it can't hear; it showed {seen:?}\n{}",
+        app.log_text()
+    );
+}
+
+/// The other side: a mic that hears you never gets the hint, even held past
+/// DEAF_MS. (The mic reports its first level before the session says
+/// "recording"; the overlay once dropped it and cried wolf.)
+#[test]
+fn a_live_mic_never_says_it_cant_hear_you() {
+    let _t = begin("a_live_mic_never_says_it_cant_hear_you");
+    let app = ready_app();
+    app.require_keyboard();
+    let _doc = Target::open();
+    let mut kb = Keyboard::new();
+    kb.down("Fn").wait(2300);
+    step("reading the overlay");
+    let mut seen = String::new();
+    for _ in 0..10 {
+        seen = app.overlay_text();
+        if !seen.is_empty() {
+            break;
+        }
+        sleep(50);
+    }
+    kb.up("Fn");
+    assert!(
+        seen.contains("listening") && !seen.contains("can't hear"),
+        "the overlay should still be listening; it showed {seen:?}\n{}",
+        app.log_text()
+    );
+}
+
 /// Regression: typed text arrives as keyDowns with no keyUps; the hook read
 /// them as a key held forever, so the second hold matched no shortcut.
 #[test]

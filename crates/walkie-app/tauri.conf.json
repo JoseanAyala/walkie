@@ -30,7 +30,7 @@
         "label": "overlay",
         "url": "overlay.html",
         "visible": false,
-        "width": 280,
+        "width": 340,
         "height": 64,
         "transparent": true,
         "decorations": false,

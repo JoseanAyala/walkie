@@ -23,5 +23,5 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       popups (microphone, language, model, injection).
 - [x] **Window limits.** `minWidth`/`minHeight` on settings so resizing can't
       break the grid.
-- [ ] **Overlay meter.** Last; talk it over first. Peak-hold on the VU meter;
-      a fixed pill width so the label doesn't reflow between states.
+- [x] **Overlay meter.** A scrolling wave (dB-scaled), a "can't hear you" hint,
+      and a layout that holds still from REC to DONE.

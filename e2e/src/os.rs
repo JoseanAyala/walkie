@@ -205,8 +205,18 @@ impl App {
             .arg(env("XDG_DATA_HOME", &self.root.join("data")))
             .arg("--env")
             .arg(env("WALKIE_LOG", &self.log))
-            .arg("--env")
-            .arg(env("WALKIE_TEST_AUDIO", &fixture("en.wav")))
+            // the English fixture, unless the test brings its own audio
+            .args(
+                (!extra_env.iter().any(|(k, _)| *k == "WALKIE_TEST_AUDIO"))
+                    .then(|| {
+                        [
+                            "--env".to_string(),
+                            env("WALKIE_TEST_AUDIO", &fixture("en.wav")),
+                        ]
+                    })
+                    .into_iter()
+                    .flatten(),
+            )
             .arg("--env")
             .arg("WALKIE_DEBUG_EVENTS=1")
             .args(
@@ -614,6 +624,30 @@ impl App {
             r.as_deref() == Ok("ok")
         });
         assert!(found, "dropdown {choice:?} in {window:?}: {r:?}");
+    }
+
+    /// Writes `secs` of digital silence as a 16 kHz mono WAV in the test's
+    /// own dir, to play instead of the mic (a mic that sends nothing).
+    pub fn silence(&self, secs: u32) -> PathBuf {
+        let n = 16_000 * secs;
+        let data = n * 2;
+        let mut w = Vec::with_capacity(44 + data as usize);
+        w.extend(b"RIFF");
+        w.extend((36 + data).to_le_bytes());
+        w.extend(b"WAVEfmt ");
+        w.extend(16u32.to_le_bytes());
+        w.extend(1u16.to_le_bytes()); // PCM
+        w.extend(1u16.to_le_bytes()); // mono
+        w.extend(16_000u32.to_le_bytes());
+        w.extend(32_000u32.to_le_bytes()); // bytes per second
+        w.extend(2u16.to_le_bytes()); // block align
+        w.extend(16u16.to_le_bytes()); // bits per sample
+        w.extend(b"data");
+        w.extend(data.to_le_bytes());
+        w.resize(44 + data as usize, 0);
+        let path = self.root.join("silence.wav");
+        std::fs::write(&path, w).unwrap();
+        path
     }
 
     /// The overlay pill's text, or "" while it's hidden. Only that window:
