@@ -2,6 +2,7 @@
 name = "walkie-e2e"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 publish = false
 description = "End-to-end tests: key events → hotkey engine → session → real Whisper → injected text"
 

@@ -145,3 +145,8 @@ Bumps the version, runs `make check`, commits, tags `v0.3.0` and, once you
 confirm, pushes. The tag builds an ad-hoc-signed zip (`scripts/package.sh`)
 and attaches it to a GitHub Release. CI runs fmt, lint and tests on every PR
 and push to `main`, and uploads a `Walkie.app` build for each push to `main`.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The bundled Departure Mono font is under the SIL Open Font License
+([its license](crates/walkie-app/ui/src/lib/fonts/DepartureMono-LICENSE.txt)).
