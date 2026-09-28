@@ -1,5 +1,6 @@
 <script lang="ts">
-import { type AppleAi, api, message, type Tone } from "@/lib/api";
+import { type AppleAi, api, type Tone } from "@/lib/api";
+import { chord } from "@/lib/format";
 import Select from "@/lib/Select.svelte";
 import Field from "./Field.svelte";
 import { settings } from "./state.svelte";
@@ -38,40 +39,28 @@ $effect(() => {
   if (apple && !ai) api.appleAiStatus().then((s) => (ai = s));
 });
 
-let running = $state(false);
-let out = $state<{ ok: boolean; text: string } | null>(null);
-
 const PROVIDERS = [
-  { value: "command", text: "Your command" },
+  { value: "command", text: "A command of yours" },
   { value: "apple", text: "Apple, on this Mac (macOS 26)" },
 ];
-// a different model or tone: the last test's output no longer applies
-function changed() {
-  out = null;
-  settings.save();
-}
-
-async function test() {
-  if (!cfg) return;
-  running = true;
-  out = null;
-  try {
-    const r = await api.testPolish(cfg.polish);
-    out = { ok: true, text: `→ ${r.trim()}` };
-  } catch (e) {
-    out = { ok: false, text: message(e) };
-  }
-  running = false;
-}
+const save = () => settings.save();
 </script>
 
 {#if cfg}
-  <Field label="Model">
+  <Field label="Shortcut">
+    {#if cfg.hotkeys.polish.length}
+      <kbd>{chord(cfg.hotkeys.polish)}</kbd>
+      <span class="hint">polishes the selected text, or the whole field · change it in General</span>
+    {:else}
+      <span class="hint">off · turn it on in General</span>
+    {/if}
+  </Field>
+  <Field label="Rewrite with">
     <Select
-      label="Polish model"
+      label="Rewrite with"
       bind:value={cfg.polish.provider}
       options={PROVIDERS}
-      onchange={changed}
+      onchange={save}
     />
     {#if apple}
       <div class="hint" data-testid="apple-ai">
@@ -95,7 +84,7 @@ async function test() {
         label="Polish tone"
         bind:value={cfg.polish.tone}
         options={TONES.map((t) => ({ value: t.value, text: t.name }))}
-        onchange={changed}
+        onchange={save}
       />
       <div class="example" data-testid="tone-example">{example}</div>
     </Field>
@@ -119,32 +108,6 @@ async function test() {
       {/if}
     </Field>
   {/if}
-  <Field label="Timeout">
-    <div class="range">
-      <input
-        type="range"
-        min="5"
-        max="300"
-        step="5"
-        aria-label="Polish timeout in seconds"
-        bind:value={cfg.polish.timeout_secs}
-        oninput={() => settings.saveSoon()}
-      ><output>{cfg.polish.timeout_secs}s</output>
-    </div>
-  </Field>
-  <Field label="Try it">
-    <button disabled={running} onclick={test}>Test</button>
-    <div class="out" class:dots={!out && !running}>
-      {#if running}
-        running…
-      {:else if out?.ok}
-        {out.text}
-      {:else if out}
-        <span class="chip warn">ERR</span>
-        {out.text}
-      {/if}
-    </div>
-  </Field>
 {/if}
 
 <style>
@@ -155,20 +118,5 @@ async function test() {
   border-left: 2px solid var(--lav);
   font: italic 17px / 22px var(--serif);
   white-space: pre-wrap;
-}
-.out {
-  margin-top: 8px;
-  min-height: 48px;
-  border: 1px solid var(--ink);
-  padding: 6px 10px;
-  background: var(--bg);
-  line-height: 18px;
-  white-space: pre-wrap;
-  -webkit-user-select: text;
-  user-select: text;
-}
-.out.dots {
-  border-style: dashed;
-  border-color: var(--rule);
 }
 </style>

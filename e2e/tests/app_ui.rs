@@ -1,6 +1,5 @@
-//! The Settings window's own behavior (autosave, History Delete, the polish
-//! Test button), against the real
-//! installed app. Run: e2e/run-app-tests.sh  (same requirements as tests/app.rs)
+//! The Settings window's own behavior (autosave, History Delete, the Polish
+//! page), against the real installed app. Run: e2e/run-app-tests.sh  (same requirements as tests/app.rs)
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET).
@@ -105,16 +104,6 @@ fn history_delete_removes_the_row() {
     );
 }
 
-#[test]
-fn polish_test_button_shows_the_commands_output() {
-    let _t = begin("polish_test_button_shows_the_commands_output");
-    let app = settings("Polish", None); // test config: tr 'a-z' 'A-Z'
-    app.click("Walkie", "Test", 1);
-    let want = "QUICK TEST OF THE POLISH COMMAND";
-    let text = wait_text(&app, "Walkie", want, true);
-    assert!(text.contains(want), "no polish output:\n{text}");
-}
-
 /// What the installed walkie-ai says about this Mac: the tests below expect
 /// the app to agree, whether or not Apple Intelligence is on.
 fn installed_apple_status() -> String {
@@ -142,6 +131,10 @@ fn polish_tab_says_whether_apples_model_is_ready() {
         "Apple shows its tone:\n{text}"
     );
     assert!(!text.contains("Prompt"), "prompts aren't editable:\n{text}");
+    assert!(
+        text.contains("change it in General"),
+        "the page says which shortcut polishes:\n{text}"
+    );
 }
 
 #[test]
@@ -157,34 +150,6 @@ fn the_polish_tab_shows_the_saved_tone_and_its_example() {
     assert!(
         picked.iter().any(|d| d.starts_with("Very casual")),
         "{picked:?}"
-    );
-}
-
-/// The Test button with Apple selected, through a stand-in walkie-ai
-/// (WALKIE_AI_BIN): the real model's first call after idle can take 4–8s,
-/// too slow for the budget. commands.rs tests the real model directly.
-#[test]
-fn polish_test_button_runs_apples_model() {
-    let _t = begin("polish_test_button_runs_apples_model");
-    let app = App::new();
-    let helper = app.root.join("walkie-ai");
-    std::fs::write(
-        &helper,
-        "#!/bin/sh\ncase $1 in\n  status) echo available ;;\n  respond) printf 'apple says: '; cat ;;\nesac\n",
-    )
-    .unwrap();
-    std::fs::set_permissions(&helper, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-    app.write_config(&apple_config());
-    app.launch_with(&[("WALKIE_AI_BIN", &helper)]);
-    app.tray("Settings…");
-    assert!(app.wait_window("Walkie", true, 3), "Settings didn't open");
-    app.click("Walkie", "Polish", 1);
-    app.click("Walkie", "Test", 1);
-    let want = "apple says: um so this is";
-    let text = wait_text(&app, "Walkie", want, true);
-    assert!(
-        text.contains(want),
-        "the Test button didn't use walkie-ai:\n{text}"
     );
 }
 

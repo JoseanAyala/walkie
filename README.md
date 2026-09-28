@@ -43,8 +43,7 @@ windows. Every change saves itself.
   or System) and launch at login.
 - **Polish**: what the polish shortcut uses: your command, or Apple's
   on-device model in the tone you pick — Formal, Casual, Very casual or
-  Excited (it says whether Apple Intelligence is ready). Try it on a
-  sentence of your own.
+  Excited (it says whether Apple Intelligence is ready).
 - **History**: your past dictations, searchable, stored only on this Mac.
 - **Advanced**: the speech model (with the RAM it takes), paste vs. type,
   how much to lower other audio while you speak, every check walkie runs,

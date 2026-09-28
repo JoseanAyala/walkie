@@ -94,7 +94,6 @@ export const api = {
     invoke<HistoryRecord[]>("history_search", { q, limit }),
   historyDelete: (id: number) => invoke<boolean>("history_delete", { id }),
   historyClear: () => invoke<number>("history_clear"),
-  testPolish: (polish: Polish) => invoke<string>("test_polish", { polish }),
   appleAiStatus: () => invoke<AppleAi>("apple_ai_status"),
   copyText: (text: string) => invoke<void>("copy_text", { text }),
   openSettingsPane: (pane: Pane | string) => invoke<void>("open_settings_pane", { pane }),

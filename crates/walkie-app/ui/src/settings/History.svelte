@@ -75,8 +75,11 @@ onMount(load);
 {#if cfg}
   <label class="cb"
     ><input type="checkbox" bind:checked={cfg.history.enabled} onchange={() => settings.save()}>
-    {"Keep local history"}</label
+    {"Keep a history of dictations on this Mac"}</label
   >
+  <div class="hint">
+    turning it off stops saving new ones; what's here stays until you clear it
+  </div>
 {/if}
 <div class="tools">
   <input type="search" placeholder="search…" bind:value={q} oninput={typed} onkeydown={enter}>

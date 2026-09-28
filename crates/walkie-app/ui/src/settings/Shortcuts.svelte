@@ -5,12 +5,17 @@ import { chord, sameKeys } from "@/lib/format";
 import { settings } from "./state.svelte";
 
 const ROWS: { k: HotkeyName; name: string; label: string; help: string }[] = [
-  { k: "dictate", name: "Dictate", label: "Dictate", help: "hold to talk · double-tap to lock" },
+  {
+    k: "dictate",
+    name: "Dictate",
+    label: "Dictate",
+    help: "hold, speak, release: it's typed where you are · double-tap to keep it on",
+  },
   {
     k: "polish",
     name: "Polish",
     label: "Polish",
-    help: "tap; polishes the selected text, or the whole field (Polish tab)",
+    help: "tap: rewrites the selected text, or the whole field (see Polish)",
   },
   {
     k: "paste_last",
@@ -20,9 +25,15 @@ const ROWS: { k: HotkeyName; name: string; label: string; help: string }[] = [
   },
 ];
 const label = (k: HotkeyName) => ROWS.find((r) => r.k === k)?.label ?? k;
+// macOS gives 🌐 a job of its own unless told not to; the overlay also says
+// so if it gets in the way
+const GLOBE =
+  'fn is also macOS\'s 🌐 key: set Keyboard → "Press 🌐 key to" → Do Nothing, or it opens emoji or switches input too. Click to open Keyboard settings.';
+const usesFn = (keys: string[]) => keys.some((k) => k.toLowerCase() === "fn");
 
 let recording = $state<HotkeyName | null>(null);
-let msg = $state("Press Record, then the new keys together.");
+// only while recording, and to confirm or refuse what was recorded
+let msg = $state("");
 let err = $state(false);
 const say = (text: string, isErr = false) => {
   msg = text;
@@ -82,7 +93,19 @@ onMount(() => {
 {#if settings.cfg}
   {#each ROWS as r (r.k)}
     <div class="sc">
-      <span class="what">{r.name}<small>{r.help}</small></span>
+      <span class="what"
+        ><span>{r.name}{#if usesFn(settings.cfg.hotkeys[r.k])}
+          <button
+            class="info"
+            title={GLOBE}
+            aria-label="About the fn key"
+            onclick={() => api.openSettingsPane("keyboard")}
+          >
+            ⓘ
+          </button>
+        {/if}</span
+        ><small>{r.help}</small></span
+      >
       <kbd class:rec={recording === r.k} title={recording === r.k ? "esc cancels" : ""}
         >{recording === r.k ? "press keys…" : chord(settings.cfg.hotkeys[r.k])}</kbd
       >
@@ -97,7 +120,7 @@ onMount(() => {
     </div>
   {/each}
 {/if}
-<div class="hint" class:err>{msg}</div>
+{#if msg}<div class="hint" class:err>{msg}</div>{/if}
 
 <style>
 .sc {
@@ -118,6 +141,13 @@ onMount(() => {
   font-size: 12px;
   line-height: 16px;
   color: var(--muted);
+}
+.info {
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
 }
 kbd {
   text-align: center;

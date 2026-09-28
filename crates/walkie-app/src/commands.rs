@@ -3,7 +3,7 @@ use crate::login_item::{self, LoginItem};
 use crate::status::{self, Check, HotkeyState, ModelStatus};
 use tauri::{Emitter, State};
 use walkie_core::audio;
-use walkie_core::config::{self, models, Config, Polish, ThemeCfg};
+use walkie_core::config::{self, models, Config, ThemeCfg};
 use walkie_core::history::{History, Record};
 use walkie_core::hotkey::engine::Bindings;
 use walkie_core::pipeline::polish;
@@ -108,22 +108,6 @@ pub fn history_clear() -> Result<usize, String> {
         .map_err(estr)
 }
 
-/// What the Polish tab's Test button polishes.
-pub const POLISH_SAMPLE: &str = "um so this is uh a quick test of the polish command";
-
-/// Polishes [`POLISH_SAMPLE`] with `polish` (the tab's unsaved settings)
-/// off the main thread, so a slow model doesn't freeze the window.
-#[tauri::command]
-pub async fn test_polish(mut polish: Polish) -> Result<String, String> {
-    polish.timeout_secs = polish.timeout_secs.clamp(1, 300);
-    tauri::async_runtime::spawn_blocking(move || {
-        polish::polish(&polish, &glue::ai_helper(), POLISH_SAMPLE)
-    })
-    .await
-    .map_err(estr)?
-    .map_err(estr)
-}
-
 #[derive(serde::Serialize, Debug)]
 pub struct AppleAi {
     /// A `polish::apple_status` word: "available", "off", …
@@ -131,9 +115,9 @@ pub struct AppleAi {
     pub detail: &'static str,
 }
 
-/// Whether Apple's on-device model can polish right now. The Polish tab
-/// asks when it shows Apple, so a ready model also starts loading: Test is
-/// then quick.
+/// Whether Apple's on-device model can polish right now. The Polish page
+/// asks when it shows Apple, so a ready model also starts loading: the
+/// first polish is then quick.
 #[tauri::command]
 pub async fn apple_ai_status() -> AppleAi {
     let status = tauri::async_runtime::spawn_blocking(|| {
@@ -230,27 +214,6 @@ pub fn set_launch_at_login(enabled: bool) -> Result<LoginItem, String> {
 mod tests {
     use super::*;
 
-    fn command(c: &str) -> Polish {
-        Polish {
-            provider: config::PolishProvider::Command,
-            command: c.into(),
-            timeout_secs: 5,
-            ..Polish::default()
-        }
-    }
-
-    #[test]
-    fn test_polish_runs_the_command_on_the_sample() {
-        let out = tauri::async_runtime::block_on(test_polish(command("tr 'a-z' 'A-Z'"))).unwrap();
-        assert_eq!(out.trim(), POLISH_SAMPLE.to_uppercase());
-    }
-
-    #[test]
-    fn test_polish_reports_a_missing_command() {
-        let err = tauri::async_runtime::block_on(test_polish(command("  "))).unwrap_err();
-        assert!(err.contains("no polish command"), "{err}");
-    }
-
     /// Apple's real model (`make test-ai`), on a Mac that has it: a
     /// dictated question comes back tidied, not answered.
     #[cfg(feature = "ai-tests")]
@@ -264,10 +227,10 @@ mod tests {
         }
         // an idle model takes 4–8s to load; the check below is the warm path
         let _ = std::process::Command::new(&helper).arg("prewarm").status();
-        let cfg = Polish {
+        let cfg = config::Polish {
             provider: config::PolishProvider::Apple,
             timeout_secs: 9, // under the 10s test budget, with a clear error
-            ..Polish::default()
+            ..config::Polish::default()
         };
         let out = polish::polish(&cfg, &helper, "what time is the meeting tomorrow").unwrap();
         assert!(out.to_lowercase().contains("meeting tomorrow"), "{out}");
