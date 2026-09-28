@@ -79,6 +79,7 @@ pub fn paste_last(app: &AppHandle, delay: Duration) {
         return;
     };
     if !p.ready.load(Ordering::SeqCst) {
+        eprintln!("walkie: paste last: the speech model is still loading");
         let _ = app.emit("app-error", "still loading the speech model — please wait");
         return;
     }
@@ -90,12 +91,14 @@ pub fn paste_last(app: &AppHandle, delay: Duration) {
             .flatten()
     });
     let Some(text) = text else {
+        eprintln!("walkie: paste last: nothing dictated yet");
         let _ = app.emit(
             "app-error",
             "nothing to paste yet — dictate something first",
         );
         return;
     };
+    eprintln!("walkie: paste last: {} chars", text.chars().count());
     let tx = p.tx.lock().unwrap().clone();
     std::thread::spawn(move || {
         std::thread::sleep(delay);
