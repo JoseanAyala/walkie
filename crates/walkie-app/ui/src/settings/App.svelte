@@ -99,6 +99,9 @@ onMount(() => {
     </Win>
   </div>
 
+  <!-- one column, so the main window ends level with the side ones unless
+       the restart bar takes its place at the bottom -->
+  <div class="right">
   <Win title={TABS[tab].name} class="main" bodyClass="scroll">
     {#snippet extra()}
       <!-- every change saves itself; this just confirms it happened -->
@@ -135,6 +138,7 @@ onMount(() => {
       <button class="primary" onclick={() => api.restartApp()}>Restart walkie</button>
     </div>
   {/if}
+  </div>
 </div>
 
 <style>
@@ -142,7 +146,7 @@ onMount(() => {
   height: 100vh;
   display: grid;
   grid-template-columns: 158px 1fr;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   gap: 10px 12px;
   padding: 10px 12px 12px;
 }
@@ -152,8 +156,8 @@ onMount(() => {
   gap: 8px;
   align-items: center;
 }
-.side {
-  grid-row: 2 / 4;
+.side,
+.right {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -191,6 +195,7 @@ nav button.on {
   line-height: 16px;
 }
 :global(.main) {
+  flex: 1;
   min-height: 0;
 }
 :global(.main > .body.scroll) {
@@ -222,7 +227,6 @@ nav button.on {
   padding: 0 4px;
 }
 .restart {
-  grid-column: 2;
   display: flex;
   gap: 8px;
   align-items: center;
