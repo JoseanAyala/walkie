@@ -124,6 +124,12 @@ pub struct App {
     pub log: PathBuf,
 }
 
+impl Default for App {
+    fn default() -> App {
+        App::new()
+    }
+}
+
 impl App {
     /// Fresh dirs; nothing launched yet.
     pub fn new() -> App {
@@ -141,9 +147,11 @@ impl App {
 
     /// A config for tests: onboarding done, small model, deterministic polish.
     pub fn test_config() -> Config {
-        let mut c = Config::default();
-        c.first_run = false;
-        c.model = "base".into();
+        let mut c = Config {
+            first_run: false,
+            model: "base".into(),
+            ..Default::default()
+        };
         c.polish.command = "tr 'a-z' 'A-Z'".into();
         c
     }
@@ -654,6 +662,10 @@ impl Keyboard {
     }
 
     /// Typing into the typing target.
+    #[allow(
+        clippy::new_without_default,
+        reason = "it checks what's frontmost; Default would hide that"
+    )]
     pub fn new() -> Keyboard {
         Self::into(&[TARGET])
     }

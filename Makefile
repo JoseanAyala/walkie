@@ -52,7 +52,7 @@ fmt-check: ui-deps ## Fail if code isn't formatted
 	cd $(UI_DIR) && bun run biome format .
 
 lint: ui ## Clippy + oxlint + Biome + svelte-check, warnings are errors
-	cargo clippy --workspace --all-targets -- -D warnings
+	cargo clippy --workspace --all-targets --all-features -- -D warnings
 	cd $(UI_DIR) && bun run lint
 	cd $(UI_DIR) && bun run check
 
