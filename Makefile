@@ -1,11 +1,11 @@
-# hearme — every day-to-day command in one place. `make help` lists them.
+# walkie — every day-to-day command in one place. `make help` lists them.
 
 .DEFAULT_GOAL := help
 .PHONY: help dev debug install build package run ui ui-deps \
         fmt fmt-check lint test check test-stt test-e2e test-app test-all \
         model icons cert hooks tauri-cli release clean
 
-APP_DIR := crates/hearme-app
+APP_DIR := crates/walkie-app
 UI_DIR := $(APP_DIR)/ui
 
 help: ## List targets
@@ -16,7 +16,7 @@ help: ## List targets
 dev: ## Build, install to /Applications, launch, follow the log
 	scripts/dev.sh
 
-debug: ## Same as dev, with key-event logging (HEARME_DEBUG_EVENTS=1)
+debug: ## Same as dev, with key-event logging (WALKIE_DEBUG_EVENTS=1)
 	scripts/dev.sh --debug
 
 install: ## Build and install to /Applications without launching
@@ -31,11 +31,11 @@ ui-deps:
 	cd $(UI_DIR) && bun install --frozen-lockfile
 
 # The Rust app embeds the built UI at compile time (tauri::generate_context!),
-# so anything that compiles hearme-app needs it built first.
-ui: ui-deps ## Build the Svelte UI into crates/hearme-app/dist
+# so anything that compiles walkie-app needs it built first.
+ui: ui-deps ## Build the Svelte UI into crates/walkie-app/dist
 	cd $(UI_DIR) && bun run build
 
-build: ## Bundle hearme.app, signed with the local identity
+build: ## Bundle walkie.app, signed with the local identity
 	cd $(APP_DIR) && cargo tauri build
 
 package: ## Ad-hoc-signed release zip (what CI ships)
@@ -65,10 +65,10 @@ check: fmt-check lint test ## What CI runs: fmt-check + lint + test
 # --- Slow tests --------------------------------------------------------------
 
 test-stt: model ## Real Whisper on the en/es fixtures
-	cargo test -p hearme-core --features stt-tests
+	cargo test -p walkie-core --features stt-tests
 
 test-e2e: model ## Keystrokes → engine → session → Whisper, in-process
-	cargo test -p hearme-e2e
+	cargo test -p walkie-e2e
 
 test-app: ## Drive the installed app through macOS (~30s, don't type)
 	e2e/run-app-tests.sh
@@ -78,11 +78,11 @@ test-all: check test-stt test-e2e test-app ## Everything
 # --- Setup -------------------------------------------------------------------
 
 model: ## Download the base Whisper model (skipped if present)
-	cargo run -q -p hearme-core --example fetch_model -- base
+	cargo run -q -p walkie-core --example fetch_model -- base
 
 icons: ## Regenerate app icons
-	cargo run -p hearme-app --example gen_icons
-	cd crates/hearme-app && cargo tauri icon icons/icon.png
+	cargo run -p walkie-app --example gen_icons
+	cd crates/walkie-app && cargo tauri icon icons/icon.png
 
 cert: ## Create the local signing identity (once per machine)
 	scripts/create-signing-cert.sh

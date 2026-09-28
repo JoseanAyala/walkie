@@ -1,23 +1,23 @@
-# hearme 🎙️
+# walkie 📻
 
 Local-only dictation for macOS. Hold a key, speak (English or Spanish), and
 the text is typed into whatever window has focus: Claude Code, Cursor, a
 browser, anything. Whisper runs on your Mac; your voice never leaves it.
 
 <p align="center">
-  <img src="docs/settings.png" width="640" alt="hearme's Settings window: a dotted pink desktop with small pixel-font windows">
+  <img src="docs/settings.png" width="640" alt="walkie's Settings window: a dotted pink desktop with small pixel-font windows">
 </p>
 
 ## Install
 
-1. Download `hearme-*.zip` from the
-   [latest release](https://github.com/JoseanAyala/hearme/releases/latest),
-   unzip it and move `hearme.app` to Applications.
+1. Download `walkie-*.zip` from the
+   [latest release](https://github.com/JoseanAyala/walkie/releases/latest),
+   unzip it and move `walkie.app` to Applications.
 2. The first time, right-click → **Open**. Releases are ad-hoc signed, so
    Gatekeeper doesn't know them.
 3. Onboarding walks you through Microphone, Accessibility and Input
    Monitoring, with a link to each setting. The speech model (~570 MB)
-   downloads on first launch to `~/.cache/hearme/models`.
+   downloads on first launch to `~/.cache/walkie/models`.
 
 After an update, macOS asks for those permissions again.
 
@@ -36,32 +36,32 @@ The tray icon is gray when idle, red while recording and amber while it works.
 
 ## Settings
 
-Open hearme again (or pick Settings… in the tray) for a small desktop of
+Open walkie again (or pick Settings… in the tray) for a small desktop of
 windows. Every change saves itself.
 
 - **General**: the shortcuts, launch at login, microphone, language, speech
   model (with its disk, memory and GPU use), paste vs. type, and how much to
   lower other audio while you speak.
-- **Status**: what hearme needs to work (permissions, model, mic, keyboard
+- **Status**: what walkie needs to work (permissions, model, mic, keyboard
   hook), with a button to fix each.
 - **Cleanup**: filler words to drop ("um", "o sea", …), per language.
 - **Polish**: the command for dictate + polish, with a Test button.
 - **History**: your past dictations, searchable, stored only on this Mac.
 - **Theme**: eight palettes, System / Light / Dark, and your own palettes.
   Paste hex codes, a [coolors.co](https://coolors.co) link or a
-  [Lospec](https://lospec.com/palette-list) list; hearme picks the dark,
+  [Lospec](https://lospec.com/palette-list) list; walkie picks the dark,
   main and accent colors (you can swap them) and keeps every shade readable.
   Nothing is fetched. The **light | dark** switch in the top bar pins a mode.
 
 Launch at login is a real macOS login item (System Settings → General →
 Login Items); it needs the installed app, not `cargo tauri dev`.
-`hearme --login-item status|on|off` does the same from a terminal. If the
-chosen mic is unplugged, hearme records from the system default and Status
+`walkie --login-item status|on|off` does the same from a terminal. If the
+chosen mic is unplugged, walkie records from the system default and Status
 says so.
 
 ## Config
 
-Settings writes `~/.config/hearme/config.toml`; you can edit it too.
+Settings writes `~/.config/walkie/config.toml`; you can edit it too.
 
 ```toml
 [polish]
@@ -84,12 +84,12 @@ main = "#7479d8"             # the desktop in light mode, title bars in dark
 accent = "#e94b3c"           # the selection, hover, warnings
 ```
 
-History lives in `~/.local/share/hearme/history.sqlite3` (off switch in
-Settings). Failed transcriptions keep their audio in `~/.cache/hearme/spool/`.
+History lives in `~/.local/share/walkie/history.sqlite3` (off switch in
+Settings). Failed transcriptions keep their audio in `~/.cache/walkie/spool/`.
 
 ## Develop
 
-Rust + Tauri 2; the windows are a Svelte UI in `crates/hearme-app/ui`
+Rust + Tauri 2; the windows are a Svelte UI in `crates/walkie-app/ui`
 (bun, Vite). [AGENTS.md](AGENTS.md) maps the code.
 
 ```sh
@@ -101,10 +101,10 @@ make dev        # build + install + relaunch + follow the log
 make help       # everything else
 ```
 
-Local builds sign with the self-signed "hearme local signing" identity, so
+Local builds sign with the self-signed "walkie local signing" identity, so
 macOS permission grants survive rebuilds. Ad-hoc signed, every rebuild
 silently invalidates Microphone, Accessibility and Input Monitoring: the
-toggles still show on but no longer apply. `hearme.entitlements` carries
+toggles still show on but no longer apply. `walkie.entitlements` carries
 `audio-input`; without it the hardened runtime mutes the mic.
 
 `bundle.macOS.minimumSystemVersion` in `tauri.conf.json` stays at `10.15`.
@@ -125,7 +125,7 @@ drives it like a person: real key events through macOS, the tray menu, the
 Settings and onboarding windows, dictating into a bare test window. It plays
 a WAV instead of the mic and uses a temp config and history, so your setup
 isn't touched; `make install` puts a normal build back afterwards. It needs
-Accessibility for hearme and your terminal, and "Press 🌐 key to" set to Do
+Accessibility for walkie and your terminal, and "Press 🌐 key to" set to Do
 Nothing. Each test must finish in 10s; a stuck one stops the run and says
 where. Don't type while it runs.
 
@@ -138,4 +138,4 @@ make release VERSION=0.3.0
 Bumps the version, runs `make check`, commits, tags `v0.3.0` and, once you
 confirm, pushes. The tag builds an ad-hoc-signed zip (`scripts/package.sh`)
 and attaches it to a GitHub Release. CI runs fmt, lint and tests on every PR
-and push to `main`, and uploads a `hearme.app` build for each push to `main`.
+and push to `main`, and uploads a `walkie.app` build for each push to `main`.

@@ -1,0 +1,29 @@
+[package]
+name = "walkie-app"
+version = "0.2.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+walkie-core = { path = "../walkie-core" }
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+objc2 = "0.6"
+libc = "0.2"
+arboard = "3.6.1"
+
+[features]
+# Lets the OS e2e suite swap the mic for a WAV (WALKIE_TEST_AUDIO). Never on
+# in shipped builds; e2e/run-app-tests.sh turns it on.
+test-hooks = []
+
+[dev-dependencies]
+image = "0.25"
+
+[[bin]]
+name = "walkie"
+path = "src/main.rs"

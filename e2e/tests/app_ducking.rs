@@ -5,7 +5,7 @@
 //! even when it fails.
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
-use hearme_e2e::os::{begin, osa, quit, sleep, step, App, Keyboard, Target};
+use walkie_e2e::os::{begin, osa, quit, sleep, step, App, Keyboard, Target};
 
 /// The output volume (0–100) as the menu bar shows it.
 fn volume() -> i64 {
@@ -116,7 +116,7 @@ fn volume_changed_during_recording_is_kept() {
     assert_eq!(
         volume(),
         70,
-        "hearme overwrote a volume the user picked\n{}",
+        "walkie overwrote a volume the user picked\n{}",
         app.log_text()
     );
 }

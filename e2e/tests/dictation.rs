@@ -1,9 +1,9 @@
 //! Keystrokes in, text out — with the default Wispr-style shortcuts unless a
-//! test says otherwise. Run: cargo test -p hearme-e2e
-//! Needs: cargo run -p hearme-core --example fetch_model -- base
+//! test says otherwise. Run: cargo test -p walkie-e2e
+//! Needs: cargo run -p walkie-core --example fetch_model -- base
 
-use hearme_core::config::Hotkeys;
-use hearme_e2e::{Rig, Setup};
+use walkie_core::config::Hotkeys;
+use walkie_e2e::{Rig, Setup};
 
 fn one(rig: &Rig) -> String {
     let t = rig.typed();
@@ -180,7 +180,7 @@ fn ctrl_cmd_v_pastes_the_last_transcript_again() {
     let starts = r
         .signals
         .iter()
-        .filter(|s| matches!(s, hearme_core::hotkey::engine::Signal::Start(_)))
+        .filter(|s| matches!(s, walkie_core::hotkey::engine::Signal::Start(_)))
         .count();
     assert_eq!(
         starts, 1,
@@ -204,7 +204,7 @@ fn ctrl_cmd_v_with_nothing_dictated_types_nothing() {
 
 #[test]
 fn legacy_right_cmd_config_still_dictates() {
-    let cfg: hearme_core::config::Config =
+    let cfg: walkie_core::config::Config =
         toml_from("[hotkeys]\ndictate = \"RightCmd\"\npolish_modifier = \"Shift\"");
     let mut r = Rig::new(Setup {
         hotkeys: cfg.hotkeys,
@@ -214,10 +214,10 @@ fn legacy_right_cmd_config_still_dictates() {
     assert!(one(&r).contains("hello"));
 }
 
-fn toml_from(s: &str) -> hearme_core::config::Config {
-    let dir = std::env::temp_dir().join(format!("hearme-e2e-{}", std::process::id()));
+fn toml_from(s: &str) -> walkie_core::config::Config {
+    let dir = std::env::temp_dir().join(format!("walkie-e2e-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let p = dir.join("config.toml");
     std::fs::write(&p, s).unwrap();
-    hearme_core::config::Config::load_from(&p).unwrap()
+    walkie_core::config::Config::load_from(&p).unwrap()
 }

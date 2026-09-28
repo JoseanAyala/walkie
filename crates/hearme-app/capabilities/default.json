@@ -1,6 +1,0 @@
-{
-  "identifier": "default",
-  "description": "hearme windows talk to the app core",
-  "windows": ["settings", "overlay", "onboarding"],
-  "permissions": ["core:default"]
-}

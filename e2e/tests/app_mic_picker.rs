@@ -4,10 +4,10 @@
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET).
 
-use hearme_e2e::os::{begin, sleep, App, Keyboard, Target};
+use walkie_e2e::os::{begin, sleep, App, Keyboard, Target};
 
 /// No real machine has a device by this name.
-const UNPLUGGED: &str = "hearme-e2e unplugged mic";
+const UNPLUGGED: &str = "walkie-e2e unplugged mic";
 
 fn app_with_mic(device: &str) -> App {
     let app = App::new();
@@ -22,17 +22,17 @@ fn open_general(app: &App) {
     let _ = app.close_if_open();
     app.tray("Settings…");
     assert!(
-        app.wait_window("hearme", true, 3),
+        app.wait_window("walkie", true, 3),
         "Settings didn't open from the tray"
     );
-    app.click("hearme", "General", 1);
+    app.click("walkie", "General", 1);
 }
 
 /// The Microphone dropdown's selected option, once the page has filled it.
 fn mic_choice(app: &App) -> String {
     let mut seen = Vec::new();
     for _ in 0..20 {
-        seen = app.dropdowns("hearme");
+        seen = app.dropdowns("walkie");
         if let Some(m) = seen
             .iter()
             .find(|v| v.starts_with("System default") || v.contains(UNPLUGGED))
@@ -63,7 +63,7 @@ fn unplugged_microphone_stays_selected_and_marked_not_connected() {
     open_general(&app);
     let m = mic_choice(&app);
     assert_eq!(m, format!("{UNPLUGGED} (not connected)"));
-    app.click("hearme", "↻", 1); // a refresh mustn't reset it either
+    app.click("walkie", "↻", 1); // a refresh mustn't reset it either
     sleep(300);
     assert_eq!(mic_choice(&app), format!("{UNPLUGGED} (not connected)"));
     assert_eq!(
@@ -90,10 +90,10 @@ fn status_warns_when_the_chosen_microphone_is_missing() {
         app.log_text()
     );
     open_general(&app);
-    app.click("hearme", "Status", 1);
+    app.click("walkie", "Status", 1);
     let mut text = String::new();
     for _ in 0..20 {
-        text = app.text("hearme");
+        text = app.text("walkie");
         if text.contains("not connected") {
             break;
         }

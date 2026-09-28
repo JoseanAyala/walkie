@@ -1,9 +1,9 @@
 //! Dictating with nothing editable focused: the transcript is copied, not
-//! lost, and the user gets a notice (not an error). Run: cargo test -p hearme-e2e
-//! Needs: cargo run -p hearme-core --example fetch_model -- base
+//! lost, and the user gets a notice (not an error). Run: cargo test -p walkie-e2e
+//! Needs: cargo run -p walkie-core --example fetch_model -- base
 
-use hearme_core::pipeline::session::NO_FIELD_NOTICE;
-use hearme_e2e::{Rig, Setup};
+use walkie_core::pipeline::session::NO_FIELD_NOTICE;
+use walkie_e2e::{Rig, Setup};
 
 #[test]
 fn no_text_field_copies_the_transcript_and_says_so() {

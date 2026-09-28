@@ -1,9 +1,9 @@
-# Toolchain for hearme, pinned so local builds and CI match.
+# Toolchain for walkie, pinned so local builds and CI match.
 #   mise install    then use `make` (make help lists the targets)
 
 [tools]
 rust = { version = "1.98.0", components = "rustfmt,clippy" }
-# The Svelte UI in crates/hearme-app/ui
+# The Svelte UI in crates/walkie-app/ui
 bun = "1.4.2"
 # Lets mise fetch cargo tools as prebuilt binaries instead of compiling them.
 cargo-binstall = "latest"

@@ -1,7 +1,7 @@
 //! Other audio is lowered while recording and put back on every way out.
-//! Run: cargo test -p hearme-e2e --test ducking
+//! Run: cargo test -p walkie-e2e --test ducking
 
-use hearme_e2e::{Rig, Setup};
+use walkie_e2e::{Rig, Setup};
 
 const BEFORE: f32 = 0.8;
 const DUCKED: f32 = 0.8 * 0.3;

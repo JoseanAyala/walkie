@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "walkie windows talk to the app core",
+  "windows": ["settings", "overlay", "onboarding"],
+  "permissions": ["core:default"]
+}

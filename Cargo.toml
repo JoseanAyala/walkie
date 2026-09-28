@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/hearme-core", "crates/hearme-app", "e2e"]
+members = ["crates/walkie-core", "crates/walkie-app", "e2e"]
 # `cargo test` stays fast; the e2e suite (real Whisper) runs on request:
-#   cargo test -p hearme-e2e
-default-members = ["crates/hearme-core", "crates/hearme-app"]
+#   cargo test -p walkie-e2e
+default-members = ["crates/walkie-core", "crates/walkie-app"]

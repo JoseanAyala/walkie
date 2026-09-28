@@ -7,23 +7,23 @@
 #[cfg(all(target_os = "macos", feature = "os-tests"))]
 pub mod os;
 
-use hearme_core::audio::duck::{Ducker, MemVolume};
-use hearme_core::audio::FileCapture;
-use hearme_core::config::{models, Config, Hotkeys};
-use hearme_core::history::History;
-use hearme_core::hotkey::engine::{Bindings, Engine, Signal};
-use hearme_core::hotkey::keys::Key;
-use hearme_core::inject::{Injected, Injector};
-use hearme_core::pipeline::session::{Command, Deps, Event, Session};
-use hearme_core::stt::whisper::WhisperEngine;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{mpsc, Arc};
+use walkie_core::audio::duck::{Ducker, MemVolume};
+use walkie_core::audio::FileCapture;
+use walkie_core::config::{models, Config, Hotkeys};
+use walkie_core::history::History;
+use walkie_core::hotkey::engine::{Bindings, Engine, Signal};
+use walkie_core::hotkey::keys::Key;
+use walkie_core::inject::{Injected, Injector};
+use walkie_core::pipeline::session::{Command, Deps, Event, Session};
+use walkie_core::stt::whisper::WhisperEngine;
 
 pub fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../crates/hearme-core/tests/fixtures")
+        .join("../crates/walkie-core/tests/fixtures")
         .join(name)
 }
 
@@ -83,7 +83,7 @@ impl Rig {
         let model = models::model_path("base").unwrap();
         assert!(
             model.exists(),
-            "e2e needs the base model — run: cargo run -p hearme-core --example fetch_model -- base"
+            "e2e needs the base model — run: cargo run -p walkie-core --example fetch_model -- base"
         );
         let (bindings, errors) = Bindings::from_config(&setup.hotkeys);
         assert!(errors.is_empty(), "bad hotkeys in test setup: {errors:?}");
@@ -125,10 +125,10 @@ impl Rig {
         let k = Key::parse(name).unwrap_or_else(|| panic!("unknown key {name}"));
         // Physical events always carry a side; a bare modifier means the left one.
         let k = match k {
-            Key::Shift(hearme_core::hotkey::keys::Side::Any) => Key::from_keycode(56),
-            Key::Cmd(hearme_core::hotkey::keys::Side::Any) => Key::from_keycode(55),
-            Key::Opt(hearme_core::hotkey::keys::Side::Any) => Key::from_keycode(58),
-            Key::Ctrl(hearme_core::hotkey::keys::Side::Any) => Key::from_keycode(59),
+            Key::Shift(walkie_core::hotkey::keys::Side::Any) => Key::from_keycode(56),
+            Key::Cmd(walkie_core::hotkey::keys::Side::Any) => Key::from_keycode(55),
+            Key::Opt(walkie_core::hotkey::keys::Side::Any) => Key::from_keycode(58),
+            Key::Ctrl(walkie_core::hotkey::keys::Side::Any) => Key::from_keycode(59),
             k => k,
         };
         let v = self.engine.on_key(k, down, self.t);

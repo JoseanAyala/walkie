@@ -1,13 +1,13 @@
 //! Launch at login against the real installed app: the Settings checkbox and
 //! the onboarding one change macOS's actual login item (SMAppService), which
-//! is checked from outside with `hearme --login-item status`.
+//! is checked from outside with `walkie --login-item status`.
 //! Run: e2e/run-app-tests.sh. The original login-item state is put back
 //! after every test (os::restore_login_item).
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
-use hearme_e2e::os::{begin, login_item, login_item_on, sleep, step, App};
+use walkie_e2e::os::{begin, login_item, login_item_on, sleep, step, App};
 
-const LABEL: &str = "Launch hearme at login";
+const LABEL: &str = "Launch walkie at login";
 
 fn wait_login_item(on: bool) -> String {
     step(format!(
@@ -48,18 +48,18 @@ fn settings_checkbox_toggles_the_real_login_item() {
     app.write_config(&App::test_config());
     app.launch();
     app.tray("Settings…");
-    assert!(app.wait_window("hearme", true, 3), "Settings didn't open");
-    app.click("hearme", "General", 1);
+    assert!(app.wait_window("walkie", true, 3), "Settings didn't open");
+    app.click("walkie", "General", 1);
 
     let before = login_item_on(&login_item("status"));
     assert_eq!(
-        wait_checkbox(&app, "hearme", before),
+        wait_checkbox(&app, "walkie", before),
         Some(before),
         "checkbox doesn't show macOS's state"
     );
 
     for want in [!before, before] {
-        app.click_checkbox("hearme", LABEL);
+        app.click_checkbox("walkie", LABEL);
         let s = wait_login_item(want);
         assert_eq!(
             login_item_on(&s),
@@ -67,10 +67,10 @@ fn settings_checkbox_toggles_the_real_login_item() {
             "toggling the checkbox left the login item {s:?}"
         );
         // the UI re-reads the state after applying it
-        assert_eq!(wait_checkbox(&app, "hearme", want), Some(want));
+        assert_eq!(wait_checkbox(&app, "walkie", want), Some(want));
         if s == "requires_approval" {
             assert!(
-                app.text("hearme").contains("approval"),
+                app.text("walkie").contains("approval"),
                 "no approval hint shown"
             );
         }
@@ -84,11 +84,11 @@ fn onboarding_turns_launch_at_login_on_by_default() {
     login_item("off");
     app.launch();
     assert!(
-        app.wait_window("Welcome to hearme", true, 3),
+        app.wait_window("Welcome to walkie", true, 3),
         "onboarding didn't show"
     );
     assert_eq!(
-        wait_checkbox(&app, "Welcome to hearme", true),
+        wait_checkbox(&app, "Welcome to walkie", true),
         Some(true),
         "should be checked by default"
     );
@@ -96,7 +96,7 @@ fn onboarding_turns_launch_at_login_on_by_default() {
         !login_item_on(&login_item("status")),
         "applied before onboarding finished"
     );
-    app.click("Welcome to hearme", "I've granted everything — finish", 1);
+    app.click("Welcome to walkie", "I've granted everything — finish", 1);
     let s = wait_login_item(true);
     assert!(
         login_item_on(&s),
@@ -111,14 +111,14 @@ fn onboarding_unchecked_leaves_launch_at_login_off() {
     login_item("off");
     app.launch();
     assert!(
-        app.wait_window("Welcome to hearme", true, 3),
+        app.wait_window("Welcome to walkie", true, 3),
         "onboarding didn't show"
     );
-    app.click_checkbox("Welcome to hearme", LABEL);
-    assert_eq!(wait_checkbox(&app, "Welcome to hearme", false), Some(false));
-    app.click("Welcome to hearme", "I've granted everything — finish", 1);
+    app.click_checkbox("Welcome to walkie", LABEL);
+    assert_eq!(wait_checkbox(&app, "Welcome to walkie", false), Some(false));
+    app.click("Welcome to walkie", "I've granted everything — finish", 1);
     assert!(
-        app.wait_window("Welcome to hearme", false, 3),
+        app.wait_window("Welcome to walkie", false, 3),
         "onboarding didn't close"
     );
     assert!(!app.config().first_run);

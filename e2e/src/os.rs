@@ -1,22 +1,22 @@
-//! Drives the installed /Applications/hearme.app from the outside, the way a
+//! Drives the installed /Applications/walkie.app from the outside, the way a
 //! person would: real key events posted through macOS (so they pass through
-//! hearme's event tap), the tray menu and windows via UI scripting, and
+//! walkie's event tap), the tray menu and windows via UI scripting, and
 //! a bare window (src/bin/typing-target.rs) as the app being dictated into.
 //!
 //! Each `App` runs against its own temp config/history/log dirs and plays a
-//! WAV fixture instead of the microphone (HEARME_TEST_AUDIO), so the user's
+//! WAV fixture instead of the microphone (WALKIE_TEST_AUDIO), so the user's
 //! real config and mic are never touched.
 
 use crate::fixture;
 use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation, CGEventType};
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-use hearme_core::config::Config;
-use hearme_core::hotkey::keys::{Key, Side};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
+use walkie_core::config::Config;
+use walkie_core::hotkey::keys::{Key, Side};
 
 // ---------------------------------------------------------------- budget
 
@@ -83,7 +83,7 @@ pub fn begin(name: &'static str) -> TestGuard {
     }
 }
 
-pub const APP: &str = "/Applications/hearme.app";
+pub const APP: &str = "/Applications/walkie.app";
 
 pub fn sleep(ms: u64) {
     std::thread::sleep(Duration::from_millis(ms));
@@ -135,13 +135,13 @@ impl App {
     pub fn new() -> App {
         LOGIN_ITEM_BEFORE.get_or_init(|| login_item("status"));
         let root = std::env::temp_dir().join(format!(
-            "hearme-os-e2e-{}-{}",
+            "walkie-os-e2e-{}-{}",
             std::process::id(),
             RUN.fetch_add(1, Ordering::SeqCst)
         ));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
-        let log = root.join("hearme.log");
+        let log = root.join("walkie.log");
         App { root, log }
     }
 
@@ -157,7 +157,7 @@ impl App {
     }
 
     pub fn config_path(&self) -> PathBuf {
-        self.root.join("config/hearme/config.toml")
+        self.root.join("config/walkie/config.toml")
     }
 
     pub fn write_config(&self, c: &Config) {
@@ -170,14 +170,14 @@ impl App {
 
     /// Adds a transcript to the app's history, as if dictated in an earlier run.
     pub fn seed_history(&self, text: &str) {
-        let h = hearme_core::history::History::open(&self.root.join("data/hearme/history.sqlite3"))
+        let h = walkie_core::history::History::open(&self.root.join("data/walkie/history.sqlite3"))
             .unwrap();
         h.insert(text, text, None, Some("en"), 1000).unwrap();
     }
 
     /// The app's history (cleaned text), newest first.
     pub fn history(&self) -> Vec<String> {
-        hearme_core::history::History::open(&self.root.join("data/hearme/history.sqlite3"))
+        walkie_core::history::History::open(&self.root.join("data/walkie/history.sqlite3"))
             .and_then(|h| h.recent(100))
             .unwrap()
             .into_iter()
@@ -186,7 +186,7 @@ impl App {
     }
 
     pub fn launch(&self) {
-        step("launching hearme");
+        step("launching walkie");
         *LOG.lock().unwrap_or_else(|e| e.into_inner()) = Some(self.log.clone());
         quit();
         let _ = std::fs::remove_file(&self.log);
@@ -198,30 +198,30 @@ impl App {
             .arg("--env")
             .arg(env("XDG_DATA_HOME", &self.root.join("data")))
             .arg("--env")
-            .arg(env("HEARME_LOG", &self.log))
+            .arg(env("WALKIE_LOG", &self.log))
             .arg("--env")
-            .arg(env("HEARME_TEST_AUDIO", &fixture("en.wav")))
+            .arg(env("WALKIE_TEST_AUDIO", &fixture("en.wav")))
             .arg("--env")
-            .arg("HEARME_DEBUG_EVENTS=1")
+            .arg("WALKIE_DEBUG_EVENTS=1")
             .status()
             .unwrap();
         assert!(
             status.success(),
             "couldn't launch {APP} — run e2e/run-app-tests.sh to build and install it"
         );
-        step("waiting for hearme to start");
+        step("waiting for walkie to start");
         assert!(
             self.wait_log("keyboard hook", 4),
-            "hearme didn't start (no hook line in {:?}):\n{}",
+            "walkie didn't start (no hook line in {:?}):\n{}",
             self.log,
             self.log_text()
         );
     }
 
-    /// Opens hearme again while it runs, like clicking its Dock or Finder
+    /// Opens walkie again while it runs, like clicking its Dock or Finder
     /// icon (macOS sends the running instance a reopen event).
     pub fn reopen(&self) {
-        step("opening hearme again");
+        step("opening walkie again");
         let ok = Command::new("open").args(["-a", APP]).status().unwrap();
         assert!(ok.success(), "couldn't open {APP}");
     }
@@ -237,9 +237,9 @@ impl App {
 
     /// The startup status line for `label` ("Keyboard hook", …): Some(ok).
     pub fn status(&self, label: &str) -> Option<bool> {
-        self.wait_log("hearme: status", 3); // logged ~1.5s after launch
+        self.wait_log("walkie: status", 3); // logged ~1.5s after launch
         self.log_text().lines().find_map(|l| {
-            let rest = l.strip_prefix("hearme: status ")?;
+            let rest = l.strip_prefix("walkie: status ")?;
             let (ok, rest) = rest.split_at(4);
             rest.trim_start()
                 .starts_with(&format!("{label}:"))
@@ -252,12 +252,12 @@ impl App {
         require_globe_does_nothing();
         assert!(
             self.wait_log("keyboard hook running", 2),
-            "hearme's keyboard hook isn't running. Grant Accessibility to {APP} \
+            "walkie's keyboard hook isn't running. Grant Accessibility to {APP} \
              (System Settings → Privacy & Security → Accessibility) and rerun.\n{}",
             self.log_text()
         );
         assert!(
-            self.wait_log("hearme: model ready", 4),
+            self.wait_log("walkie: model ready", 4),
             "model never loaded:\n{}",
             self.log_text()
         );
@@ -265,7 +265,7 @@ impl App {
 
     pub fn windows(&self) -> Vec<String> {
         osa(
-            r#"tell application "System Events" to tell application process "hearme" to get name of every window"#,
+            r#"tell application "System Events" to tell application process "walkie" to get name of every window"#,
             &[],
         )
         .map(|s| s.split(", ").filter(|w| !w.is_empty()).map(String::from).collect())
@@ -288,7 +288,7 @@ impl App {
         // So open it without waiting, then pick the item in a second call.
         osa(
             r#"ignoring application responses
-                tell application "System Events" to tell application process "hearme" to click menu bar item 1 of menu bar 2
+                tell application "System Events" to tell application process "walkie" to click menu bar item 1 of menu bar 2
             end ignoring"#,
             &[],
         )
@@ -297,7 +297,7 @@ impl App {
         let ok = wait_until(3, || {
             r = osa(
                 r#"on run argv
-                    tell application "System Events" to tell application process "hearme"
+                    tell application "System Events" to tell application process "walkie"
                         click menu item (item 1 of argv) of menu 1 of menu bar item 1 of menu bar 2
                     end tell
                 end run"#,
@@ -326,7 +326,7 @@ impl App {
                 set target to item 2 of argv
                 set want to (item 3 of argv) as integer
                 set seen to 0
-                tell application "System Events" to tell application process "hearme"
+                tell application "System Events" to tell application process "walkie"
                     -- materialize the list first: iterating `entire contents`
                     -- inline yields references System Events can't resolve
                     set els to entire contents of window wname
@@ -368,7 +368,7 @@ impl App {
         osa(
             r#"on run argv
                 set out to ""
-                tell application "System Events" to tell application process "hearme"
+                tell application "System Events" to tell application process "walkie"
                     set els to entire contents of window (item 1 of argv)
                     repeat with e in els
                         try
@@ -407,7 +407,7 @@ impl App {
         osa(
             r#"on run argv
                 set target to item 2 of argv
-                tell application "System Events" to tell application process "hearme"
+                tell application "System Events" to tell application process "walkie"
                     set els to entire contents of window (item 1 of argv)
                     repeat with e in els
                         try
@@ -446,7 +446,7 @@ impl App {
         let found = wait_until(3, || {
             r = osa(
                 r#"on run argv
-                    tell application "System Events" to tell application process "hearme"
+                    tell application "System Events" to tell application process "walkie"
                         set els to entire contents of window (item 1 of argv)
                         repeat with e in els
                             try
@@ -475,7 +475,7 @@ impl App {
         osa(
             r#"on run argv
                 set out to ""
-                tell application "System Events" to tell application process "hearme"
+                tell application "System Events" to tell application process "walkie"
                     set els to entire contents of window (item 1 of argv)
                     repeat with e in els
                         try
@@ -491,12 +491,12 @@ impl App {
         .unwrap_or_default()
     }
 
-    /// All visible text in every hearme window — the untitled overlay included.
+    /// All visible text in every walkie window — the untitled overlay included.
     pub fn all_text(&self) -> String {
-        step("reading text of every hearme window");
+        step("reading text of every walkie window");
         osa(
             r#"set out to ""
-            tell application "System Events" to tell application process "hearme"
+            tell application "System Events" to tell application process "walkie"
                 repeat with w in (every window)
                     set els to entire contents of w
                     repeat with e in els
@@ -514,9 +514,9 @@ impl App {
 
     /// Closes a window if it's showing (e.g. Settings opened by a failing check).
     pub fn close_if_open(&self) -> bool {
-        if self.windows().iter().any(|w| w == "hearme") {
-            self.close("hearme");
-            return self.wait_window("hearme", false, 3);
+        if self.windows().iter().any(|w| w == "walkie") {
+            self.close("walkie");
+            return self.wait_window("walkie", false, 3);
         }
         false
     }
@@ -526,7 +526,7 @@ impl App {
         step(format!("closing {window:?}"));
         osa(
             r#"on run argv
-                tell application "System Events" to tell application process "hearme"
+                tell application "System Events" to tell application process "walkie"
                     click (first button of window (item 1 of argv) whose subrole is "AXCloseButton")
                 end tell
             end run"#,
@@ -568,14 +568,14 @@ pub fn require_globe_does_nothing() {
 /// on drop, since onboarding and the Settings checkbox change it for real.
 static LOGIN_ITEM_BEFORE: OnceLock<String> = OnceLock::new();
 
-/// `hearme --login-item status|on|off` against the installed app: asks
+/// `walkie --login-item status|on|off` against the installed app: asks
 /// SMAppService directly, so it's macOS's answer, not the UI's.
 pub fn login_item(arg: &str) -> String {
-    try_login_item(arg).unwrap_or_else(|e| panic!("hearme --login-item {arg}: {e}"))
+    try_login_item(arg).unwrap_or_else(|e| panic!("walkie --login-item {arg}: {e}"))
 }
 
 fn try_login_item(arg: &str) -> Result<String, String> {
-    let out = Command::new(format!("{APP}/Contents/MacOS/hearme"))
+    let out = Command::new(format!("{APP}/Contents/MacOS/walkie"))
         .args(["--login-item", arg])
         .output()
         .map_err(|e| e.to_string())?;
@@ -606,10 +606,10 @@ pub fn restore_login_item() {
 }
 
 pub fn quit() {
-    let _ = Command::new("pkill").args(["-x", "hearme"]).status();
+    let _ = Command::new("pkill").args(["-x", "walkie"]).status();
     wait_until(3, || {
         !Command::new("pgrep")
-            .args(["-x", "hearme"])
+            .args(["-x", "walkie"])
             .status()
             .is_ok_and(|s| s.success())
     });
@@ -618,7 +618,7 @@ pub fn quit() {
 // ---------------------------------------------------------------- keyboard
 
 /// Posts real key events at the HID level, so they flow through every event
-/// tap (hearme's included) exactly like hardware input. Tracks modifier
+/// tap (walkie's included) exactly like hardware input. Tracks modifier
 /// state so each event carries the right flags.
 pub struct Keyboard {
     src: CGEventSource,
@@ -815,7 +815,7 @@ fn target_bundle() -> PathBuf {
             r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleIdentifier</key><string>dev.josean.hearme.e2e-target</string>
+<key>CFBundleIdentifier</key><string>dev.josean.walkie.e2e-target</string>
 <key>CFBundleName</key><string>{TARGET}</string>
 <key>CFBundleExecutable</key><string>{TARGET}</string>
 <key>CFBundlePackageType</key><string>APPL</string>
@@ -832,7 +832,7 @@ impl Target {
         step("opening the typing target");
         let _ = Command::new("pkill").args(["-x", TARGET]).status();
         let out =
-            std::env::temp_dir().join(format!("hearme-e2e-target-{}.txt", std::process::id()));
+            std::env::temp_dir().join(format!("walkie-e2e-target-{}.txt", std::process::id()));
         let _ = std::fs::remove_file(&out);
         let ok = Command::new("open")
             .arg("-n")

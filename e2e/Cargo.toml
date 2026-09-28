@@ -1,16 +1,16 @@
 [package]
-name = "hearme-e2e"
+name = "walkie-e2e"
 version = "0.1.0"
 edition = "2021"
 publish = false
 description = "End-to-end tests: key events → hotkey engine → session → real Whisper → injected text"
 
 [dependencies]
-hearme-core = { path = "../crates/hearme-core" }
+walkie-core = { path = "../crates/walkie-core" }
 anyhow = "1"
 
 [features]
-# Drives the installed /Applications/hearme.app through macOS: real key
+# Drives the installed /Applications/walkie.app through macOS: real key
 # events, the tray, the windows, TextEdit. Run via e2e/run-app-tests.sh.
 os-tests = ["dep:objc2", "dep:objc2-foundation", "dep:objc2-app-kit"]
 

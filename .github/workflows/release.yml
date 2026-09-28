@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Tag matches tauri.conf.json version
         run: |
-          version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' crates/hearme-app/tauri.conf.json)
+          version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' crates/walkie-app/tauri.conf.json)
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "::error::tag $GITHUB_REF_NAME doesn't match tauri.conf.json version $version"
             exit 1
@@ -27,12 +27,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check
         run: make check
-      - name: Build hearme.app
+      - name: Build walkie.app
         run: make package
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" target/release/bundle/hearme-*.zip \
-            --title "hearme $GITHUB_REF_NAME" --generate-notes \
-            --notes "Ad-hoc signed: on first launch, right-click hearme.app → Open."
+          gh release create "$GITHUB_REF_NAME" target/release/bundle/walkie-*.zip \
+            --title "walkie $GITHUB_REF_NAME" --generate-notes \
+            --notes "Ad-hoc signed: on first launch, right-click walkie.app → Open."

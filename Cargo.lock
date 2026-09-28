@@ -1673,55 +1673,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hearme-app"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "arboard",
- "hearme-core",
- "image",
- "libc",
- "objc2",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
-]
-
-[[package]]
-name = "hearme-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arboard",
- "core-foundation",
- "core-graphics",
- "cpal",
- "enigo",
- "hound",
- "libc",
- "regex",
- "rusqlite",
- "serde",
- "tempfile",
- "toml 1.1.5+spec-1.1.0",
- "ureq",
- "whisper-rs",
-]
-
-[[package]]
-name = "hearme-e2e"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "core-graphics",
- "hearme-core",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
-]
-
-[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5058,6 +5009,55 @@ checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
 dependencies = [
  "same-file",
  "winapi-util",
+]
+
+[[package]]
+name = "walkie-app"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "arboard",
+ "image",
+ "libc",
+ "objc2",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "walkie-core",
+]
+
+[[package]]
+name = "walkie-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arboard",
+ "core-foundation",
+ "core-graphics",
+ "cpal",
+ "enigo",
+ "hound",
+ "libc",
+ "regex",
+ "rusqlite",
+ "serde",
+ "tempfile",
+ "toml 1.1.5+spec-1.1.0",
+ "ureq",
+ "whisper-rs",
+]
+
+[[package]]
+name = "walkie-e2e"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "core-graphics",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "walkie-core",
 ]
 
 [[package]]

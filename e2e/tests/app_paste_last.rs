@@ -5,7 +5,7 @@
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET).
 
-use hearme_e2e::os::{begin, sleep, App, Keyboard, Target};
+use walkie_e2e::os::{begin, sleep, App, Keyboard, Target};
 
 fn ready_app(seed: Option<&str>) -> App {
     let app = App::new();
@@ -57,7 +57,7 @@ fn tray_pastes_the_last_dictation_again() {
         t,
         format!("{first}{first}"),
         "the tray should paste the same text into the app that had focus (front: {:?})\n{}",
-        hearme_e2e::os::frontmost(),
+        walkie_e2e::os::frontmost(),
         app.log_text()
     );
 }
@@ -73,9 +73,9 @@ fn history_copy_button_puts_the_text_on_the_clipboard() {
     let saved = clipboard();
     let app = ready_app(Some("copy me from history"));
     app.tray("Settings…");
-    assert!(app.wait_window("hearme", true, 3), "Settings didn't open");
-    app.click("hearme", "History", 1);
-    app.click("hearme", "Copy", 1);
+    assert!(app.wait_window("walkie", true, 3), "Settings didn't open");
+    app.click("walkie", "History", 1);
+    app.click("walkie", "Copy", 1);
     let ok = (0..20).any(|_| {
         sleep(100);
         clipboard() == "copy me from history"

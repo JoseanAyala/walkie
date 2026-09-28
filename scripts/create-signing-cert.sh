@@ -1,5 +1,5 @@
 #!/bin/sh
-# Creates a self-signed code-signing identity ("hearme local signing") in the
+# Creates a self-signed code-signing identity ("walkie local signing") in the
 # login keychain. Run once per machine, before `cargo tauri build`.
 #
 # Why: without an identity the bundle is only linker-signed ad hoc, so macOS
@@ -10,7 +10,7 @@
 # survives rebuilds.
 set -eu
 
-NAME="hearme local signing"
+NAME="walkie local signing"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 # LibreSSL on purpose: Homebrew's OpenSSL 3 writes PKCS#12 files that
 # `security import` rejects unless you pass -legacy.
@@ -40,9 +40,9 @@ EOF
 "$OPENSSL" req -x509 -newkey rsa:2048 -nodes -days 3650 \
     -config "$tmp/cert.cnf" -keyout "$tmp/key.pem" -out "$tmp/cert.pem" 2>/dev/null
 "$OPENSSL" pkcs12 -export -inkey "$tmp/key.pem" -in "$tmp/cert.pem" \
-    -name "$NAME" -passout pass:hearme -out "$tmp/id.p12"
+    -name "$NAME" -passout pass:walkie -out "$tmp/id.p12"
 
 # -T lets codesign use the key without a keychain prompt on every build.
-security import "$tmp/id.p12" -k "$KEYCHAIN" -P hearme -T /usr/bin/codesign
+security import "$tmp/id.p12" -k "$KEYCHAIN" -P walkie -T /usr/bin/codesign
 
-echo "Created \"$NAME\". Rebuild with: cd crates/hearme-app && cargo tauri build"
+echo "Created \"$NAME\". Rebuild with: cd crates/walkie-app && cargo tauri build"

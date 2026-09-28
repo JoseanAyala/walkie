@@ -1,5 +1,5 @@
 {
-  description = "hearme — local-only dictation for any agent";
+  description = "walkie — local-only dictation for any agent";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

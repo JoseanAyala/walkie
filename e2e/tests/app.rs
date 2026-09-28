@@ -1,14 +1,14 @@
 //! The manual testing checklist, automated against the real installed app.
 //! Run: e2e/run-app-tests.sh  (builds + installs, then runs these one at a time)
 //!
-//! Keyboard tests need Accessibility granted to /Applications/hearme.app and
+//! Keyboard tests need Accessibility granted to /Applications/walkie.app and
 //! to the terminal running the tests (to post key events and script the UI).
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET);
 //! past that the run aborts and reports the step it was stuck on.
 
-use hearme_e2e::os::{begin, sleep, App, Keyboard, Target};
+use walkie_e2e::os::{begin, sleep, App, Keyboard, Target};
 
 fn ready_app() -> App {
     let app = App::new();
@@ -25,17 +25,17 @@ fn onboarding_shows_on_first_run_and_never_again() {
     let app = App::new(); // no config file → first run
     app.launch();
     assert!(
-        app.wait_window("Welcome to hearme", true, 3),
+        app.wait_window("Welcome to walkie", true, 3),
         "onboarding didn't show: {:?}",
         app.windows()
     );
-    app.click("Welcome to hearme", "I've granted everything — finish", 1);
+    app.click("Welcome to walkie", "I've granted everything — finish", 1);
     assert!(
-        app.wait_window("Welcome to hearme", false, 3),
+        app.wait_window("Welcome to walkie", false, 3),
         "onboarding didn't close"
     );
     assert!(
-        app.wait_window("hearme", true, 3),
+        app.wait_window("walkie", true, 3),
         "finishing onboarding should open Settings"
     );
     assert!(
@@ -46,7 +46,7 @@ fn onboarding_shows_on_first_run_and_never_again() {
     app.launch(); // same dirs → second run
     sleep(1000); // onboarding shows during startup, before the hook line
     assert!(
-        !app.windows().iter().any(|w| w == "Welcome to hearme"),
+        !app.windows().iter().any(|w| w == "Welcome to walkie"),
         "onboarding reappeared"
     );
 }
@@ -56,15 +56,15 @@ fn opening_the_app_shows_settings() {
     let _t = begin("opening_the_app_shows_settings");
     let app = ready_app();
     assert!(
-        app.wait_window("hearme", true, 3),
-        "launching hearme by hand should show Settings"
+        app.wait_window("walkie", true, 3),
+        "launching walkie by hand should show Settings"
     );
-    app.close("hearme");
-    assert!(app.wait_window("hearme", false, 3));
+    app.close("walkie");
+    assert!(app.wait_window("walkie", false, 3));
     app.reopen();
     assert!(
-        app.wait_window("hearme", true, 3),
-        "opening hearme again (Dock/Finder) should show Settings"
+        app.wait_window("walkie", true, 3),
+        "opening walkie again (Dock/Finder) should show Settings"
     );
 }
 
@@ -75,17 +75,17 @@ fn tray_opens_settings_and_closing_only_hides_it() {
     let _ = app.close_if_open();
     app.tray("Settings…");
     assert!(
-        app.wait_window("hearme", true, 3),
+        app.wait_window("walkie", true, 3),
         "Settings didn't open from the tray"
     );
     for tab in ["General", "Status", "Cleanup", "Polish", "History"] {
-        app.click("hearme", tab, 1);
+        app.click("walkie", tab, 1);
     }
-    app.close("hearme");
-    assert!(app.wait_window("hearme", false, 3));
+    app.close("walkie");
+    assert!(app.wait_window("walkie", false, 3));
     app.tray("Settings…");
     assert!(
-        app.wait_window("hearme", true, 3),
+        app.wait_window("walkie", true, 3),
         "Settings couldn't be reopened after closing"
     );
 }
@@ -95,11 +95,11 @@ fn status_tab_lists_every_check() {
     let _t = begin("status_tab_lists_every_check");
     let app = ready_app();
     app.tray("Settings…");
-    assert!(app.wait_window("hearme", true, 3));
-    app.click("hearme", "Status", 1);
+    assert!(app.wait_window("walkie", true, 3));
+    app.click("walkie", "Status", 1);
     let mut text = String::new();
     for _ in 0..20 {
-        text = app.text("hearme");
+        text = app.text("walkie");
         if text.contains("Speech model") {
             break;
         }
@@ -208,12 +208,12 @@ fn dictating_after_a_globe_tap_does_not_crash() {
     kb.down("Fn").wait(40).up("Fn").wait(500); // and once more for luck
     assert!(
         std::process::Command::new("pgrep")
-            .args(["-x", "hearme"])
+            .args(["-x", "walkie"])
             .output()
             .unwrap()
             .status
             .success(),
-        "hearme crashed"
+        "walkie crashed"
     );
 }
 
@@ -258,14 +258,14 @@ fn recorded_shortcut_works_immediately_and_its_key_is_swallowed() {
     let _t = begin("recorded_shortcut_works_immediately_and_its_key_is_swallowed");
     let app = ready_app();
     app.require_keyboard();
-    // Something safe in front first: the tray doesn't activate hearme, so
+    // Something safe in front first: the tray doesn't activate walkie, so
     // without this the recording keystrokes would go to whatever app was.
     let first = Target::open();
     app.tray("Settings…");
-    assert!(app.wait_window("hearme", true, 3));
-    app.click("hearme", "General", 1);
-    app.click("hearme", "Record", 1); // Dictate row
-    let mut kb = Keyboard::into(&["hearme", hearme_e2e::os::TARGET]);
+    assert!(app.wait_window("walkie", true, 3));
+    app.click("walkie", "General", 1);
+    app.click("walkie", "Record", 1); // Dictate row
+    let mut kb = Keyboard::into(&["walkie", walkie_e2e::os::TARGET]);
     kb.wait(300)
         .down("Ctrl")
         .down("Opt")
@@ -285,7 +285,7 @@ fn recorded_shortcut_works_immediately_and_its_key_is_swallowed() {
         app.log_text()
     );
 
-    app.close("hearme"); // back to the app you were typing in
+    app.close("walkie"); // back to the app you were typing in
     drop(first);
     let doc = Target::open();
     let mut kb = Keyboard::new();
@@ -303,7 +303,7 @@ fn recorded_shortcut_works_immediately_and_its_key_is_swallowed() {
         std::process::Command::new("pbpaste")
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).to_string()),
-        hearme_e2e::os::frontmost(),
+        walkie_e2e::os::frontmost(),
     );
     assert!(!t.contains('∂'), "Opt+D leaked into the app: {t:?}");
 }

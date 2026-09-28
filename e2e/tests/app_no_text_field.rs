@@ -1,13 +1,13 @@
 //! "No text field" against the real installed app: dictating where nothing
 //! is editable leaves the transcript on the clipboard and says so, while a
 //! real text field is still typed into as before.
-//! Run: cargo test -p hearme-e2e --features os-tests --test app_no_text_field -- --test-threads=1
+//! Run: cargo test -p walkie-e2e --features os-tests --test app_no_text_field -- --test-threads=1
 //! (after e2e/run-app-tests.sh has installed the app).
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET).
 
-use hearme_e2e::os::{
+use walkie_e2e::os::{
     begin, clipboard, focus_finder, set_clipboard, sleep, step, App, Keyboard, Target,
 };
 
@@ -25,7 +25,7 @@ fn a_text_field_is_typed_into_and_the_clipboard_restored() {
     let _t = begin("a_text_field_is_typed_into_and_the_clipboard_restored");
     let app = ready_app();
     app.require_keyboard();
-    set_clipboard("hearme-e2e sentinel");
+    set_clipboard("walkie-e2e sentinel");
     let doc = Target::open();
     Keyboard::new().down("Fn").wait(600).up("Fn");
     let t = doc.wait_for(5, |t| t.to_lowercase().contains("hello"));
@@ -37,7 +37,7 @@ fn a_text_field_is_typed_into_and_the_clipboard_restored() {
     sleep(500); // past restore_clipboard_ms
     assert_eq!(
         clipboard(),
-        "hearme-e2e sentinel",
+        "walkie-e2e sentinel",
         "the old clipboard should be restored after a paste"
     );
     assert!(
@@ -52,7 +52,7 @@ fn finder_gets_the_transcript_on_the_clipboard_and_a_notice() {
     let _t = begin("finder_gets_the_transcript_on_the_clipboard_and_a_notice");
     let app = ready_app();
     app.require_keyboard();
-    set_clipboard("hearme-e2e sentinel");
+    set_clipboard("walkie-e2e sentinel");
     focus_finder();
     Keyboard::into(&["Finder"]).down("Fn").wait(600).up("Fn");
     assert!(
@@ -78,7 +78,7 @@ fn finder_gets_the_transcript_on_the_clipboard_and_a_notice() {
     sleep(500); // a paste would have restored the old clipboard by now
     assert_eq!(clipboard(), cb, "the transcript must stay on the clipboard");
     assert!(
-        !app.log_text().contains("hearme error"),
+        !app.log_text().contains("walkie error"),
         "{}",
         app.log_text()
     );

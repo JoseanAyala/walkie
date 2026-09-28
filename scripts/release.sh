@@ -7,7 +7,7 @@ set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
-conf=crates/hearme-app/tauri.conf.json
+conf=crates/walkie-app/tauri.conf.json
 current=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$conf")
 
 version=${1:-}
@@ -33,12 +33,12 @@ fi
 
 sed -i '' "s/^  \"version\": \"$current\",$/  \"version\": \"$version\",/" "$conf"
 # First `version =` in the manifest is the package's own.
-sed -i '' "1,/^version = /s/^version = \".*\"$/version = \"$version\"/" crates/hearme-app/Cargo.toml
+sed -i '' "1,/^version = /s/^version = \".*\"$/version = \"$version\"/" crates/walkie-app/Cargo.toml
 
 make check # also refreshes Cargo.lock
 
 git commit -qam "release: $tag"
-git tag -a "$tag" -m "hearme $tag"
+git tag -a "$tag" -m "walkie $tag"
 
 printf 'Push main and %s to origin (starts the release build)? [y/N] ' "$tag"
 read -r answer

@@ -54,7 +54,7 @@ fn main() {
         )
     };
     unsafe { window.setReleasedWhenClosed(false) };
-    window.setTitle(ns_string!("hearme e2e target"));
+    window.setTitle(ns_string!("walkie e2e target"));
     let tv = NSTextView::initWithFrame(NSTextView::alloc(mtm), frame);
     tv.setRichText(false);
     tv.setAutomaticSpellingCorrectionEnabled(false);
