@@ -123,7 +123,8 @@ onMount(() => {
 
   <Win title="{TABS[tab].name} 1.1" class="main" bodyClass="scroll">
     {#snippet extra()}
-      <span class="saved">{settings.saved ? "saved ✓" : "autosave"}</span>
+      <!-- every change saves itself; this just confirms it happened -->
+      {#if settings.saved}<span class="saved">saved ✓</span>{/if}
     {/snippet}
     {#if settings.error}
       <div class="error">
