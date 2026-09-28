@@ -144,6 +144,30 @@ fn hold_fn_types_the_transcript_into_the_focused_app() {
     );
 }
 
+/// Regression: typed text arrives as keyDowns with no keyUps; the hook read
+/// them as a key held forever, so the second hold matched no shortcut.
+#[test]
+fn typing_strategy_dictates_twice_in_a_row() {
+    let _t = begin("typing_strategy_dictates_twice_in_a_row");
+    let app = App::new();
+    let mut c = App::test_config();
+    c.inject.strategy = "type".into();
+    app.write_config(&c);
+    app.launch();
+    app.require_keyboard();
+    let doc = Target::open();
+    let mut kb = Keyboard::new();
+    for n in 1..=2 {
+        kb.down("Fn").wait(600).up("Fn");
+        let t = doc.wait_for(4, |t| t.to_lowercase().matches("hello").count() >= n);
+        assert!(
+            t.to_lowercase().matches("hello").count() >= n,
+            "dictation {n} typed nothing: {t:?}\n{}",
+            app.log_text()
+        );
+    }
+}
+
 #[test]
 fn fn_shift_runs_the_polish_command() {
     let _t = begin("fn_shift_runs_the_polish_command");

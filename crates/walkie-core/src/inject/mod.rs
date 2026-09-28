@@ -29,6 +29,23 @@ fn on_main<T: Send + 'static>(
     }
 }
 
+/// Stamped on every key event walkie synthesizes (EVENT_SOURCE_USER_DATA), so
+/// the keyboard hook can ignore them. It must: enigo types text as a keyDown
+/// with no keyUp, which otherwise reads as a key held forever, and no
+/// shortcut matches again until that key is pressed for real.
+pub const SYNTHETIC_EVENT_MARKER: i64 = 0x7761_6c6b_6965; // "walkie"
+
+fn enigo_settings() -> Settings {
+    Settings {
+        event_source_user_data: Some(SYNTHETIC_EVENT_MARKER),
+        ..Settings::default()
+    }
+}
+
+fn enigo() -> Result<Enigo> {
+    Enigo::new(&enigo_settings()).context("enigo init — check Accessibility permission")
+}
+
 /// How the text was delivered — both are success; neither loses words.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Injected {
@@ -69,8 +86,7 @@ impl Injector for PasteInjector {
         cb.set_text(text.to_string()).context("setting clipboard")?;
 
         let paste = || -> Result<()> {
-            let mut enigo = Enigo::new(&Settings::default())
-                .context("enigo init — check Accessibility permission")?;
+            let mut enigo = enigo()?;
             let modk = if cfg!(target_os = "macos") {
                 Key::Meta
             } else {
@@ -106,8 +122,7 @@ impl Injector for TypeInjector {
         }
         let owned = text.to_string();
         let type_it = move || -> Result<()> {
-            let mut enigo = Enigo::new(&Settings::default())
-                .context("enigo init — check Accessibility permission")?;
+            let mut enigo = enigo()?;
             enigo.text(&owned)?;
             Ok(())
         };
@@ -130,6 +145,14 @@ impl Injector for TypeInjector {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn synthesized_events_carry_the_marker() {
+        assert_eq!(
+            enigo_settings().event_source_user_data,
+            Some(SYNTHETIC_EVENT_MARKER)
+        );
+    }
 
     #[test]
     fn on_main_runs_the_job_through_the_runner_and_returns_its_result() {

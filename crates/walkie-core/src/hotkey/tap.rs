@@ -8,6 +8,7 @@
 
 use super::engine::{Engine, Signal};
 use super::keys::Key;
+use crate::inject::SYNTHETIC_EVENT_MARKER;
 use core_foundation::base::TCFType;
 use core_foundation::mach_port::CFMachPortRef;
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
@@ -77,6 +78,13 @@ pub fn spawn(
                         eprintln!(
                             "walkie: keyboard hook was disabled by macOS ({ty:?}) — re-enabled"
                         );
+                        return CallbackResult::Keep;
+                    }
+                    // Our own typing and pasting: never a shortcut, and its
+                    // keyDowns have no keyUps (see SYNTHETIC_EVENT_MARKER).
+                    _ if ev.get_integer_value_field(EventField::EVENT_SOURCE_USER_DATA)
+                        == SYNTHETIC_EVENT_MARKER =>
+                    {
                         return CallbackResult::Keep;
                     }
                     CGEventType::KeyDown | CGEventType::KeyUp => {
