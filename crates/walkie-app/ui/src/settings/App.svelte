@@ -2,8 +2,6 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { onMount } from "svelte";
 import { api, type Check, on } from "@/lib/api";
-import type { Mode } from "@/lib/palette";
-import { applyTheme, modeOf } from "@/lib/theme";
 import Win from "@/lib/Win.svelte";
 import Cleanup from "./Cleanup.svelte";
 import General from "./General.svelte";
@@ -40,17 +38,6 @@ async function loadStatus() {
   } catch (e) {
     settings.fail(e);
   }
-}
-
-// the light | dark switch: the mode showing now is filled; picking one pins
-// it (Theme → Appearance → system follows macOS again)
-const mode = $derived(settings.cfg ? modeOf(settings.cfg.theme) : null);
-function setMode(m: Mode) {
-  const cfg = settings.cfg;
-  if (!cfg || cfg.theme.appearance === m) return;
-  cfg.theme.appearance = m;
-  applyTheme($state.snapshot(cfg.theme));
-  settings.save();
 }
 
 function show(t: Tab) {
@@ -91,16 +78,7 @@ onMount(() => {
 
 <div class="desktop">
   <div class="top">
-    <span class="os">WALKIE.OS1</span><span class="grow"></span>
-    {#if settings.cfg}
-      <div class="modes" role="group" aria-label="Light or dark">
-        {#each ["light", "dark"] as const as m (m)}
-          <button class:on={mode === m} aria-pressed={mode === m} onclick={() => setMode(m)}
-            >{m}</button
-          >
-        {/each}
-      </div>
-    {/if}
+    <span class="os">WALKIE.OS1</span>
   </div>
 
   <div class="side">
@@ -116,7 +94,7 @@ onMount(() => {
         {/each}
       </nav>
     </Win>
-    <Win title="Walkie {version}" class="about" bodyClass="muted">
+    <Win title="Walkie" class="about" bodyClass="muted">
       Runs locally.<br>Your voice never<br>leaves this Mac.
     </Win>
   </div>
@@ -136,7 +114,7 @@ onMount(() => {
       <span class="chip big">{TABS[tab].name}</span><span class="muted">{TABS[tab].sub}</span>
     </div>
     {#if tab === "status"}
-      <Status {checks} />
+      <Status {checks} {version} />
     {:else if settings.cfg}
       {#if tab === "general"}
         <General {modelStatus} />
@@ -173,20 +151,6 @@ onMount(() => {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-.grow {
-  flex: 1;
-}
-.modes {
-  display: flex;
-}
-.modes button + button {
-  border-left: 0;
-}
-/* the accent, not the chip color: a black "light" read as dark */
-.modes button.on {
-  background: var(--accent);
-  color: var(--accent-fg);
 }
 .side {
   grid-row: 2 / 4;

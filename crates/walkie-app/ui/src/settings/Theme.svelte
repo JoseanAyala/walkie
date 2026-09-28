@@ -84,7 +84,6 @@ function add() {
         <button class="mode" class:on={cfg.theme.appearance === a} aria-pressed={cfg.theme.appearance === a} onclick={() => appearance(a)}>{a}</button>
       {/each}
     </div>
-    <div class="hint">system follows macOS; the light | dark switch up top pins one</div>
   </Field>
 
   <Field label="Theme">
@@ -125,7 +124,7 @@ function add() {
         {#each found as c (c)}<i class="sw" style="background:{c}" title={c}></i>{/each}
         {#if found.length < 3}— need three colors{/if}
       {:else}
-        three or more colors; nothing leaves this Mac
+        three or more colors
       {/if}
     </div>
     {#if draft}

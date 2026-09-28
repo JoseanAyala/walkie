@@ -1,7 +1,7 @@
 <script lang="ts">
 import { api, type Check } from "@/lib/api";
 
-let { checks }: { checks: Check[] } = $props();
+let { checks, version }: { checks: Check[]; version: string } = $props();
 
 const fix = (c: Check) =>
   c.fix === "restart" ? api.restartApp() : api.openSettingsPane(c.fix ?? "");
@@ -18,7 +18,7 @@ const fix = (c: Check) =>
     {/if}
   </div>
 {/each}
-<p class="hint">Refreshes every 2 seconds. Details are also in ~/Library/Logs/walkie/walkie.log.</p>
+<p class="hint">Walkie {version}. Refreshes every 2 seconds. Details are also in ~/Library/Logs/walkie/walkie.log.</p>
 
 <style>
 .chk {

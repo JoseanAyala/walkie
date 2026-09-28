@@ -1,4 +1,4 @@
-//! Themes (Settings → Theme and the light | dark switch), against the real
+//! Themes (Settings → Theme), against the real
 //! installed app. Run: e2e/run-app-tests.sh theme
 #![cfg(all(target_os = "macos", feature = "os-tests"))]
 
@@ -47,10 +47,9 @@ fn picking_a_theme_saves_it_and_tells_every_window() {
 }
 
 #[test]
-fn light_dark_theme_switch_pins_the_mode() {
-    let _t = begin("light_dark_theme_switch_pins_the_mode");
+fn theme_appearance_pins_light_or_dark() {
+    let _t = begin("theme_appearance_pins_light_or_dark");
     let app = theme_tab();
-    // the switch in the top bar comes before Appearance's own buttons
     app.click("Walkie", "dark", 1);
     let c = wait_config(&app, "dark", |c| c.theme.appearance == Appearance::Dark);
     assert_eq!(c.theme.appearance, Appearance::Dark);

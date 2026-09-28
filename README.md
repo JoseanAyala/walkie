@@ -43,7 +43,7 @@ windows. Every change saves itself.
   model (with its disk, memory and GPU use), paste vs. type, and how much to
   lower other audio while you speak.
 - **Status**: what walkie needs to work (permissions, model, mic, keyboard
-  hook), with a button to fix each.
+  hook), with a button to fix each, and the version.
 - **Cleanup**: filler words to drop ("um", "o sea", …), per language.
 - **Polish**: the command for dictate + polish, with a Test button.
 - **History**: your past dictations, searchable, stored only on this Mac.
@@ -51,7 +51,6 @@ windows. Every change saves itself.
   Paste hex codes, a [coolors.co](https://coolors.co) link or a
   [Lospec](https://lospec.com/palette-list) list; walkie picks the dark,
   main and accent colors (you can swap them) and keeps every shade readable.
-  Nothing is fetched. The **light | dark** switch in the top bar pins a mode.
 
 Launch at login is a real macOS login item (System Settings → General →
 Login Items); it needs the installed app, not `cargo tauri dev`.
