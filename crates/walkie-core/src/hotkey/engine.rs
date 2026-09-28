@@ -242,10 +242,15 @@ impl Engine {
 
         if self.anchor.is_some() && self.machine.is_holding() {
             return match sat {
-                Some(Action::Polish) => {
+                // A chord that starts with the dictate key (fn then Shift;
+                // right ⌘ then Ctrl + V): the recording it began is dropped.
+                Some(a @ (Action::Polish | Action::PasteLast)) => {
                     self.machine.reset();
                     self.anchor = None;
-                    self.pending = Some(Signal::Polish);
+                    self.pending = Some(match a {
+                        Action::Polish => Signal::Polish,
+                        _ => Signal::PasteLast,
+                    });
                     Down::Consumed(Some(Signal::Cancel))
                 }
                 _ if !k.is_modifier() && t.saturating_sub(self.pressed_at) < STRAY_CANCEL_MS => {
@@ -708,6 +713,26 @@ mod tests {
         assert!(up.swallow && up.signal.is_none(), "modifiers still held");
         assert_eq!(e.on_key(LCMD, false, 110).signal, None);
         assert_eq!(e.on_key(LCTRL, false, 120).signal, Some(PasteLast));
+    }
+
+    #[test]
+    fn paste_last_chord_that_starts_with_the_dictate_key_pastes() {
+        const RCMD: Key = Key::Cmd(keys::Side::Right);
+        let mut e = Engine::new(Bindings {
+            dictate: vec![RCMD],
+            polish: vec![],
+            paste_last: vec![Key::Ctrl(Any), Key::Cmd(Any), V],
+        });
+        assert_eq!(e.on_key(RCMD, true, 0).signal, Some(Signal::Start));
+        assert!(!e.on_key(LCTRL, true, 300).swallow);
+        let v = e.on_key(V, true, 350);
+        assert_eq!(v.signal, Some(Signal::Cancel), "the recording is dropped");
+        assert!(v.swallow, "the V must not reach the focused app");
+        let s = run(
+            &mut e,
+            &[(V, false, 400), (RCMD, false, 420), (LCTRL, false, 440)],
+        );
+        assert_eq!(s, vec![PasteLast]);
     }
 
     #[test]

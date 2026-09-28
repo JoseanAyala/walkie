@@ -37,11 +37,15 @@ pub fn step(s: impl Into<String>) {
 pub struct TestGuard {
     _serial: MutexGuard<'static, ()>,
     done: Arc<AtomicBool>,
+    /// The clipboard the person running the tests had: dictating and
+    /// pasting change it, and it would otherwise hold a test transcript.
+    clipboard: String,
 }
 
 impl Drop for TestGuard {
     fn drop(&mut self) {
         self.done.store(true, Ordering::SeqCst);
+        set_clipboard(&self.clipboard);
     }
 }
 
@@ -52,6 +56,8 @@ pub fn begin(name: &'static str) -> TestGuard {
     step("starting");
     let done = Arc::new(AtomicBool::new(false));
     let d = done.clone();
+    let saved = clipboard();
+    let kept = saved.clone();
     let started = Instant::now();
     std::thread::spawn(move || {
         while started.elapsed() < TEST_BUDGET {
@@ -75,11 +81,13 @@ pub fn begin(name: &'static str) -> TestGuard {
         }
         quit();
         restore_login_item();
+        set_clipboard(&kept);
         std::process::exit(101);
     });
     TestGuard {
         _serial: serial,
         done,
+        clipboard: saved,
     }
 }
 

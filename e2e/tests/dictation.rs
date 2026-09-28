@@ -232,6 +232,38 @@ fn custom_combo_binding_works_and_swallows_its_key() {
 }
 
 #[test]
+fn ctrl_cmd_v_starting_with_a_right_cmd_dictate_key_pastes() {
+    let v = |k: &[&str]| k.iter().map(|s| s.to_string()).collect();
+    let mut r = Rig::new(Setup {
+        hotkeys: Hotkeys {
+            dictate: v(&["RightCmd"]),
+            polish: vec![],
+            paste_last: v(&["Ctrl", "Cmd", "V"]),
+        },
+        ..Default::default()
+    });
+    r.press("RightCmd").wait(3000).release("RightCmd");
+    let first = one(&r);
+    r.wait(1000)
+        .press("RightCmd")
+        .wait(300)
+        .press("Ctrl")
+        .press("V")
+        .wait(80)
+        .release("V")
+        .release("RightCmd")
+        .release("Ctrl");
+    let t = r.typed();
+    assert_eq!(t.len(), 2, "{t:?} (errors: {:?})", r.errors());
+    assert_eq!(t[1].to_lowercase(), first, "the last transcript again");
+    assert!(
+        r.swallowed.contains(&("V".to_string(), true)),
+        "the V must not reach the app: {:?}",
+        r.swallowed
+    );
+}
+
+#[test]
 fn ctrl_cmd_v_pastes_the_last_transcript_again() {
     let mut r = Rig::new(Setup::default());
     r.press("Fn").wait(3000).release("Fn");
