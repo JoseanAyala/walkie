@@ -3,7 +3,7 @@ import { onMount } from "svelte";
 import { api, type Check, type Config, type Pane } from "@/lib/api";
 import { glyph } from "@/lib/format";
 import Win from "@/lib/Win.svelte";
-import { PERMS, verdict } from "./checks";
+import { PERMS, turnedOk, verdict } from "./checks";
 
 const ROWS: Record<(typeof PERMS)[number], { name: string; why: string; pane: Pane }> = {
   mic: { name: "Microphone", why: "to hear you — asked on your first dictation", pane: "mic" },
@@ -23,10 +23,18 @@ let checks = $state<Check[]>([]);
 let cfg = $state<Config | null>(null);
 let login = $state(true);
 const missing = $derived(PERMS.filter((p) => verdict(checks, p) === "missing").length);
+// rows granted since the last check flash once
+let flash = $state<string[]>([]);
 
 async function refresh() {
   try {
-    checks = await api.getStatus();
+    const next = await api.getStatus();
+    const granted = turnedOk(checks, next);
+    checks = next;
+    if (granted.length) {
+      flash = granted;
+      setTimeout(() => (flash = flash.filter((p) => !granted.includes(p))), 900);
+    }
   } catch {
     // the next tick tries again
   }
@@ -80,7 +88,11 @@ onMount(() => {
       {@const v = verdict(checks, p)}
       {#if v !== "absent"}
         <div class="perm">
-          <span class="chip" class:ghost={v === "pending"} class:warn={v === "missing"}
+          <span
+            class="chip"
+            class:ghost={v === "pending"}
+            class:warn={v === "missing"}
+            class:flash={flash.includes(p)}
             >{v === "ok" ? "OK" : v === "pending" ? ".." : "!!"}</span
           >
           <span><b>{ROWS[p].name}</b><small>{ROWS[p].why}</small></span>
@@ -182,6 +194,22 @@ onMount(() => {
 }
 .perm > .chip {
   text-align: center;
+}
+/* just granted: the chip blinks in the accent color */
+.perm > .chip.flash {
+  animation: granted 600ms steps(1) both;
+}
+@keyframes granted {
+  0%,
+  50% {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  25%,
+  75% {
+    background: var(--chip);
+    color: var(--chip-fg);
+  }
 }
 small {
   display: block;

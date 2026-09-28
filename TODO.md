@@ -9,7 +9,7 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       restart bar, Finish window and overlay pill).
 - [x] **Tactile buttons.** A 2px hard shadow that collapses on `:active` as the
       button shifts 2px down-right.
-- [ ] **Stepped motion.** `steps()` animations: the main window opens on tab
+- [x] **Stepped motion.** `steps()` animations: the main window opens on tab
       switch, `saved ✓` blinks in and fades, the restart bar slides up, the
       overlay pill enters and shows `✓ typed` before hiding, onboarding
       permissions flash when they turn OK. Respect reduced motion.
@@ -23,5 +23,5 @@ Making the pixel-OS look feel premium: craft within the style, not a new one.
       popups (microphone, language, model, injection).
 - [ ] **Window limits.** `minWidth`/`minHeight` on settings so resizing can't
       break the grid.
-- [ ] **Overlay meter.** (last — talk it over first) Peak-hold on the VU meter; a fixed pill width so the
-      label doesn't reflow between states.
+- [ ] **Overlay meter.** Last; talk it over first. Peak-hold on the VU meter;
+      a fixed pill width so the label doesn't reflow between states.

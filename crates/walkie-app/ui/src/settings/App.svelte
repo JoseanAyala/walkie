@@ -102,10 +102,11 @@ onMount(() => {
   <!-- one column, so the main window ends level with the side ones unless
        the restart bar takes its place at the bottom -->
   <div class="right" data-tauri-drag-region>
+  {#key tab}
   <Win title={TABS[tab].name} class="main" bodyClass="scroll">
     {#snippet extra()}
       <!-- every change saves itself; this just confirms it happened -->
-      {#if settings.saved}<span class="saved">saved ✓</span>{/if}
+      {#if settings.saved}{#key settings.saves}<span class="saved">saved ✓</span>{/key}{/if}
     {/snippet}
     {#if settings.error}
       <div class="error">
@@ -130,6 +131,7 @@ onMount(() => {
       {/if}
     {/if}
   </Win>
+  {/key}
   {#if settings.pending.length}
     <div class="restart">
       <span>Restart to apply: {settings.pending.join(", ")}</span>
@@ -199,6 +201,8 @@ nav button.on {
 :global(.main) {
   flex: 1;
   min-height: 0;
+  /* each tab opens its window */
+  animation: open 150ms steps(3) both;
 }
 :global(.main > .body.scroll) {
   flex: 1;
@@ -206,7 +210,7 @@ nav button.on {
   padding: 12px 14px 16px;
 }
 .saved {
-  opacity: 0.7;
+  animation: flash-out 1200ms steps(3) both;
 }
 .error {
   display: flex;
@@ -231,6 +235,7 @@ nav button.on {
   padding: 0 4px;
 }
 .restart {
+  animation: rise 150ms steps(3) both;
   display: flex;
   gap: 8px;
   align-items: center;

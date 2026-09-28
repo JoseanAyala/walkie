@@ -8,7 +8,7 @@
 //! Each test runs alone and must finish in under 10s (os::TEST_BUDGET);
 //! past that the run aborts and reports the step it was stuck on.
 
-use walkie_e2e::os::{begin, sleep, App, Keyboard, Target};
+use walkie_e2e::os::{begin, sleep, step, App, Keyboard, Target};
 
 fn ready_app() -> App {
     let app = App::new();
@@ -161,6 +161,35 @@ fn hold_fn_types_the_transcript_into_the_focused_app() {
         t.to_lowercase().contains("hello"),
         "target has {t:?}\n{}",
         app.log_text()
+    );
+}
+
+/// The overlay doesn't just vanish: it says the text went in, briefly
+/// (glue's DONE_GRACE), then hides.
+#[test]
+fn the_overlay_says_typed_before_it_hides() {
+    let _t = begin("the_overlay_says_typed_before_it_hides");
+    let app = ready_app();
+    app.require_keyboard();
+    let doc = Target::open();
+    Keyboard::new().down("Fn").wait(600).up("Fn");
+    step("waiting for the overlay to say ✓ DONE");
+    let mut seen = String::new();
+    for _ in 0..30 {
+        seen = app.overlay_text();
+        if seen.contains("✓ DONE") {
+            break;
+        }
+        sleep(50);
+    }
+    assert!(
+        seen.contains("✓ DONE"),
+        "the overlay never confirmed; it showed {seen:?}\n{}",
+        app.log_text()
+    );
+    assert!(
+        doc.text().to_lowercase().contains("hello"),
+        "it said typed, so the text should be in"
     );
 }
 

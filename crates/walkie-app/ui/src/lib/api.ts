@@ -123,6 +123,8 @@ export interface Events {
   level: number;
   "app-error": string;
   "app-notice": string;
+  /** a dictation finished; its final text */
+  transcribed: string;
   "model-status": string;
   "download-progress": number;
   "shortcut-recorded": string[];

@@ -523,6 +523,30 @@ impl App {
         .unwrap_or_default()
     }
 
+    /// The overlay pill's text, or "" while it's hidden. Only that window:
+    /// walking Settings too takes longer than the pill stays up.
+    pub fn overlay_text(&self) -> String {
+        osa(
+            r#"set out to ""
+            tell application "System Events" to tell application process "walkie"
+                repeat with w in (every window)
+                    if name of w is not in {"Walkie", "Welcome to Walkie"} then
+                        -- materialized first, as in try_click
+                        set els to entire contents of w
+                        repeat with e in els
+                            try
+                                if role of e is "AXStaticText" then set out to out & (value of e as text) & linefeed
+                            end try
+                        end repeat
+                    end if
+                end repeat
+            end tell
+            return out"#,
+            &[],
+        )
+        .unwrap_or_default()
+    }
+
     /// Closes a window if it's showing (e.g. Settings opened by a failing check).
     pub fn close_if_open(&self) -> bool {
         if self.windows().iter().any(|w| w == "Walkie") {

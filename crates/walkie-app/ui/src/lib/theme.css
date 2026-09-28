@@ -344,6 +344,34 @@ label.cb {
     opacity: 0;
   }
 }
+/* motion moves in a few hard frames, like the pixels do (steps(3)) */
+@keyframes open {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+/* in with a blink, out with a fade */
+@keyframes flash-out {
+  0%,
+  20% {
+    opacity: 0;
+  }
+  10%,
+  30%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   * {
     /* biome-ignore lint/complexity/noImportantStyles: must beat every component's animation */

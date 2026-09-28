@@ -7,6 +7,8 @@ class Settings {
   cfg = $state<Config | null>(null);
   error = $state("");
   saved = $state(false);
+  /** counts saves, so each one replays the `saved ✓` blink */
+  saves = $state(0);
   pending = $state<string[]>([]);
   // What the running app launched with. This page loads at launch too (the
   // window is hidden, never destroyed), so the first read is that config.
@@ -33,6 +35,7 @@ class Settings {
       // The rest of the config is saved even when a shortcut is rejected.
       await api.saveConfig(snapshot);
       this.saved = true;
+      this.saves++;
       clearTimeout(this.#savedTimer);
       this.#savedTimer = setTimeout(() => {
         this.saved = false;

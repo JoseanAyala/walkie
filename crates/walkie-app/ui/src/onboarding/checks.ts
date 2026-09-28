@@ -17,3 +17,15 @@ export function verdict(checks: Check[], id: string): Verdict {
   if (c.id === "mic" && /not asked/.test(c.detail)) return "pending";
   return "missing";
 }
+
+/**
+ * The rows that were waiting (missing or pending) in `before` and are ok in
+ * `after`: granted just now, so they get a moment of celebration. Rows
+ * already ok, or not shown yet, don't.
+ */
+export function turnedOk(before: Check[], after: Check[]): string[] {
+  return PERMS.filter((p) => {
+    const was = verdict(before, p);
+    return (was === "missing" || was === "pending") && verdict(after, p) === "ok";
+  });
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Check } from "@/lib/api";
-import { verdict } from "./checks";
+import { turnedOk, verdict } from "./checks";
 
 const check = (id: string, ok: boolean, detail = ""): Check => ({
   id,
@@ -29,5 +29,23 @@ describe("verdict", () => {
     expect(verdict([check("mic", false, "denied — walkie records silence")], "mic")).toBe(
       "missing",
     );
+  });
+});
+
+describe("turnedOk", () => {
+  const waiting = [
+    check("mic", false, "not asked yet"),
+    check("accessibility", false, "not granted"),
+    check("globe", true, "does nothing"),
+  ];
+
+  it("names the rows that were just granted", () => {
+    const after = [check("mic", true), check("accessibility", true), check("globe", true)];
+    expect(turnedOk(waiting, after)).toEqual(["mic", "accessibility"]);
+  });
+
+  it("skips rows that were already ok or not shown yet", () => {
+    expect(turnedOk(waiting, waiting)).toEqual([]);
+    expect(turnedOk([], [check("mic", true)])).toEqual([]);
   });
 });

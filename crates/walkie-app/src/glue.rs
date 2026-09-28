@@ -55,6 +55,14 @@ const ERROR_GRACE: Duration = Duration::from_secs(2);
 /// Same, for an `Event::Notice` (e.g. "copied to clipboard" — it tells you
 /// what to do next, so it gets a little longer).
 const NOTICE_GRACE: Duration = Duration::from_millis(2500);
+/// Same, for `Event::Done`: long enough to see "✓ typed", then out of the
+/// way. Never cuts short an error's or notice's longer grace.
+const DONE_GRACE: Duration = Duration::from_millis(800);
+
+/// The later of an existing linger deadline and a new one.
+fn linger_to(current: Option<Instant>, until: Instant) -> Option<Instant> {
+    Some(current.map_or(until, |c| c.max(until)))
+}
 
 /// Paste-last: the newest transcript (from `Event::Done`; history covers a
 /// restart) and the way to the session worker, which owns the injector.
@@ -468,6 +476,7 @@ fn pump(app: &AppHandle, ev: Event, linger_until: &mut Option<Instant>, epoch: &
             let _ = app.emit("level", v);
         }
         Event::Done { text, .. } => {
+            *linger_until = linger_to(*linger_until, Instant::now() + DONE_GRACE);
             if let Some(p) = app.try_state::<PasteLast>() {
                 *p.last.lock().unwrap() = Some(text.clone());
             }
@@ -534,6 +543,22 @@ fn position_overlay(w: &tauri::WebviewWindow) -> tauri::Result<()> {
         ))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn done_lingers_but_never_shortens_an_errors_grace() {
+        let now = Instant::now();
+        let done = now + DONE_GRACE;
+        assert_eq!(linger_to(None, done), Some(done));
+        let error = now + ERROR_GRACE;
+        assert_eq!(linger_to(Some(error), done), Some(error));
+        let stale = now - ERROR_GRACE;
+        assert_eq!(linger_to(Some(stale), done), Some(done));
+    }
 }
 
 #[cfg(all(test, not(feature = "test-hooks")))]

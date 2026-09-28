@@ -3,7 +3,7 @@ import { onMount } from "svelte";
 import { on, type SessionState } from "@/lib/api";
 import { litBlocks } from "./meter";
 
-type Mode = "rec" | "busy" | "notice" | "error";
+type Mode = "rec" | "busy" | "done" | "notice" | "error";
 const NAMES: Partial<Record<SessionState, string>> = {
   recording: "listening…",
   transcribing: "transcribing…",
@@ -17,15 +17,20 @@ let mode = $state<Mode>("rec");
 let label = $state("listening…");
 let lit = $state(0);
 let spin = $state(0);
+// bumped each time a dictation starts, so the pill replays its entrance
+let shown = $state(0);
+let last: SessionState | "" = "";
 
 const chip = $derived(
   mode === "rec"
     ? "REC"
     : mode === "busy"
       ? `${SPIN[spin % 4]} BUSY`
-      : mode === "notice"
-        ? "NOTE"
-        : "ERR",
+      : mode === "done"
+        ? "✓ DONE"
+        : mode === "notice"
+          ? "NOTE"
+          : "ERR",
 );
 
 onMount(() => {
@@ -34,8 +39,19 @@ onMount(() => {
   }, 150);
   const offs = [
     on("state", (s) => {
+      if (s === "recording" && (last === "" || last === "idle")) shown++;
+      last = s;
+      // idle comes as the pill hides; keep whatever it last said
+      if (s === "idle") return;
       mode = s === "recording" ? "rec" : "busy";
       label = NAMES[s] ?? s;
+    }),
+    // typed: a beat of confirmation before the pill goes (glue's
+    // DONE_GRACE). An error or notice already showing stays.
+    on("transcribed", () => {
+      if (mode !== "busy") return;
+      mode = "done";
+      label = "typed";
     }),
     on("level", (v) => {
       lit = litBlocks(v, lit, N);
@@ -57,6 +73,7 @@ onMount(() => {
 });
 </script>
 
+{#key shown}
 <div id="pill" class={mode}>
   <span class="chip">{chip}</span><span class="label">{label}</span>
   {#if mode === "rec"}
@@ -65,6 +82,7 @@ onMount(() => {
     </span>
   {/if}
 </div>
+{/key}
 
 <style>
   /* a dark color-scheme would paint an opaque canvas behind the pill */
@@ -84,6 +102,7 @@ onMount(() => {
     background: var(--panel);
     border: 2px solid var(--line);
     box-shadow: 4px 4px 0 var(--line);
+    animation: open 150ms steps(3) both;
   }
   .chip {
     flex: none;
@@ -97,6 +116,10 @@ onMount(() => {
     animation: blink 1s steps(1) infinite;
   }
   .busy .chip {
+    background: var(--chip);
+    color: var(--chip-fg);
+  }
+  .done .chip {
     background: var(--chip);
     color: var(--chip-fg);
   }
