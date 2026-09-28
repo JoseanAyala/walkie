@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Tag matches tauri.conf.json version
         run: |
           version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' crates/walkie-app/tauri.conf.json)
@@ -23,7 +23,7 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME doesn't match tauri.conf.json version $version"
             exit 1
           fi
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v4
       - uses: Swatinem/rust-cache@v2
       - name: Check
         run: make check
