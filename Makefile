@@ -7,6 +7,7 @@
 
 APP_DIR := crates/walkie-app
 UI_DIR := $(APP_DIR)/ui
+SWIFT := $(APP_DIR)/swift
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -43,16 +44,19 @@ package: ## Ad-hoc-signed release zip (what CI ships)
 
 # --- Quality -----------------------------------------------------------------
 
-fmt: ui-deps ## Format all code (Rust + UI)
+fmt: ui-deps ## Format all code (Rust + Swift + UI)
 	cargo fmt --all
+	xcrun swift-format format --in-place --recursive $(SWIFT)
 	cd $(UI_DIR) && bun run fmt
 
 fmt-check: ui-deps ## Fail if code isn't formatted
 	cargo fmt --all --check
+	for f in $(SWIFT)/*.swift; do xcrun swift-format format "$$f" | diff -u "$$f" - || exit 1; done
 	cd $(UI_DIR) && bun run biome format .
 
-lint: ui ## Clippy + oxlint + Biome + svelte-check, warnings are errors
+lint: ui ## Clippy + swift-format + oxlint + Biome + svelte-check, warnings are errors
 	cargo clippy --workspace --all-targets --all-features -- -D warnings
+	xcrun swift-format lint --strict --recursive $(SWIFT)
 	cd $(UI_DIR) && bun run lint
 	cd $(UI_DIR) && bun run check
 
