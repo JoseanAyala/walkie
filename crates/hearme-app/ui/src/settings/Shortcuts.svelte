@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import { api, type HotkeyName, message, on } from "../lib/api";
-import { chord, sameKeys } from "../lib/format";
+import { api, type HotkeyName, message, on } from "@/lib/api";
+import { chord, sameKeys } from "@/lib/format";
 import { settings } from "./state.svelte";
 
 const ROWS: { k: HotkeyName; name: string; label: string; help: string }[] = [

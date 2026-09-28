@@ -1,8 +1,8 @@
 <script lang="ts">
 import { getVersion } from "@tauri-apps/api/app";
 import { onMount } from "svelte";
-import { api, type Check, on } from "../lib/api";
-import Win from "../lib/Win.svelte";
+import { api, type Check, on } from "@/lib/api";
+import Win from "@/lib/Win.svelte";
 import Cleanup from "./Cleanup.svelte";
 import General from "./General.svelte";
 import History from "./History.svelte";

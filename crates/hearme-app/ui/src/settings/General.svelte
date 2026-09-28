@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import { api, type LoginItem, type ModelChoice } from "../lib/api";
-import { megabytes } from "../lib/format";
+import { api, type LoginItem, type ModelChoice } from "@/lib/api";
+import { megabytes } from "@/lib/format";
 import Field from "./Field.svelte";
 import Shortcuts from "./Shortcuts.svelte";
 import { settings } from "./state.svelte";

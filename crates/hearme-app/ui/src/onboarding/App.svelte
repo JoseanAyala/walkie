@@ -1,8 +1,8 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import { api, type Check, type Config, type Pane } from "../lib/api";
-import { glyph } from "../lib/format";
-import Win from "../lib/Win.svelte";
+import { api, type Check, type Config, type Pane } from "@/lib/api";
+import { glyph } from "@/lib/format";
+import Win from "@/lib/Win.svelte";
 import { PERMS, verdict } from "./checks";
 
 const ROWS: Record<(typeof PERMS)[number], { name: string; why: string; pane: Pane }> = {

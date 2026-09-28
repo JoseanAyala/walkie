@@ -1,4 +1,4 @@
-import type { Config } from "../lib/api";
+import type { Config } from "@/lib/api";
 
 // Only the shortcuts and the microphone are applied live; everything else
 // is read once at launch. Each entry names a group of such settings.

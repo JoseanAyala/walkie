@@ -1,6 +1,6 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import { on, type SessionState } from "../lib/api";
+import { on, type SessionState } from "@/lib/api";
 import { litBlocks } from "./meter";
 
 type Mode = "rec" | "busy" | "notice" | "error";

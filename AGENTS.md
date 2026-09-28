@@ -29,7 +29,7 @@ Plain `cargo test` only covers `hearme-core` and `hearme-app` (workspace `defaul
 
 Workspace crates:
 - **`crates/hearme-core`** — all dictation logic, no UI imports (enforced by convention, see `lib.rs`). Modules: `hotkey` (key → signal), `audio` (cpal capture, DSP, volume ducking), `stt` (whisper-rs, Metal), `pipeline` (session state machine, text cleanup, polish via external command), `inject` (typing/pasting into the focused app), `config` (TOML + model registry), `history` (SQLite).
-- **`crates/hearme-app`** — Tauri shell: tray, windows (`dist/*.html` are plain HTML, no bundler), `commands.rs` (Tauri IPC), `glue.rs` (wires core into the app: builds the `Session`, forwards its `Event`s to the tray/overlay), `login_item.rs` (also a `hearme --login-item` CLI).
+- **`crates/hearme-app`** — Tauri shell: tray, windows (a Svelte UI in `ui/`, built by Vite into `dist/`; import across folders with `@/` = `ui/src/`, since oxlint rejects `../` imports), `commands.rs` (Tauri IPC), `glue.rs` (wires core into the app: builds the `Session`, forwards its `Event`s to the tray/overlay), `login_item.rs` (also a `hearme --login-item` CLI).
 - **`e2e`** — two test layers (see below).
 
 Data flow: macOS event tap (`hotkey/tap.rs`) → `hotkey::engine::Engine` (pure, no OS calls; turns key events into `Signal`s, decides what to swallow) → `Command::from_signal` → `pipeline::session::Session` worker thread (Idle → Recording → Transcribing → [Polishing] → Injecting) → emits `Event`s (state, level, done, error, notice) back to the app.

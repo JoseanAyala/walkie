@@ -1,6 +1,6 @@
 // Settings-window state shared by every tab: the config being edited, the
 // autosave, the restart hint and the error banner.
-import { api, type Config, message } from "../lib/api";
+import { api, type Config, message } from "@/lib/api";
 import { pendingRestart } from "./restart";
 
 class Settings {

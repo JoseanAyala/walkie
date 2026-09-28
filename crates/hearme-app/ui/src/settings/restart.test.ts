@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Config } from "../lib/api";
+import type { Config } from "@/lib/api";
 import { pendingRestart } from "./restart";
 
 const cfg = (): Config => ({

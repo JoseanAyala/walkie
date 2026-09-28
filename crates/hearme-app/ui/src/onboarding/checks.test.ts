@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Check } from "../lib/api";
+import type { Check } from "@/lib/api";
 import { verdict } from "./checks";
 
 const check = (id: string, ok: boolean, detail = ""): Check => ({

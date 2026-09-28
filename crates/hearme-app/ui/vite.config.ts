@@ -6,6 +6,8 @@ import { defineConfig } from "vitest/config";
 // tauri.conf.json embeds into the binary.
 export default defineConfig({
   plugins: [svelte()],
+  // `@/` is `src/`; parent-relative imports are banned (.oxlintrc.json)
+  resolve: { alias: { "@": resolve(import.meta.dirname, "src") } },
   clearScreen: false,
   server: { port: 5173, strictPort: true },
   build: {

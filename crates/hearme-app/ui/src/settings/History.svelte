@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import { api, type HistoryRecord } from "../lib/api";
-import { when } from "../lib/format";
+import { api, type HistoryRecord } from "@/lib/api";
+import { when } from "@/lib/format";
 import { settings } from "./state.svelte";
 
 const cfg = $derived(settings.cfg);

@@ -1,4 +1,4 @@
-import type { Check } from "../lib/api";
+import type { Check } from "@/lib/api";
 
 export type Verdict = "ok" | "pending" | "missing" | "absent";
 

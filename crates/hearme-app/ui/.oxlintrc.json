@@ -7,6 +7,17 @@
   },
   "ignorePatterns": ["dist"],
   "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["../**", "./../**"],
+            "message": "Import from \"@/…\" (src/) instead of a \"../\" path."
+          }
+        ]
+      }
+    ],
     "import/no-unassigned-import": [
       "warn",
       {

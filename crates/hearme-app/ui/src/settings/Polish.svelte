@@ -1,5 +1,5 @@
 <script lang="ts">
-import { api, message } from "../lib/api";
+import { api, message } from "@/lib/api";
 import Field from "./Field.svelte";
 import { settings } from "./state.svelte";
 

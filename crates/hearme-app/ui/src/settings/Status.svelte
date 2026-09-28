@@ -1,5 +1,5 @@
 <script lang="ts">
-import { api, type Check } from "../lib/api";
+import { api, type Check } from "@/lib/api";
 
 let { checks }: { checks: Check[] } = $props();
 

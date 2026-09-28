@@ -1,5 +1,5 @@
 <script lang="ts">
-import { words } from "../lib/format";
+import { words } from "@/lib/format";
 import Field from "./Field.svelte";
 import { settings } from "./state.svelte";
 
