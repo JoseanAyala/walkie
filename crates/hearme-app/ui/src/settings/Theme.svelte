@@ -81,7 +81,7 @@ function add() {
   <Field label="Appearance">
     <div class="inline">
       {#each APPEARANCES as a (a)}
-        <button class:primary={cfg.theme.appearance === a} onclick={() => appearance(a)}>{a}</button>
+        <button class="mode" class:on={cfg.theme.appearance === a} aria-pressed={cfg.theme.appearance === a} onclick={() => appearance(a)}>{a}</button>
       {/each}
     </div>
     <div class="hint">system follows macOS; the light | dark switch up top pins one</div>
@@ -170,6 +170,11 @@ function add() {
 {/if}
 
 <style>
+/* like the light | dark switch: the accent marks the one in use */
+.mode.on {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));

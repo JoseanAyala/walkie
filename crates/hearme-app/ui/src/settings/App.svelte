@@ -183,9 +183,10 @@ onMount(() => {
 .modes button + button {
   border-left: 0;
 }
+/* the accent, not the chip color: a black "light" read as dark */
 .modes button.on {
-  background: var(--chip);
-  color: var(--chip-fg);
+  background: var(--accent);
+  color: var(--accent-fg);
 }
 .side {
   grid-row: 2 / 4;

@@ -332,7 +332,14 @@ impl App {
                     set els to entire contents of window wname
                     repeat with e in els
                         try
-                            if role of e is "AXButton" then
+                            -- a button with aria-pressed is an AXCheckBox/AXToggle
+                            set isButton to role of e is "AXButton"
+                            if not isButton then
+                                try
+                                    set isButton to subrole of e is "AXToggle"
+                                end try
+                            end if
+                            if isButton then
                                 -- web content labels buttons via AXTitle
                                 set t to ""
                                 try
