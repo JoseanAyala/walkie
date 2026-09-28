@@ -1,6 +1,5 @@
 <script lang="ts">
 import { type AppleAi, api, type Tone } from "@/lib/api";
-import { chord } from "@/lib/format";
 import Select from "@/lib/Select.svelte";
 import Field from "./Field.svelte";
 import { settings } from "./state.svelte";
@@ -47,14 +46,6 @@ const save = () => settings.save();
 </script>
 
 {#if cfg}
-  <Field label="Shortcut">
-    {#if cfg.hotkeys.polish.length}
-      <kbd>{chord(cfg.hotkeys.polish)}</kbd>
-      <span class="hint">polishes the selected text, or the whole field · change it in General</span>
-    {:else}
-      <span class="hint">off · turn it on in General</span>
-    {/if}
-  </Field>
   <Field label="Rewrite with">
     <Select
       label="Rewrite with"

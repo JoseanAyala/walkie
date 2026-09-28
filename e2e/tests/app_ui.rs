@@ -131,10 +131,6 @@ fn polish_tab_says_whether_apples_model_is_ready() {
         "Apple shows its tone:\n{text}"
     );
     assert!(!text.contains("Prompt"), "prompts aren't editable:\n{text}");
-    assert!(
-        text.contains("change it in General"),
-        "the page says which shortcut polishes:\n{text}"
-    );
 }
 
 #[test]
