@@ -24,6 +24,17 @@ block2 = "0.6"
 # (set in tauri.macos.conf.json), which is only true on that platform.
 tauri = { version = "2", features = ["macos-private-api"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# Same gtk version tauri itself pins (see its Cargo.toml): `w.gtk_window()`
+# hands back a `gtk::ApplicationWindow`, and that type only matches ours if
+# Cargo unifies on one `gtk` crate instance.
+gtk = "0.18"
+# The overlay's layer-shell surface (Wayland, wlr-layer-shell compositors
+# like Hyprland); see overlay/linux.rs. Needs the system `gtk-layer-shell`
+# lib (flake.nix's `runtimeLibs`). `v0_6` (which implies v0_5/v0_4) is off
+# by default; it's what gates `is_supported`/`set_keyboard_mode`.
+gtk-layer-shell = { version = "0.8", features = ["v0_6"] }
+
 [features]
 # Lets the OS e2e suite swap the mic for a WAV (WALKIE_TEST_AUDIO). Never on
 # in shipped builds; e2e/run-app-tests.sh turns it on.
