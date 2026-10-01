@@ -25,6 +25,8 @@ whisper-rs = { version = "0.16.0", features = ["metal"] }
 whisper-rs = "0.16.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
+# The keyboard hook reads /dev/input directly (works on Wayland and X11).
+evdev = "0.13.2"
 # zwp_virtual_keyboard_v1, which Hyprland (and other wlroots compositors)
 # support; enigo still also builds its default x11rb backend for plain X11
 # sessions — see `inject::disable_x11_fallback` for why only one of the two

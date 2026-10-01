@@ -392,7 +392,12 @@ mod tests {
     fn default_config_parses_to_wispr_bindings() {
         let (b, errs) = Bindings::from_config(&Hotkeys::default());
         assert!(errs.is_empty(), "{errs:?}");
-        assert_eq!(b, wispr().bindings);
+        // dictate's default is platform-specific (see
+        // `tap::DEFAULT_DICTATE_KEY`); everything else matches `wispr()`.
+        let mut expected = wispr().bindings;
+        expected.dictate =
+            keys::parse_binding(&[crate::hotkey::tap::DEFAULT_DICTATE_KEY.to_string()]).unwrap();
+        assert_eq!(b, expected);
     }
 
     #[test]
