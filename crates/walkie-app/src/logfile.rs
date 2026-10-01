@@ -1,4 +1,5 @@
-//! Sends stderr to `~/Library/Logs/walkie/walkie.log` when there's no
+//! Sends stderr to `~/Library/Logs/walkie/walkie.log` (Linux:
+//! `$XDG_STATE_HOME/walkie/walkie.log`) when there's no
 //! terminal to see it. Every diagnostic in the app is an `eprintln!`, and a
 //! bundle launched from Finder or `open` would otherwise drop them all.
 
@@ -15,7 +16,15 @@ pub fn path() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os("WALKIE_LOG") {
         return Some(PathBuf::from(p));
     }
-    std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Logs/walkie/walkie.log"))
+    let home = PathBuf::from(std::env::var_os("HOME")?);
+    if cfg!(target_os = "macos") {
+        return Some(home.join("Library/Logs/walkie/walkie.log"));
+    }
+    let state = std::env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .unwrap_or_else(|| home.join(".local/state"));
+    Some(state.join("walkie/walkie.log"))
 }
 
 /// Redirects stderr to the log file unless stderr is a terminal
@@ -76,6 +85,10 @@ mod tests {
             return;
         }
         let p = path().unwrap();
-        assert!(p.ends_with("Library/Logs/walkie/walkie.log"));
+        if cfg!(target_os = "macos") {
+            assert!(p.ends_with("Library/Logs/walkie/walkie.log"));
+        } else {
+            assert!(p.ends_with("walkie/walkie.log"));
+        }
     }
 }

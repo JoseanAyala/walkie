@@ -17,7 +17,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        isLinux = pkgs.stdenv.isLinux;
+        isLinux = pkgs.stdenv.hostPlatform.isLinux;
         # Tauri's runtime libs (webview + tray) on Linux.
         tauriLibs = pkgs.lib.optionals isLinux (with pkgs; [
           webkitgtk_4_1

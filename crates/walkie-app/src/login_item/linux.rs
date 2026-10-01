@@ -16,7 +16,17 @@ const AUTOSTARTED_ARG: &str = "--autostarted";
 /// there's no app-bundle requirement — so this is always true; kept only
 /// for symmetry with macOS's gate in `mod.rs`.
 pub fn bundled() -> bool {
-    true
+    std::env::current_exe().is_ok_and(|p| !in_cargo_target(&p))
+}
+
+/// A dev build (`make run`, from `target/debug`): registering it would
+/// launch a stale build at every login, so it counts as unbundled like on
+/// macOS.
+fn in_cargo_target(exe: &Path) -> bool {
+    let parts: Vec<_> = exe.components().map(|c| c.as_os_str()).collect();
+    parts
+        .windows(2)
+        .any(|w| w[0] == "target" && (w[1] == "debug" || w[1] == "release"))
 }
 
 pub fn status() -> Status {
@@ -141,6 +151,16 @@ fn in_nix_store(p: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_cargo_build_is_not_bundled() {
+        assert!(in_cargo_target(Path::new(
+            "/home/me/dev/walkie/target/debug/walkie"
+        )));
+        assert!(!in_cargo_target(Path::new(
+            "/etc/profiles/per-user/me/bin/walkie"
+        )));
+    }
     use tempfile::tempdir;
 
     #[test]
