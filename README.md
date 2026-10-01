@@ -1,8 +1,9 @@
 # Walkie 📻
 
-Local-only dictation for macOS. Hold a key, speak (English or Spanish), and
-the text is typed into whatever window has focus: Claude Code, Cursor, a
-browser, anything. Whisper runs on your Mac; your voice never leaves it.
+Local-only dictation for macOS, and now Linux too. Hold a key, speak
+(English or Spanish), and the text is typed into whatever window has
+focus: Claude Code, Cursor, a browser, anything. Whisper runs on your
+machine; your voice never leaves it.
 
 <p align="center">
   <img src="docs/settings.png" width="640" alt="walkie's Settings window on the General page: a lavender menu over a red note, a serif title, and a checker trim">
@@ -81,6 +82,48 @@ appearance = "system"        # "light" | "dark"
 
 History lives in `~/.local/share/walkie/history.sqlite3` (off switch in
 Settings). Failed transcriptions keep their audio in `~/.cache/walkie/spool/`.
+
+## Linux
+
+Works on Wayland compositors; tested on NixOS + Hyprland. No packaged build
+yet — run it from a dev shell:
+
+```sh
+nix develop -c make run
+```
+
+A packaged `nix run` and a NixOS module are on the way; see `flake.nix`.
+
+You'll need:
+
+- your user in the `input` group, so walkie can read keyboards from
+  `/dev/input` (`sudo usermod -aG input $USER`, then log out and back in).
+- access to `/dev/uinput`: walkie pastes and sends copy/select-all through a
+  small virtual keyboard it creates there, limited to Ctrl, Shift, A, C and
+  V.
+- PipeWire's `wpctl` (or `pactl`) on `PATH` for volume ducking.
+
+The default dictate key is **Right Ctrl** — Fn isn't visible to Linux.
+Rebind it in Settings → General like any other shortcut.
+
+What differs from macOS:
+
+- No Apple Intelligence polish (that needs Apple silicon); the command
+  polish provider (`claude -p`, `codex exec`, ollama, …) works the same way.
+- The hotkey hook is listen-only: it reads your keyboards but never grabs
+  them, so held keys still reach the focused app normally.
+- Terminals (Ghostty, kitty, foot, Alacritty, WezTerm) get pasted into via
+  Ctrl+Shift+V instead of Ctrl+V, detected through `hyprctl` on Hyprland.
+- The overlay pill is a real `wlr-layer-shell` surface, so it floats above
+  everything including a full-screen app, without ever taking focus.
+
+On NVIDIA, walkie sets `__NV_DISABLE_EXPLICIT_SYNC=1` itself to avoid a
+driver crash under Wayland — don't also set
+`WEBKIT_DISABLE_DMABUF_RENDERER`, which fixes the same crash but makes the
+overlay opaque.
+
+Logs go to `$XDG_STATE_HOME/walkie/walkie.log` (default
+`~/.local/state/walkie/walkie.log`).
 
 ## Develop
 
