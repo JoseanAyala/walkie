@@ -32,6 +32,9 @@
           alsa-lib
           libxkbcommon
           wayland
+          # The overlay's layer-shell surface on wlr-layer-shell compositors
+          # (Hyprland, etc.) — see crates/walkie-app/src/overlay/linux.rs.
+          gtk-layer-shell
         ]);
       in {
         devShells.default = pkgs.mkShell {
