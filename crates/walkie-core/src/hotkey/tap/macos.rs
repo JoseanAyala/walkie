@@ -7,8 +7,9 @@
 //! `TapStatus` and keeps trying, so granting it takes effect without a
 //! restart.
 
-use super::engine::{Engine, Signal};
-use super::keys::Key;
+use super::super::engine::{Engine, Signal};
+use super::super::keys::Key;
+use super::TapStatus;
 use crate::inject::SYNTHETIC_EVENT_MARKER;
 use core_foundation::base::TCFType;
 use core_foundation::mach_port::CFMachPortRef;
@@ -17,17 +18,13 @@ use core_graphics::event::{
     CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement, CGEventType,
     CallbackResult, EventField,
 };
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-#[derive(Default)]
-pub struct TapStatus {
-    pub running: AtomicBool,
-    /// Times macOS disabled the tap (callback too slow) and we re-enabled it.
-    pub reenabled: AtomicU32,
-    pub error: Mutex<Option<String>>,
-}
+/// The factory default for `hotkeys.dictate` (see `config::Hotkeys`): the
+/// Globe/Fn key, which has no other use on a Mac keyboard.
+pub const DEFAULT_DICTATE_KEY: &str = "Fn";
 
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {

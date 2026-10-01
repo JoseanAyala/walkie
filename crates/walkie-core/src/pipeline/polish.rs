@@ -60,13 +60,12 @@ pub fn apple_helper() -> PathBuf {
 /// After a few idle minutes macOS unloads it, and the first call then takes
 /// 4–8s; started when a polish recording begins, loading overlaps speaking.
 pub fn prewarm_apple(helper: &Path) {
-    if let Ok(mut child) = Command::new(helper)
-        .arg("prewarm")
+    let mut cmd = Command::new(helper);
+    cmd.arg("prewarm")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-    {
+        .stderr(Stdio::null());
+    if let Ok(mut child) = spawn_retrying_etxtbsy(&mut cmd) {
         thread::spawn(move || child.wait());
     }
 }
@@ -93,6 +92,26 @@ pub fn describe_apple_status(status: &str) -> &'static str {
     }
 }
 
+/// `Command::spawn`, retrying briefly on ETXTBSY: a file written and chmod
+/// +x moments earlier (our own test fixtures below; a freshly-installed
+/// walkie-ai) can transiently fail exec on Linux if some unrelated thread's
+/// `fork()` duplicated an fd that was open on it for writing — the write
+/// closes before the fork's *own* exec, but the kernel's "still open for
+/// writing" bookkeeping on the file doesn't clear until that forked child
+/// execs or exits. Not a thing on macOS (`Command::spawn` there doesn't
+/// fork), so this never retries there.
+fn spawn_retrying_etxtbsy(cmd: &mut Command) -> std::io::Result<std::process::Child> {
+    for attempt in 0.. {
+        match cmd.spawn() {
+            Err(e) if attempt < 20 && e.raw_os_error() == Some(libc::ETXTBSY) => {
+                thread::sleep(Duration::from_millis(5));
+            }
+            r => return r,
+        }
+    }
+    unreachable!()
+}
+
 /// Runs `cmd` with `input` on stdin and returns its trimmed stdout.
 /// `what` names it in errors.
 ///
@@ -113,15 +132,13 @@ pub fn describe_apple_status(status: &str) -> &'static str {
 /// `sleep` alive, reparented, running for its full remaining duration in
 /// the background.
 fn run(mut cmd: Command, what: &str, input: &str, timeout: Duration) -> Result<String> {
-    let mut child = cmd
-        .stdin(Stdio::piped())
+    cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         // New process group (pgid == child pid) so a timeout kill can
         // target the whole group, taking any forked descendants with it.
-        .process_group(0)
-        .spawn()
-        .with_context(|| format!("starting {what}"))?;
+        .process_group(0);
+    let mut child = spawn_retrying_etxtbsy(&mut cmd).with_context(|| format!("starting {what}"))?;
 
     let mut stdin = child.stdin.take().expect("stdin was piped");
     let mut stdout = child.stdout.take().expect("stdout was piped");

@@ -9,14 +9,20 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 walkie-core = { path = "../walkie-core" }
-tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
-objc2 = "0.6"
-block2 = "0.6"
 libc = "0.2"
 arboard = "3.6.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+# `macos-private-api` must only be on for macOS: tauri-build checks the
+# feature set against `tauri.conf.json`'s merged `app.macOSPrivateApi`
+# (set in tauri.macos.conf.json), which is only true on that platform.
+tauri = { version = "2", features = ["macos-private-api"] }
 
 [features]
 # Lets the OS e2e suite swap the mic for a WAV (WALKIE_TEST_AUDIO). Never on

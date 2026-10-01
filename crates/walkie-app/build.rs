@@ -25,14 +25,28 @@ fn build_ai_helper() {
     let src = "swift/walkie-ai.swift";
     println!("cargo:rerun-if-changed={src}");
     std::fs::create_dir_all("binaries").expect("creating binaries/");
+
+    // Apple's model only exists on macOS; elsewhere there's no Swift
+    // toolchain to invoke, so just drop the stub where Tauri's externalBin
+    // looks for it (the host triple — there's no universal build off macOS).
+    if cfg!(not(target_os = "macos")) {
+        let target = std::env::var("TARGET").expect("cargo sets TARGET");
+        write_stub(&format!("binaries/walkie-ai-{target}"));
+        return;
+    }
+
     let universal = "binaries/walkie-ai-aarch64-apple-darwin";
     if let Err(e) = compile_universal(src, universal) {
         println!("cargo:warning=walkie-ai: {e}; Apple's model will be unavailable");
-        std::fs::write(universal, STUB).expect("writing the walkie-ai stub");
-        std::fs::set_permissions(universal, std::fs::Permissions::from_mode(0o755))
-            .expect("making the walkie-ai stub executable");
+        write_stub(universal);
     }
     std::fs::copy(universal, "binaries/walkie-ai-x86_64-apple-darwin").expect("copying walkie-ai");
+}
+
+fn write_stub(path: &str) {
+    std::fs::write(path, STUB).expect("writing the walkie-ai stub");
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+        .expect("making the walkie-ai stub executable");
 }
 
 /// walkie-ai's interface, answering "unsupported" to everything.

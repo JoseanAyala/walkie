@@ -200,7 +200,8 @@ pub fn start(app: AppHandle) -> Result<()> {
         errors: Mutex::new(errors),
     };
     let (sig_tx, sig_rx) = mpsc::channel::<Signal>();
-    #[cfg(target_os = "macos")]
+    // On non-macOS this is a no-op that reports "not running" (see
+    // `hotkey::tap::spawn`): no hotkey listener yet, see AGENTS.md.
     tap::spawn(hk.engine.clone(), hk.tap.clone(), move |s| {
         let _ = sig_tx.send(s);
     });

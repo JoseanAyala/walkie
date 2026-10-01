@@ -32,83 +32,10 @@ pub struct Check {
     pub fix: Option<&'static str>,
 }
 
-#[cfg(target_os = "macos")]
-mod mac {
-    #[link(name = "ApplicationServices", kind = "framework")]
-    extern "C" {
-        fn AXIsProcessTrusted() -> bool;
-    }
-    #[link(name = "IOKit", kind = "framework")]
-    extern "C" {
-        fn IOHIDCheckAccess(request: u32) -> u32;
-    }
-    #[link(name = "AVFoundation", kind = "framework")]
-    extern "C" {
-        static AVMediaTypeAudio: &'static objc2::runtime::AnyObject;
-    }
-
-    pub fn accessibility() -> bool {
-        unsafe { AXIsProcessTrusted() }
-    }
-
-    /// kIOHIDRequestTypeListenEvent = 1; kIOHIDAccessTypeGranted = 0.
-    pub fn input_monitoring() -> bool {
-        unsafe { IOHIDCheckAccess(1) == 0 }
-    }
-
-    /// AVAuthorizationStatus: 0 not determined, 1 restricted, 2 denied, 3 authorized.
-    pub fn microphone() -> isize {
-        unsafe {
-            objc2::msg_send![
-                objc2::class!(AVCaptureDevice),
-                authorizationStatusForMediaType: AVMediaTypeAudio
-            ]
-        }
-    }
-
-    /// Shows macOS's microphone prompt. Only does anything while the answer
-    /// is "not determined"; after that, only System Settings can change it.
-    pub fn request_microphone() {
-        let done = block2::RcBlock::new(|_granted: objc2::runtime::Bool| {});
-        unsafe {
-            let _: () = objc2::msg_send![
-                objc2::class!(AVCaptureDevice),
-                requestAccessForMediaType: AVMediaTypeAudio,
-                completionHandler: &*done
-            ];
-        }
-    }
-
-    /// System Settings → Keyboard → "Press 🌐 key to": 0 = Do Nothing.
-    pub fn globe_does_nothing() -> bool {
-        std::process::Command::new("defaults")
-            .args(["read", "com.apple.HIToolbox", "AppleFnUsageType"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim() == "0")
-            .unwrap_or(false)
-    }
-}
-
-/// Whether "Press 🌐 key to" is Do Nothing, so Fn only reaches walkie.
-pub fn globe_does_nothing() -> bool {
-    #[cfg(target_os = "macos")]
-    return mac::globe_does_nothing();
-    #[cfg(not(target_os = "macos"))]
-    true
-}
-
-/// Asks for the microphone the way a first dictation would, if macOS hasn't
-/// asked yet. False when it already has: then only System Settings helps.
-pub fn ask_for_microphone() -> bool {
-    #[cfg(target_os = "macos")]
-    if mac::microphone() == 0 {
-        mac::request_microphone();
-        return true;
-    }
-    false
-}
+#[cfg_attr(target_os = "macos", path = "macos.rs")]
+#[cfg_attr(target_os = "linux", path = "linux.rs")]
+mod platform;
+pub use platform::{ask_for_microphone, globe_does_nothing};
 
 pub fn pretty(keys: &[Key]) -> String {
     if keys.is_empty() {
@@ -138,57 +65,7 @@ pub fn collect(hk: &HotkeyState, model: &ModelStatus) -> Vec<Check> {
     let mut out = Vec::new();
     let tap_running = hk.tap.running.load(Ordering::SeqCst);
 
-    #[cfg(target_os = "macos")]
-    {
-        let mic = mac::microphone();
-        if let Some(p) = crate::glue::test_audio() {
-            out.push(Check {
-                id: "mic",
-                label: "Microphone",
-                ok: true,
-                detail: format!("test mode — playing {}", std::path::Path::new(&p).display()),
-                fix: None,
-            });
-        } else {
-            out.push(Check {
-                id: "mic",
-                label: "Microphone",
-                ok: mic == 3,
-                detail: match mic {
-                    3 => "granted".into(),
-                    0 => "not asked yet — Fix asks now, or your first dictation will".into(),
-                    _ => "denied — walkie records silence".into(),
-                },
-                fix: (mic != 3).then_some("mic"),
-            });
-        }
-        let ax = mac::accessibility();
-        out.push(Check {
-            id: "accessibility",
-            label: "Accessibility",
-            ok: ax,
-            detail: if ax {
-                "granted".into()
-            } else {
-                "needed for the keyboard shortcut and pasting text".into()
-            },
-            fix: (!ax).then_some("accessibility"),
-        });
-        let im = mac::input_monitoring();
-        out.push(Check {
-            id: "input",
-            label: "Input Monitoring",
-            ok: im || tap_running,
-            detail: if im {
-                "granted".into()
-            } else if tap_running {
-                "not granted, but not needed while the keyboard hook runs".into()
-            } else {
-                "not granted".into()
-            },
-            fix: (!im && !tap_running).then_some("input"),
-        });
-    }
+    out.extend(platform::permission_checks(tap_running));
 
     let tap_error = hk.tap.error.lock().unwrap().clone();
     let reenabled = hk.tap.reenabled.load(Ordering::SeqCst);

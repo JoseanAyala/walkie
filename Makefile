@@ -46,17 +46,29 @@ package: ## Ad-hoc-signed release zip (what CI ships)
 
 fmt: ui-deps ## Format all code (Rust + Swift + UI)
 	cargo fmt --all
-	xcrun swift-format format --in-place --recursive $(SWIFT)
+	if command -v xcrun >/dev/null 2>&1; then \
+		xcrun swift-format format --in-place --recursive $(SWIFT); \
+	else \
+		echo "walkie: no xcrun — skipping Swift formatting (not on macOS)"; \
+	fi
 	cd $(UI_DIR) && bun run fmt
 
 fmt-check: ui-deps ## Fail if code isn't formatted
 	cargo fmt --all --check
-	for f in $(SWIFT)/*.swift; do xcrun swift-format format "$$f" | diff -u "$$f" - || exit 1; done
+	if command -v xcrun >/dev/null 2>&1; then \
+		for f in $(SWIFT)/*.swift; do xcrun swift-format format "$$f" | diff -u "$$f" - || exit 1; done; \
+	else \
+		echo "walkie: no xcrun — skipping Swift format check (not on macOS)"; \
+	fi
 	cd $(UI_DIR) && bun run biome format .
 
 lint: ui ## Clippy + swift-format + oxlint + Biome + svelte-check, warnings are errors
 	cargo clippy --workspace --all-targets --all-features -- -D warnings
-	xcrun swift-format lint --strict --recursive $(SWIFT)
+	if command -v xcrun >/dev/null 2>&1; then \
+		xcrun swift-format lint --strict --recursive $(SWIFT); \
+	else \
+		echo "walkie: no xcrun — skipping Swift lint (not on macOS)"; \
+	fi
 	cd $(UI_DIR) && bun run lint
 	cd $(UI_DIR) && bun run check
 

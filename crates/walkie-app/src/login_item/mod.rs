@@ -4,6 +4,14 @@
 
 use serde::Serialize;
 
+#[cfg_attr(target_os = "macos", path = "macos.rs")]
+#[cfg_attr(target_os = "linux", path = "linux.rs")]
+mod platform;
+
+// On non-macOS, `platform::status()` below only ever returns `NotFound`, so
+// nothing constructs the other variants there — expected until this gets a
+// Linux login-item implementation, not a bug.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
     Disabled,
@@ -18,6 +26,7 @@ pub enum Status {
 
 impl Status {
     /// SMAppServiceStatus: 0 notRegistered, 1 enabled, 2 requiresApproval, 3 notFound.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub fn from_raw(v: isize) -> Status {
         match v {
             0 => Status::Disabled,
@@ -93,7 +102,7 @@ pub fn status() -> Status {
     if !bundled() {
         return Status::Unbundled;
     }
-    mac::status()
+    platform::status()
 }
 
 /// Registers or unregisters, then returns the state macOS reports afterwards
@@ -101,20 +110,20 @@ pub fn status() -> Status {
 /// Whether macOS started walkie at login (vs. someone opening it). Only
 /// answerable during launch; None when it can't tell.
 pub fn launched_at_login() -> Option<bool> {
-    mac::launched_at_login()
+    platform::launched_at_login()
 }
 
 pub fn set(enabled: bool) -> Result<Status, String> {
     if !bundled() {
         return Err(UNBUNDLED.into());
     }
-    if needs_change(mac::status(), enabled) {
-        mac::set(enabled).map_err(|e| {
+    if needs_change(platform::status(), enabled) {
+        platform::set(enabled).map_err(|e| {
             let verb = if enabled { "turn on" } else { "turn off" };
             format!("couldn't {verb} launch at login: {e}")
         })?;
     }
-    let s = mac::status();
+    let s = platform::status();
     eprintln!("walkie: login item {}", s.name());
     Ok(s)
 }
@@ -143,101 +152,6 @@ pub fn cli() -> Option<i32> {
             1
         }
     })
-}
-
-#[cfg(target_os = "macos")]
-mod mac {
-    use super::Status;
-    use objc2::runtime::{AnyClass, AnyObject, Bool};
-    use objc2::{msg_send, rc::autoreleasepool};
-    use std::ffi::{c_char, CStr};
-
-    #[link(name = "ServiceManagement", kind = "framework")]
-    extern "C" {}
-
-    /// `SMAppService.mainApp`, or None before macOS 13.
-    fn main_app() -> Option<*mut AnyObject> {
-        let cls = AnyClass::get(c"SMAppService")?;
-        let svc: *mut AnyObject = unsafe { msg_send![cls, mainAppService] };
-        (!svc.is_null()).then_some(svc)
-    }
-
-    /// Reads the "open application" Apple event macOS launched us with;
-    /// it carries `keyAELaunchedAsLogInItem` when we're a login item. Only
-    /// current while the app is finishing launching (i.e. during setup).
-    /// None if there's no such event to read.
-    pub fn launched_at_login() -> Option<bool> {
-        const OPEN_APP: u32 = u32::from_be_bytes(*b"oapp"); // kAEOpenApplication
-        const PROP_DATA: u32 = u32::from_be_bytes(*b"prdt"); // keyAEPropData
-        const LOGIN_ITEM: u32 = u32::from_be_bytes(*b"lgit"); // keyAELaunchedAsLogInItem
-        autoreleasepool(|_| unsafe {
-            let mgr: *mut AnyObject = msg_send![
-                AnyClass::get(c"NSAppleEventManager")?,
-                sharedAppleEventManager
-            ];
-            let ev: *mut AnyObject = msg_send![mgr.as_ref()?, currentAppleEvent];
-            let ev = ev.as_ref()?;
-            let id: u32 = msg_send![ev, eventID];
-            if id != OPEN_APP {
-                return None;
-            }
-            let prop: *mut AnyObject = msg_send![ev, paramDescriptorForKeyword: PROP_DATA];
-            Some(match prop.as_ref() {
-                Some(p) => {
-                    let code: u32 = msg_send![p, enumCodeValue];
-                    code == LOGIN_ITEM
-                }
-                None => false,
-            })
-        })
-    }
-
-    pub fn status() -> Status {
-        autoreleasepool(|_| match main_app() {
-            Some(svc) => Status::from_raw(unsafe { msg_send![svc, status] }),
-            None => Status::NotFound,
-        })
-    }
-
-    pub fn set(enabled: bool) -> Result<(), String> {
-        autoreleasepool(|_| {
-            let svc = main_app().ok_or("launch at login needs macOS 13 or later")?;
-            let mut err: *mut AnyObject = std::ptr::null_mut();
-            let out = &mut err as *mut *mut AnyObject;
-            let ok: Bool = unsafe {
-                if enabled {
-                    msg_send![svc, registerAndReturnError: out]
-                } else {
-                    msg_send![svc, unregisterAndReturnError: out]
-                }
-            };
-            if ok.as_bool() {
-                return Ok(());
-            }
-            if err.is_null() {
-                return Err("unknown error".into());
-            }
-            unsafe {
-                let desc: *mut AnyObject = msg_send![err, localizedDescription];
-                let s: *const c_char = msg_send![desc, UTF8String];
-                Err(CStr::from_ptr(s).to_string_lossy().into_owned())
-            }
-        })
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-mod mac {
-    use super::Status;
-    pub fn status() -> Status {
-        Status::NotFound
-    }
-    pub fn launched_at_login() -> Option<bool> {
-        None
-    }
-    pub fn set(_: bool) -> Result<(), String> {
-        Err("launch at login is only supported on macOS".into())
-    }
 }
 
 #[cfg(test)]
