@@ -1,5 +1,5 @@
 use super::OutputVolume;
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::sync::OnceLock;
 
 /// The default sink's volume, read/written through `wpctl` (PipeWire) or,
@@ -33,14 +33,10 @@ fn backend() -> Backend {
     })
 }
 
+/// Looked up on PATH rather than run: `wpctl --version` exits 1.
 fn has_binary(bin: &str) -> bool {
-    Command::new(bin)
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    std::env::var_os("PATH")
+        .is_some_and(|path| std::env::split_paths(&path).any(|dir| dir.join(bin).is_file()))
 }
 
 fn run(bin: &str, args: &[&str]) -> Option<String> {
