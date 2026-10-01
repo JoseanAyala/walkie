@@ -29,6 +29,13 @@ describe("problems", () => {
     const cs = [check("accessibility", true), check("hook", false)];
     expect(ids(problems(cs))).toEqual(["hook"]);
   });
+
+  it("lists Linux's keyboard-access check like any other failing row", () => {
+    // No "accessibility" row on Linux, so keyboard-access (and a broken
+    // hook alongside it) isn't folded away.
+    const cs = [check("keyboard-access", false), check("hook", false)];
+    expect(ids(problems(cs))).toEqual(["keyboard-access", "hook"]);
+  });
 });
 
 describe("fixLabel", () => {
@@ -36,5 +43,9 @@ describe("fixLabel", () => {
     expect(fixLabel(check("mic", false, "not asked yet — Fix asks now"))).toBe("Allow");
     expect(fixLabel(check("mic", false, "denied"))).toBe("Fix");
     expect(fixLabel(check("accessibility", false))).toBe("Fix");
+  });
+
+  it("falls back to Fix for Linux's keyboard-access check", () => {
+    expect(fixLabel(check("keyboard-access", false, "can't open /dev/input/event*"))).toBe("Fix");
   });
 });
