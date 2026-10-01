@@ -32,6 +32,8 @@
           alsa-lib
           libxkbcommon
           wayland
+          # whisper.cpp's Vulkan backend (GPU transcription).
+          vulkan-loader
           # The overlay's layer-shell surface on wlr-layer-shell compositors
           # (Hyprland, etc.) — see crates/walkie-app/src/overlay/linux.rs.
           gtk-layer-shell
@@ -58,6 +60,9 @@
           ] ++ tauriLibs ++ runtimeLibs ++ pkgs.lib.optionals isLinux [
             xdotool
             patchelf
+            # Building whisper.cpp's Vulkan shaders.
+            vulkan-headers
+            shaderc
           ];
 
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";

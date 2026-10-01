@@ -47,6 +47,12 @@ pub fn setup(w: &WebviewWindow) {
     let _ = w.set_skip_taskbar(true);
 
     with_gtk_window(w, |gtk_win| {
+        // WALKIE_OVERLAY_PLAIN: skip layer-shell, to tell its problems
+        // apart from the webview's.
+        if std::env::var_os("WALKIE_OVERLAY_PLAIN").is_some() {
+            eprintln!("walkie: overlay: WALKIE_OVERLAY_PLAIN set, plain window");
+            return;
+        }
         if !gtk_layer_shell::is_supported() {
             eprintln!(
                 "walkie: overlay: no wlr-layer-shell here, falling back to a plain always-on-top window"

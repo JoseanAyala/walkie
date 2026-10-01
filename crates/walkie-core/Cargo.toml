@@ -21,8 +21,10 @@ core-foundation = "0.10"
 core-graphics = "0.25"
 whisper-rs = { version = "0.16.0", features = ["metal"] }
 
+# Vulkan is Linux's Metal here: one backend for NVIDIA, AMD and Intel GPUs,
+# no CUDA toolkit. Needs vulkan-loader/headers and glslc (flake.nix).
 [target.'cfg(not(target_os = "macos"))'.dependencies]
-whisper-rs = "0.16.0"
+whisper-rs = { version = "0.16.0", features = ["vulkan"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # The keyboard hook reads /dev/input directly (works on Wayland and X11).
