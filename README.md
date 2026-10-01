@@ -85,14 +85,21 @@ Settings). Failed transcriptions keep their audio in `~/.cache/walkie/spool/`.
 
 ## Linux
 
-Works on Wayland compositors; tested on NixOS + Hyprland. No packaged build
-yet — run it from a dev shell:
+Works on Wayland compositors; tested on NixOS + Hyprland. Try it with
+`nix run github:joseanayala/walkie/linux-port`, or install it on NixOS
+through the flake's module:
 
-```sh
-nix develop -c make run
+```nix
+# flake inputs: walkie.url = "github:joseanayala/walkie/linux-port";
+imports = [ walkie.nixosModules.default ];
+programs.walkie = {
+  enable = true;
+  package = walkie.packages.${pkgs.system}.walkie;
+  users = [ "you" ];  # joins `input` and `uinput`
+};
 ```
 
-A packaged `nix run` and a NixOS module are on the way; see `flake.nix`.
+From a checkout, `nix develop -c make run`.
 
 You'll need:
 

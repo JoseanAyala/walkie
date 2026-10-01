@@ -6,14 +6,24 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  # V1: dev shell only (Linux package + home-manager module land in v1.x,
-  # per the spec's platform tiering). walkie itself only *runs* on macOS
-  # today; this shell exists so the workspace builds and its unit tests pass
-  # on the NixOS machine too (no hotkey/ducking/etc. there yet — see
-  # AGENTS.md). On macOS prefer rustup + system clang instead of this shell
-  # (and the Linux-only packages/hooks below are skipped there, so the flake
-  # still evaluates).
+  # The dev shell works on both platforms (its Linux-only packages/hooks are
+  # skipped on darwin, so the flake still evaluates there), but the `walkie`
+  # package and NixOS module are Linux-only: see nix/package.nix and
+  # nix/module.nix. The `packages` output below is built with a *separate*
+  # `eachSystem` over just the Linux systems — not an `optionalAttrs isLinux`
+  # merged into the eachDefaultSystem result — because merging attrsets
+  # with `//` forces enough of the right-hand side to see its keys, which
+  # would force `pkgs.stdenv` (hence `isLinux`) for every default system,
+  # including darwin ones. That matters here because this nixpkgs pin has
+  # dropped x86_64-darwin support outright (`import nixpkgs { system =
+  # "x86_64-darwin"; }` throws as soon as its stdenv is forced) — so
+  # anything that forces stdenv for that system, even just to check
+  # `isLinux`, breaks evaluation there. Keeping `packages` out of the `//`
+  # entirely avoids ever constructing `pkgs` for a darwin system.
   outputs = { self, nixpkgs, flake-utils }:
+    let
+      linuxSystems = [ "x86_64-linux" "aarch64-linux" ];
+    in
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -87,5 +97,22 @@
             fi
           '';
         };
-      });
+      }) // flake-utils.lib.eachSystem linuxSystems (system:
+      let
+        pkgs = import nixpkgs { inherit system; };
+      in {
+        packages = rec {
+          walkie = pkgs.callPackage ./nix/package.nix { inherit self; };
+          default = walkie;
+        };
+      }) // {
+      nixosModules.default = import ./nix/module.nix;
+      # So `programs.walkie.package`'s default (`pkgs.walkie`) resolves for
+      # anyone who adds this to their own `nixpkgs.overlays`; the module
+      # itself doesn't force this (overlay bodies aren't evaluated just by
+      # existing), so it's free even for darwin consumers.
+      overlays.default = final: prev: prev.lib.optionalAttrs prev.stdenv.hostPlatform.isLinux {
+        walkie = final.callPackage ./nix/package.nix { inherit self; };
+      };
+    };
 }
