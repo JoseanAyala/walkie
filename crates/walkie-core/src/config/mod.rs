@@ -201,7 +201,7 @@ impl Default for Hotkeys {
         Self {
             dictate: v(&[crate::hotkey::tap::DEFAULT_DICTATE_KEY]),
             polish: v(&["Fn", "Shift"]),
-            paste_last: v(&["Ctrl", "Cmd", "V"]),
+            paste_last: v(crate::hotkey::tap::DEFAULT_PASTE_LAST),
         }
     }
 }
@@ -323,7 +323,7 @@ mod tests {
         assert_eq!(c.model, "large-v3-turbo-q5_0");
         assert_eq!(c.hotkeys.dictate, [crate::hotkey::tap::DEFAULT_DICTATE_KEY]);
         assert_eq!(c.hotkeys.polish, ["Fn", "Shift"]);
-        assert_eq!(c.hotkeys.paste_last, ["Ctrl", "Cmd", "V"]);
+        assert_eq!(c.hotkeys.paste_last, crate::hotkey::tap::DEFAULT_PASTE_LAST);
         assert_eq!(c.polish.provider, PolishProvider::Command);
         assert_eq!(c.polish.tone, Tone::Formal);
         assert_eq!(c.polish.command, "");

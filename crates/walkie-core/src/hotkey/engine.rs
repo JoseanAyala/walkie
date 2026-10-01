@@ -392,12 +392,48 @@ mod tests {
     fn default_config_parses_to_wispr_bindings() {
         let (b, errs) = Bindings::from_config(&Hotkeys::default());
         assert!(errs.is_empty(), "{errs:?}");
-        // dictate's default is platform-specific (see
-        // `tap::DEFAULT_DICTATE_KEY`); everything else matches `wispr()`.
+        // dictate and paste_last's defaults are platform-specific (see
+        // `tap::DEFAULT_DICTATE_KEY` / `tap::DEFAULT_PASTE_LAST`); polish
+        // matches `wispr()` on both.
         let mut expected = wispr().bindings;
         expected.dictate =
             keys::parse_binding(&[crate::hotkey::tap::DEFAULT_DICTATE_KEY.to_string()]).unwrap();
+        expected.paste_last = keys::parse_binding(
+            &crate::hotkey::tap::DEFAULT_PASTE_LAST
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
         assert_eq!(b, expected);
+    }
+
+    /// Linux's factory defaults (`tap::DEFAULT_DICTATE_KEY` = "RightCtrl",
+    /// `tap::DEFAULT_PASTE_LAST` = ["RightCtrl", "V"]) make the dictate key
+    /// double as the first key of the paste-last chord — the same shape as
+    /// `paste_last_chord_that_starts_with_the_dictate_key_pastes` above, but
+    /// pinned to the real config strings so a future change to either
+    /// default (or to the collision check) has to keep this working.
+    #[test]
+    fn linux_default_paste_last_chord_starts_with_the_dictate_key_and_still_pastes() {
+        let v = |k: &[&str]| k.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let (b, errs) = Bindings::from_config(&Hotkeys {
+            dictate: v(&["RightCtrl"]),
+            polish: v(&["Fn", "Shift"]),
+            paste_last: v(&["RightCtrl", "V"]),
+        });
+        assert!(errs.is_empty(), "flagged as a collision: {errs:?}");
+        assert_eq!(b.paste_last, vec![Key::Ctrl(Right), V]);
+
+        let mut e = Engine::new(b);
+        assert_eq!(e.on_key(Key::Ctrl(Right), true, 0).signal, Some(Start));
+        let down = e.on_key(V, true, 10);
+        assert_eq!(down.signal, Some(Cancel), "the recording is dropped");
+        assert!(down.swallow, "the V must not reach the focused app");
+        assert_eq!(
+            run(&mut e, &[(V, false, 20), (Key::Ctrl(Right), false, 30)]),
+            vec![PasteLast]
+        );
     }
 
     #[test]

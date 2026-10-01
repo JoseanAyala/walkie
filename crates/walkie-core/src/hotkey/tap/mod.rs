@@ -17,4 +17,4 @@ pub struct TapStatus {
 #[cfg_attr(target_os = "macos", path = "macos.rs")]
 #[cfg_attr(target_os = "linux", path = "linux.rs")]
 mod platform;
-pub use platform::{spawn, DEFAULT_DICTATE_KEY};
+pub use platform::{spawn, DEFAULT_DICTATE_KEY, DEFAULT_PASTE_LAST};

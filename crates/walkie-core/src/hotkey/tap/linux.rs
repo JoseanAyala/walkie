@@ -31,6 +31,15 @@ use std::time::{Duration, Instant};
 /// and both bare hands can still reach it.
 pub const DEFAULT_DICTATE_KEY: &str = "RightCtrl";
 
+/// The factory default for `hotkeys.paste_last` (see `config::Hotkeys`):
+/// macOS's default is `Ctrl+Cmd+V`, but Cmd is Super on Linux, which
+/// Hyprland (and most other compositors/WMs) already claims. Right Ctrl+V
+/// reuses the dictate key, which the engine's chord-starts-with-dictate-key
+/// handling (see `hotkey::engine::Engine::down`) is built to allow: holding
+/// Right Ctrl begins a recording, but adding V before release cancels it
+/// and pastes instead.
+pub const DEFAULT_PASTE_LAST: &[&str] = &["RightCtrl", "V"];
+
 /// How often we re-scan `/dev/input` for devices that appeared (a keyboard
 /// plugged in, or `udev` finishing its permission dance after boot) or that
 /// a reader thread had to drop. Simpler than wiring up inotify, and the
@@ -64,12 +73,22 @@ pub fn spawn(
     }
 
     let active_paths: Arc<Mutex<HashSet<PathBuf>>> = Arc::new(Mutex::new(HashSet::new()));
+    // Paths opened and found *not* to be a keyboard (a mouse, a webcam's
+    // snapshot key, ...): skip them on future scans instead of reopening
+    // every device under /dev/input every `RESCAN` tick. Forgotten once the
+    // path drops out of a scan, so a different device replugged at the same
+    // path gets a fresh check.
+    let rejected_paths: Mutex<HashSet<PathBuf>> = Mutex::new(HashSet::new());
     let active_count = Arc::new(AtomicUsize::new(0));
 
     std::thread::spawn(move || loop {
         let mut permission_denied = false;
-        for path in scan_candidate_paths() {
-            if active_paths.lock().unwrap().contains(&path) {
+        let candidates = scan_candidate_paths();
+        prune_rejected(&mut rejected_paths.lock().unwrap(), &candidates);
+        for path in candidates {
+            if active_paths.lock().unwrap().contains(&path)
+                || rejected_paths.lock().unwrap().contains(&path)
+            {
                 continue;
             }
             let device = match Device::open(&path) {
@@ -86,6 +105,7 @@ pub fn spawn(
                 .map(|ks| ks.iter().map(|k| k.code()).collect())
                 .unwrap_or_default();
             if !looks_like_keyboard(&codes) {
+                rejected_paths.lock().unwrap().insert(path.clone());
                 continue;
             }
 
@@ -177,6 +197,14 @@ fn read_device(
             }
         }
     }
+}
+
+/// Drops any remembered-rejected path that didn't show up in this scan's
+/// `seen` paths — so a device unplugged and replaced by a different one at
+/// the same `/dev/input/eventN` node gets re-checked instead of staying
+/// rejected forever based on the device that used to be there.
+fn prune_rejected(rejected: &mut HashSet<PathBuf>, seen: &[PathBuf]) {
+    rejected.retain(|p| seen.contains(p));
 }
 
 /// `/dev/input/event*` paths, in whatever order `read_dir` gives them.
@@ -416,6 +444,40 @@ mod tests {
             "can't read /dev/input — add yourself to the input group"
         );
         assert!(status_message(0, false).unwrap().contains("no keyboard"));
+    }
+
+    #[test]
+    fn prune_rejected_drops_paths_missing_from_the_scan() {
+        let mut rejected: HashSet<PathBuf> = [
+            PathBuf::from("/dev/input/event1"),
+            PathBuf::from("/dev/input/event2"),
+        ]
+        .into_iter()
+        .collect();
+        // event1 is still there (still not a keyboard); event2 vanished —
+        // forget it so a different device at that path gets re-checked.
+        prune_rejected(&mut rejected, &[PathBuf::from("/dev/input/event1")]);
+        assert_eq!(
+            rejected,
+            [PathBuf::from("/dev/input/event1")].into_iter().collect()
+        );
+    }
+
+    #[test]
+    fn prune_rejected_is_a_no_op_when_nothing_disappeared() {
+        let mut rejected: HashSet<PathBuf> =
+            [PathBuf::from("/dev/input/event0")].into_iter().collect();
+        prune_rejected(
+            &mut rejected,
+            &[
+                PathBuf::from("/dev/input/event0"),
+                PathBuf::from("/dev/input/event1"),
+            ],
+        );
+        assert_eq!(
+            rejected,
+            [PathBuf::from("/dev/input/event0")].into_iter().collect()
+        );
     }
 
     #[test]

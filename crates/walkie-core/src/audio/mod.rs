@@ -100,6 +100,8 @@ pub struct CpalCapture {
     buf: Arc<Mutex<Vec<f32>>>,
     rate: u32,
     channels: u16,
+    /// The device `start` actually recorded from, for the near-silence hint.
+    device_name: String,
 }
 
 impl Default for CpalCapture {
@@ -115,6 +117,7 @@ impl CpalCapture {
             buf: Arc::new(Mutex::new(Vec::new())),
             rate: 16_000,
             channels: 1,
+            device_name: String::new(),
         }
     }
 }
@@ -137,6 +140,7 @@ impl Capture for CpalCapture {
         // silence, so without this line a silent recording is indistinguishable
         // from a broken mic or a denied permission.
         eprintln!("walkie: recording from {device}");
+        self.device_name = device.to_string();
         self.rate = cfg.sample_rate();
         self.channels = cfg.channels();
         let buf = self.buf.clone();
@@ -187,13 +191,30 @@ impl Capture for CpalCapture {
         LAST_CAPTURE_SILENT.store(silent, Ordering::Relaxed);
         if silent {
             eprintln!(
-                "walkie: captured {:.1}s of near-silence — check System Settings \
-                 → Sound → Input, and that the mic permission is granted",
-                mono.len() as f32 / self.rate as f32
+                "walkie: captured {:.1}s of near-silence — {}",
+                mono.len() as f32 / self.rate as f32,
+                silence_hint(&self.device_name)
             );
         }
         Ok(dsp::resample_16k(&mono, self.rate))
     }
+}
+
+/// Where to check, platform by platform, when a recording came back silent.
+/// macOS's input permission model and Linux's device routing have nothing in
+/// common, so this is a pair of small functions rather than `cfg`s threaded
+/// through the one message above.
+#[cfg(target_os = "macos")]
+fn silence_hint(_device: &str) -> String {
+    "check System Settings → Sound → Input, and that the mic permission is granted".to_string()
+}
+
+#[cfg(target_os = "linux")]
+fn silence_hint(device: &str) -> String {
+    format!(
+        "check `wpctl status` and that {device:?} is the mic you meant — or pick a \
+         different one in walkie's Settings"
+    )
 }
 
 /// A WAV file standing in for the microphone: every recording "hears" it.

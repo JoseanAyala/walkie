@@ -26,6 +26,11 @@ use std::time::Instant;
 /// Globe/Fn key, which has no other use on a Mac keyboard.
 pub const DEFAULT_DICTATE_KEY: &str = "Fn";
 
+/// The factory default for `hotkeys.paste_last` (see `config::Hotkeys`):
+/// macOS's own paste chord, held a beat longer — the extra Ctrl is what
+/// turns a normal ⌘V into "paste the last transcript" instead.
+pub const DEFAULT_PASTE_LAST: &[&str] = &["Ctrl", "Cmd", "V"];
+
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
     fn CGEventTapEnable(tap: CFMachPortRef, enable: bool);
