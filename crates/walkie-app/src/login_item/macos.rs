@@ -2,9 +2,22 @@ use super::Status;
 use objc2::runtime::{AnyClass, AnyObject, Bool};
 use objc2::{msg_send, rc::autoreleasepool};
 use std::ffi::{c_char, CStr};
+use std::path::Path;
 
 #[link(name = "ServiceManagement", kind = "framework")]
 extern "C" {}
+
+fn in_app_bundle(exe: &Path) -> bool {
+    exe.to_string_lossy().contains(".app/Contents/MacOS/")
+}
+
+/// Whether there's a stable, launchable copy of walkie to register as a
+/// login item: SMAppService only makes sense from inside an app bundle, so
+/// a dev run (`cargo tauri dev`, from `target/debug`) has nothing to offer
+/// it.
+pub fn bundled() -> bool {
+    std::env::current_exe().is_ok_and(|p| in_app_bundle(&p))
+}
 
 /// `SMAppService.mainApp`, or None before macOS 13.
 fn main_app() -> Option<*mut AnyObject> {
@@ -74,4 +87,19 @@ pub fn set(enabled: bool) -> Result<(), String> {
             Err(CStr::from_ptr(s).to_string_lossy().into_owned())
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_running_from_an_app_bundle() {
+        assert!(in_app_bundle(Path::new(
+            "/Applications/Walkie.app/Contents/MacOS/walkie"
+        )));
+        assert!(!in_app_bundle(Path::new(
+            "/Users/me/dev/walkie/target/debug/walkie"
+        )));
+    }
 }

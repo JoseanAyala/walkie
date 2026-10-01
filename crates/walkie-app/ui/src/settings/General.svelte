@@ -9,8 +9,9 @@ import { settings } from "./state.svelte";
 
 const cfg = $derived(settings.cfg);
 
-// ---- launch at login: macOS owns this, so it's applied on toggle and
-// read back live (never saved in the config)
+// ---- launch at login: the OS (or, on Linux, the autostart file) owns
+// this, so it's applied on toggle and read back live (never saved in the
+// config)
 let login = $state<LoginItem | null>(null);
 async function loadLogin() {
   try {
