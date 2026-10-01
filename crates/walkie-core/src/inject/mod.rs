@@ -1,3 +1,4 @@
+mod chord;
 pub mod focus;
 
 use anyhow::{Context, Result};
@@ -101,13 +102,16 @@ const COPY_WAIT_MS: u64 = 500;
 /// (see `focus::wants_shift_paste`).
 fn shortcut(main: &Option<MainThread>, ch: char) -> Result<()> {
     on_main(main, move || {
+        let shift = ch == 'v' && focus::wants_shift_paste();
+        if let Some(r) = chord::send(ch, shift) {
+            return r;
+        }
         let mut enigo = enigo()?;
         let modk = if cfg!(target_os = "macos") {
             Key::Meta
         } else {
             Key::Control
         };
-        let shift = ch == 'v' && focus::wants_shift_paste();
         enigo.key(modk, Direction::Press)?;
         if shift {
             enigo.key(Key::Shift, Direction::Press)?;
