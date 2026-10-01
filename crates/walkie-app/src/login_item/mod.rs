@@ -1,6 +1,8 @@
-//! Launch at login via SMAppService.mainApp (macOS 13+), so walkie shows up
-//! in System Settings → General → Login Items. macOS owns the on/off state;
-//! nothing is kept in the config, it's read live every time.
+//! Launch at login. macOS: `SMAppService.mainApp` (macOS 13+), so walkie
+//! shows up in System Settings → General → Login Items. Linux: an XDG
+//! autostart `.desktop` file under `$XDG_CONFIG_HOME/autostart` (see
+//! `linux.rs`). Either way the OS (or the filesystem) owns the on/off
+//! state; nothing is kept in the config, it's read live every time.
 
 use serde::Serialize;
 
@@ -8,24 +10,26 @@ use serde::Serialize;
 #[cfg_attr(target_os = "linux", path = "linux.rs")]
 mod platform;
 
-// On non-macOS, `platform::status()` below only ever returns `NotFound`, so
-// nothing constructs the other variants there — expected until this gets a
-// Linux login-item implementation, not a bug.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
     Disabled,
     Enabled,
-    /// Registered, but the user has to allow it in Login Items first.
+    /// macOS only: registered, but the user has to allow it in Login Items
+    /// first. Linux's autostart file has no equivalent approval step.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     RequiresApproval,
+    /// macOS: can't find Walkie.app. Linux: couldn't resolve a directory to
+    /// write the autostart entry under (no `$HOME`).
     NotFound,
     /// Not running from an .app bundle (`cargo tauri dev`): there is nothing
-    /// macOS could launch.
+    /// macOS could launch. Linux's `bundled()` is always true (an XDG
+    /// autostart entry works from anywhere), so this is macOS-only too.
     Unbundled,
 }
 
 impl Status {
     /// SMAppServiceStatus: 0 notRegistered, 1 enabled, 2 requiresApproval, 3 notFound.
+    /// macOS-only: nothing on Linux constructs a `Status` from a raw int.
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub fn from_raw(v: isize) -> Status {
         match v {
@@ -57,7 +61,11 @@ impl Status {
             Status::RequiresApproval => {
                 Some("macOS needs your approval: allow walkie in System Settings → General → Login Items.")
             }
-            Status::NotFound => Some("macOS can't find Walkie.app — reinstall it in /Applications."),
+            Status::NotFound => Some(if cfg!(target_os = "macos") {
+                "macOS can't find Walkie.app — reinstall it in /Applications."
+            } else {
+                "walkie couldn't find a config directory to write its autostart entry to (no $HOME)."
+            }),
             Status::Unbundled => Some(UNBUNDLED),
             Status::Disabled | Status::Enabled => None,
         }
@@ -85,12 +93,10 @@ impl From<Status> for LoginItem {
     }
 }
 
-fn in_app_bundle(exe: &std::path::Path) -> bool {
-    exe.to_string_lossy().contains(".app/Contents/MacOS/")
-}
-
+/// Whether there's a stable, launchable copy of walkie to point a login
+/// item at — see `macos::bundled`/`linux::bundled`.
 fn bundled() -> bool {
-    std::env::current_exe().is_ok_and(|p| in_app_bundle(&p))
+    platform::bundled()
 }
 
 /// Whether `set(enabled)` has anything to do from `current`.
@@ -105,14 +111,16 @@ pub fn status() -> Status {
     platform::status()
 }
 
-/// Registers or unregisters, then returns the state macOS reports afterwards
-/// (which may be RequiresApproval rather than Enabled).
-/// Whether macOS started walkie at login (vs. someone opening it). Only
-/// answerable during launch; None when it can't tell.
+/// Whether the OS started walkie at login (vs. someone opening it by hand).
+/// Only answerable during/soon after launch on macOS; always answerable on
+/// Linux. None when it can't tell.
 pub fn launched_at_login() -> Option<bool> {
     platform::launched_at_login()
 }
 
+/// Registers or unregisters, then returns the state the OS reports
+/// afterwards (which may be RequiresApproval rather than Enabled, on
+/// macOS).
 pub fn set(enabled: bool) -> Result<Status, String> {
     if !bundled() {
         return Err(UNBUNDLED.into());
@@ -157,12 +165,12 @@ pub fn cli() -> Option<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     #[test]
     fn a_test_run_is_not_a_login_launch() {
-        // No launch Apple event here: must never read as "at login", or a
-        // hand launch would stay silent.
+        // No launch Apple event (macOS) and no --autostarted (Linux) here:
+        // must never read as "at login", or a hand launch would stay
+        // silent.
         assert_ne!(launched_at_login(), Some(true));
     }
 
@@ -203,15 +211,5 @@ mod tests {
         assert!(needs_change(Status::RequiresApproval, false));
         assert!(needs_change(Status::Enabled, false));
         assert!(!needs_change(Status::Disabled, false));
-    }
-
-    #[test]
-    fn detects_running_from_an_app_bundle() {
-        assert!(in_app_bundle(Path::new(
-            "/Applications/Walkie.app/Contents/MacOS/walkie"
-        )));
-        assert!(!in_app_bundle(Path::new(
-            "/Users/me/dev/walkie/target/debug/walkie"
-        )));
     }
 }
