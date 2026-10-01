@@ -25,13 +25,15 @@ fn main() {
         std::process::exit(code);
     }
     logfile::init();
-    // NVIDIA under Wayland: WebKitGTK's DMA-BUF renderer trips the driver's
+    // NVIDIA under Wayland: WebKitGTK's GPU rendering trips the driver's
     // explicit sync ("Missing acquire timeline") and the compositor drops
-    // the connection, killing the app. Set before GTK starts; a value the
-    // user already exported wins.
+    // the connection, killing the app. Turning explicit sync off in the
+    // driver keeps the DMA-BUF renderer, which the overlay's transparency
+    // needs (WEBKIT_DISABLE_DMABUF_RENDERER painted it opaque). Ignored by
+    // other drivers. Set before GTK starts; a value already exported wins.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    if std::env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {
+        std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
     }
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
