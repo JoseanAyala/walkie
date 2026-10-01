@@ -24,6 +24,11 @@ block2 = "0.6"
 # (set in tauri.macos.conf.json), which is only true on that platform.
 tauri = { version = "2", features = ["macos-private-api"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# Same clipboard crate, same feature as walkie-core — see
+# `walkie_core::inject::PasteInjector`'s doc.
+arboard = { version = "3.6.1", features = ["wayland-data-control"] }
+
 [features]
 # Lets the OS e2e suite swap the mic for a WAV (WALKIE_TEST_AUDIO). Never on
 # in shipped builds; e2e/run-app-tests.sh turns it on.

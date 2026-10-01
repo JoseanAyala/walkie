@@ -1,6 +1,9 @@
-//! "Is there anywhere to paste?" — asks the Accessibility API what has
-//! keyboard focus before injecting, so dictating at the desktop or a Finder
-//! window leaves the text on the clipboard instead of silently losing it.
+//! "Is there anywhere to paste?" — asks the Accessibility API (macOS) what
+//! has keyboard focus before injecting, so dictating at the desktop or a
+//! Finder window leaves the text on the clipboard instead of silently
+//! losing it. Linux has no such query yet (see `linux.rs`), so `probe`
+//! always answers `Failed` there, which `classify` below treats the same
+//! as "can't tell" — paste anyway.
 //!
 //! Deliberately biased towards pasting: a wrong "no field" makes a working
 //! paste fail, while a wrong "editable" just behaves like before. Browsers,
@@ -82,7 +85,7 @@ pub fn current() -> Focus {
 #[cfg_attr(target_os = "macos", path = "macos.rs")]
 #[cfg_attr(target_os = "linux", path = "linux.rs")]
 mod platform;
-pub use platform::{frontmost, probe, selected_text};
+pub use platform::{frontmost, probe, selected_text, wants_shift_paste};
 
 #[cfg(test)]
 mod tests {
