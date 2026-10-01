@@ -24,6 +24,17 @@ whisper-rs = { version = "0.16.0", features = ["metal"] }
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 whisper-rs = "0.16.0"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# zwp_virtual_keyboard_v1, which Hyprland (and other wlroots compositors)
+# support; enigo still also builds its default x11rb backend for plain X11
+# sessions — see `inject::disable_x11_fallback` for why only one of the two
+# ends up actually talking to anything at runtime.
+enigo = { version = "0.6.1", features = ["wayland"] }
+# wl-clipboard-rs's data-control protocol; see `inject::PasteInjector`'s
+# doc for how its background-serving default interacts with the paste
+# sequence.
+arboard = { version = "3.6.1", features = ["wayland-data-control"] }
+
 [features]
 stt-tests = []
 

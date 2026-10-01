@@ -119,6 +119,12 @@ pub fn selected_text() -> Option<String> {
         .map(|s| s.to_string())
 }
 
+/// Plain ⌘V always pastes on macOS; the Ctrl+Shift+V quirk that
+/// `wants_shift_paste` detects is specific to Linux terminal emulators.
+pub fn wants_shift_paste() -> bool {
+    false
+}
+
 /// A handful of AX round-trips (~1ms total); a hung app costs at most
 /// the messaging timeout per call before we give up and paste anyway.
 pub fn probe() -> Probe {

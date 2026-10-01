@@ -38,8 +38,36 @@ pub const SYNTHETIC_EVENT_MARKER: i64 = 0x7761_6c6b_6965; // "walkie"
 fn enigo_settings() -> Settings {
     Settings {
         event_source_user_data: Some(SYNTHETIC_EVENT_MARKER),
+        x11_display: disable_x11_fallback(),
         ..Settings::default()
     }
+}
+
+/// On Linux, enigo is built with both its Wayland and X11 backends (see
+/// `walkie-core/Cargo.toml`); if both connect it fires every keystroke
+/// through both of them, which on Hyprland means typing twice — XWayland
+/// leaves `$DISPLAY` set on a pure-Wayland session, so the X11 backend
+/// connects too unless stopped. When `$WAYLAND_DISPLAY` is set, hand enigo
+/// a syntactically invalid X11 display name: `x11rb::connect` rejects it in
+/// `parse_display`, before any socket I/O, so the X11 connection reliably
+/// fails and only the Wayland virtual-keyboard path runs. Settings has no
+/// "don't even try X11" switch, so this is the only lever available.
+#[cfg(target_os = "linux")]
+fn disable_x11_fallback() -> Option<String> {
+    x11_display_override(std::env::var_os("WAYLAND_DISPLAY").is_some())
+}
+
+/// The invalid-on-purpose display name `disable_x11_fallback` passes
+/// through, split out so it's testable without touching the real
+/// environment (tests run in parallel and share it).
+#[cfg(target_os = "linux")]
+fn x11_display_override(wayland_session: bool) -> Option<String> {
+    wayland_session.then(|| "walkie-no-x11".to_string())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn disable_x11_fallback() -> Option<String> {
+    None
 }
 
 fn enigo() -> Result<Enigo> {
@@ -67,7 +95,10 @@ pub trait Injector {
 /// main thread, so it isn't instant.
 const COPY_WAIT_MS: u64 = 500;
 
-/// Presses ⌘ (Ctrl elsewhere) + `ch` in the focused app.
+/// Presses ⌘ (Ctrl elsewhere) + `ch` in the focused app. For a paste ('v')
+/// on Linux, adds Shift when the focused window is a terminal that binds
+/// plain Ctrl+V to something else of its own and uses Ctrl+Shift+V instead
+/// (see `focus::wants_shift_paste`).
 fn shortcut(main: &Option<MainThread>, ch: char) -> Result<()> {
     on_main(main, move || {
         let mut enigo = enigo()?;
@@ -76,8 +107,15 @@ fn shortcut(main: &Option<MainThread>, ch: char) -> Result<()> {
         } else {
             Key::Control
         };
+        let shift = ch == 'v' && focus::wants_shift_paste();
         enigo.key(modk, Direction::Press)?;
+        if shift {
+            enigo.key(Key::Shift, Direction::Press)?;
+        }
         let r = enigo.key(Key::Unicode(ch), Direction::Click);
+        if shift {
+            enigo.key(Key::Shift, Direction::Release)?;
+        }
         enigo.key(modk, Direction::Release)?; // never leave Cmd stuck down
         Ok(r?)
     })
@@ -145,6 +183,18 @@ fn copy_if_no_field(text: &str) -> Result<Option<Injected>> {
 
 /// Save clipboard → set text → paste keystroke → restore clipboard.
 /// Fast and accent-safe (Spanish text arrives as one paste, not keystrokes).
+///
+/// On Linux/Wayland (the `wayland-data-control` feature), `arboard`'s
+/// `set_text` hands the content to `wl-clipboard-rs`, which by default
+/// forks a short-lived background process to keep serving it to whoever
+/// asks — the same thing the `wl-copy` CLI does — so the text (both the
+/// transcript and, moments later, the restored original) stays on the
+/// clipboard after `cb` is dropped at the end of this function, without
+/// blocking this thread. That's `arboard::SetExtLinux`'s *default*
+/// behavior; its `.wait()`/`.wait_until()` opt-in does the opposite —
+/// blocks the caller in the foreground until the clipboard is next
+/// overwritten — which would hang the session's worker thread, so this
+/// code must never call them.
 pub struct PasteInjector {
     pub restore_ms: u64,
     pub main: Option<MainThread>,
@@ -251,5 +301,12 @@ mod tests {
     fn a_runner_that_drops_the_job_is_an_error_not_a_panic() {
         let runner: MainThread = Arc::new(drop);
         assert!(on_main(&Some(runner), || Ok(())).is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn x11_fallback_is_disabled_only_on_a_wayland_session() {
+        assert_eq!(x11_display_override(true), Some("walkie-no-x11".into()));
+        assert_eq!(x11_display_override(false), None);
     }
 }

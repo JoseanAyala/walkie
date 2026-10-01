@@ -34,6 +34,9 @@ gtk = "0.18"
 # lib (flake.nix's `runtimeLibs`). `v0_6` (which implies v0_5/v0_4) is off
 # by default; it's what gates `is_supported`/`set_keyboard_mode`.
 gtk-layer-shell = { version = "0.8", features = ["v0_6"] }
+# Same clipboard crate, same feature as walkie-core — see
+# `walkie_core::inject::PasteInjector`'s doc.
+arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 
 [features]
 # Lets the OS e2e suite swap the mic for a WAV (WALKIE_TEST_AUDIO). Never on
